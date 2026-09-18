@@ -98,7 +98,7 @@ export function CountdownDigits({
       <p className={`mt-2 font-semibold ${theme.accentText} ${compact ? 'text-xs' : 'text-sm'}`}>
         {untilLabel}
       </p>
-      {title && remaining.isPast ? (
+      {title && (remaining.isPast || remaining.days === 0) ? (
         <p className={`mt-2 font-bold text-foreground ${compact ? 'text-sm' : 'text-base'}`}>
           {title}
         </p>
