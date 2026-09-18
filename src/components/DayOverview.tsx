@@ -21,6 +21,8 @@ import { eventIsWorkdayLayer, itineraryLabels } from '@/lib/vacationMode';
 import { resolveCategoryLabel } from '@/lib/categoryPresentation';
 import type { EventCategory } from '@/lib/eventCategories';
 import VacationQuickAdd from '@/components/VacationQuickAdd';
+import VacationModeToggle from '@/components/VacationModeToggle';
+import DayListItems from '@/components/DayListItems';
 
 export interface DayOverviewProps {
   date: Date;
@@ -37,7 +39,6 @@ export interface DayOverviewProps {
   onPickCountdown?: (countdown: CountdownWithParticipants) => void;
   onCreateForDate: (date: Date) => void;
   onCreateCountdown?: (date: Date) => void;
-  onSeeList: () => void;
   onSeedWeek?: () => void;
 }
 
@@ -55,7 +56,6 @@ const DayOverview = ({
   onPickCountdown,
   onCreateForDate,
   onCreateCountdown,
-  onSeeList,
   onSeedWeek,
 }: DayOverviewProps) => {
   const { t, locale, dateLocale } = useLocale();
@@ -78,17 +78,6 @@ const DayOverview = ({
           {t('event.fillWeek')}
         </button>
       )}
-      <button
-        type="button"
-        onClick={onSeeList}
-        className={`w-full rounded-2xl py-3.5 font-semibold ${
-          canSeedWeek && events.length === 0
-            ? 'bg-muted text-foreground'
-            : 'bg-primary text-primary-foreground'
-        }`}
-      >
-        {t('event.seeList')}
-      </button>
       {showCountdownCta && (
         <button
           type="button"
@@ -98,6 +87,7 @@ const DayOverview = ({
           {t('countdown.new')}
         </button>
       )}
+      {vacation.enabledForCalendar && <VacationModeToggle />}
       <button
         type="button"
         onClick={() => onCreateForDate(date)}
@@ -300,6 +290,14 @@ const DayOverview = ({
                 </button>
               );
             })
+        )}
+
+        {householdId && _currentMemberId && (
+          <DayListItems
+            date={date}
+            householdId={householdId}
+            currentMemberId={_currentMemberId}
+          />
         )}
 
         {vacationOn && householdId && (

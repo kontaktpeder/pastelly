@@ -484,7 +484,42 @@ export type VacationEventLike = {
   category?: string | null;
   isOverlay?: boolean;
   sourceHouseholdKind?: string | null;
+  event_date?: string;
+  end_date?: string | null;
 };
+
+export type YmdRange = { start: string; end: string };
+
+export function vacationVisibleYmdRange(
+  snapshot: VacationModeSnapshot,
+  prefs: VacationModePrefs,
+  now: Date,
+  fallbackTimeZone: string,
+): YmdRange | null {
+  if (!snapshot.active) return null;
+  if (snapshot.activePeriods.length > 0) {
+    const starts = snapshot.activePeriods.map((p) => getZonedParts(p.startAt, p.timeZone).dateStr);
+    const ends = snapshot.activePeriods.map((p) => getZonedParts(p.endAt, p.timeZone).dateStr);
+    return { start: starts.reduce((a, b) => (a < b ? a : b)), end: ends.reduce((a, b) => (a > b ? a : b)) };
+  }
+  if (prefs.manualUntil) {
+    const tz = resolveTimeZone(fallbackTimeZone);
+    return {
+      start: getZonedParts(now, tz).dateStr,
+      end: getZonedParts(new Date(prefs.manualUntil), tz).dateStr,
+    };
+  }
+  return null;
+}
+
+export function eventOverlapsYmdRange(
+  event: { event_date?: string; end_date?: string | null },
+  range: YmdRange,
+): boolean {
+  if (!event.event_date) return true;
+  const end = event.end_date || event.event_date;
+  return event.event_date <= range.end && end >= range.start;
+}
 
 export function eventIsWorkdayLayer(event: VacationEventLike): boolean {
   if (event.isOverlay && (event.sourceHouseholdKind || '').toLowerCase() === 'work') return true;
@@ -494,10 +529,19 @@ export function eventIsWorkdayLayer(event: VacationEventLike): boolean {
 /** Filter calendar events for the vacation layer. Never deletes; only hides. */
 export function filterEventsForVacationLayer<T extends VacationEventLike>(
   events: T[],
-  opts: { vacationActive: boolean; revealHidden: boolean; hideWorkdayEvents: boolean },
+  opts: {
+    vacationActive: boolean;
+    revealHidden: boolean;
+    hideWorkdayEvents: boolean;
+    dateRange?: YmdRange | null;
+  },
 ): T[] {
-  if (!opts.vacationActive || opts.revealHidden || !opts.hideWorkdayEvents) return events;
-  return events.filter((ev) => !eventIsWorkdayLayer(ev));
+  let next = events;
+  if (opts.vacationActive && opts.dateRange) {
+    next = next.filter((ev) => eventOverlapsYmdRange(ev, opts.dateRange!));
+  }
+  if (!opts.vacationActive || opts.revealHidden || !opts.hideWorkdayEvents) return next;
+  return next.filter((ev) => !eventIsWorkdayLayer(ev));
 }
 
 export function shouldMuteEventNotification(

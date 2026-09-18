@@ -197,6 +197,7 @@ export const nb = {
   'event.overlayHint': 'Vises her fra en annen kalender som tidspunkt',
   'event.newActivity': 'Ny aktivitet',
   'event.seeList': 'Se liste',
+  'event.addListItem': 'Legg til punkt…',
   'event.list': 'Liste',
   'event.selectedDay': 'Valgt dag',
   'event.backToDay': 'Oversikt',

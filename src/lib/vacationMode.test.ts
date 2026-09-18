@@ -251,6 +251,18 @@ describe('event layer', () => {
     ).toEqual(events);
   });
 
+  it('hides events outside the vacation start and end', () => {
+    const inTrip = { category: 'beach', event_date: '2026-10-05' };
+    const afterTrip = { category: 'beach', event_date: '2026-10-20' };
+    const filtered = filterEventsForVacationLayer([inTrip, afterTrip], {
+      vacationActive: true,
+      revealHidden: true,
+      hideWorkdayEvents: true,
+      dateRange: { start: '2026-10-03', end: '2026-10-15' },
+    });
+    expect(filtered).toEqual([inTrip]);
+  });
+
   it('does not mute notifications unless the user opted in', () => {
     expect(shouldMuteEventNotification(work, { vacationActive: true, muteHiddenNotifications: false })).toBe(
       false,

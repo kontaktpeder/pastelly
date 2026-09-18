@@ -31,6 +31,7 @@ import {
   resolveVacationMode,
   saveLocalJson,
   stampPrefsUpdatedAt,
+  vacationVisibleYmdRange,
   warnStorageKey,
   type ManualVacationSource,
   type StoredCountdownVacation,
@@ -61,6 +62,7 @@ export type VacationModeContextValue = {
   filterEvents: <T extends VacationEventLike>(events: T[]) => T[];
   mergedCountdowns: CountdownWithParticipants[];
   prefsSyncStatus: VacationPrefsSyncStatus;
+  visibleDateRange: { start: string; end: string } | null;
 };
 
 const VacationModeContext = createContext<VacationModeContextValue | null>(null);
@@ -235,8 +237,14 @@ export function VacationModeProvider({
         vacationActive: snapshot.active,
         revealHidden,
         hideWorkdayEvents: pruned.hideWorkdayEvents,
+        dateRange: vacationVisibleYmdRange(snapshot, pruned, now, memberTz),
       }),
-    [snapshot.active, revealHidden, pruned.hideWorkdayEvents],
+    [snapshot, revealHidden, pruned, now, memberTz],
+  );
+
+  const visibleDateRange = useMemo(
+    () => vacationVisibleYmdRange(snapshot, pruned, now, memberTz),
+    [snapshot, pruned, now, memberTz],
   );
 
   useEffect(() => {
@@ -270,6 +278,7 @@ export function VacationModeProvider({
       filterEvents,
       mergedCountdowns,
       prefsSyncStatus,
+      visibleDateRange,
     }),
     [
       enabledForCalendar,
@@ -284,6 +293,7 @@ export function VacationModeProvider({
       filterEvents,
       mergedCountdowns,
       prefsSyncStatus,
+      visibleDateRange,
     ],
   );
 
@@ -307,6 +317,7 @@ export function useVacationMode(): VacationModeContextValue {
       filterEvents: (events) => events,
       mergedCountdowns: [],
       prefsSyncStatus: 'synced',
+      visibleDateRange: null,
     };
   }
   return ctx;

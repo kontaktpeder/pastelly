@@ -190,6 +190,7 @@ export const en: Record<MessageKey, string> = {
   'event.overlayHint': 'Shown here from another calendar as a time block',
   'event.newActivity': 'New activity',
   'event.seeList': 'See list',
+  'event.addListItem': 'Add an item…',
   'event.list': 'List',
   'event.selectedDay': 'Selected day',
   'event.backToDay': 'Overview',

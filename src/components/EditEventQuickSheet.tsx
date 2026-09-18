@@ -169,11 +169,21 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
     syncTimesFromDayPart(newRange[0], newRange[1]);
   };
 
+  const addOneHour = (time: string) => {
+    const [h, m] = time.split(':').map(Number);
+    const total = ((h * 60 + (m || 0) + 60) % (24 * 60) + 24 * 60) % (24 * 60);
+    const nh = Math.floor(total / 60);
+    const nm = total % 60;
+    return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
+  };
+
   const handleStartTimeChange = (value: string) => {
     if (isMultiDay) setShowTimedMultiDay(true);
     setStartTime(value);
-    if (value && endTime) {
-      const newRange = timeRangeToDayParts(value, endTime);
+    const nextEnd = value ? addOneHour(value) : null;
+    setEndTime(nextEnd);
+    if (value && nextEnd) {
+      const newRange = timeRangeToDayParts(value, nextEnd);
       setSelectedDayParts(newRange);
       setDayPartClickCount(newRange[0] === newRange[1] ? 1 : 2);
     } else if (value) {
@@ -191,14 +201,6 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
       setSelectedDayParts(newRange);
       setDayPartClickCount(newRange[0] === newRange[1] ? 1 : 2);
     }
-  };
-
-  const addOneHour = (time: string) => {
-    const [h, m] = time.split(':').map(Number);
-    const total = ((h * 60 + (m || 0) + 60) % (24 * 60) + 24 * 60) % (24 * 60);
-    const nh = Math.floor(total / 60);
-    const nm = total % 60;
-    return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
   };
 
   const handleAddHour = () => {

@@ -59,7 +59,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
   const [selectedDayParts, setSelectedDayParts] = useState<[number, number]>([2, 2]); // default afternoon
   const [dayPartClickCount, setDayPartClickCount] = useState(1);
   const [startTime, setStartTime] = useState('12:00');
-  const [endTime, setEndTime] = useState<string | null>(null);
+  const [endTime, setEndTime] = useState<string | null>('13:00');
   const [showDayParts, setShowDayParts] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
@@ -210,8 +210,10 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
   const handleStartTimeChange = (value: string) => {
     if (isMultiDay) setShowTimedMultiDay(true);
     setStartTime(value);
-    if (value && endTime) {
-      const newRange = timeRangeToDayParts(value, endTime);
+    const nextEnd = value ? addOneHour(value) : null;
+    setEndTime(nextEnd);
+    if (value && nextEnd) {
+      const newRange = timeRangeToDayParts(value, nextEnd);
       setSelectedDayParts(newRange);
       setDayPartClickCount(newRange[0] === newRange[1] ? 1 : 2);
     } else if (value) {
