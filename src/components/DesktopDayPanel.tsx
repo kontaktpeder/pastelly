@@ -130,6 +130,8 @@ const DesktopDayPanel = ({
             events={events}
             countdowns={countdowns}
             members={members}
+            householdId={householdId}
+            currentMemberId={currentMemberId}
             calendarKind={calendarKind}
             canSeedWeek={canSeedWeek}
             onPickEvent={(ev) => {

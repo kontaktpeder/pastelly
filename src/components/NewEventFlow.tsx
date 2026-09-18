@@ -22,6 +22,7 @@ import { blurSheetField, focusSheetField } from '@/lib/focusSheetField';
 import { focusFieldSoftly, scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
 import { stepForward, stepSpring } from '@/lib/motion';
 import { cn } from '@/lib/utils';
+import { useVacationMode } from '@/hooks/useVacationMode';
 
 /** Shared size for date/time inputs — equality = simplicity */
 const FIELD =
@@ -46,7 +47,10 @@ const STEPS = 4;
 
 const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'home', showInOtherCalendars = false, initialDate, onClose, onCreated }: NewEventFlowProps) => {
   const { t, locale, dateLocale } = useLocale();
-  const categoryOptions = getCategoryOptionsForKind(calendarKind);
+  const vacation = useVacationMode();
+  const categoryOptions = getCategoryOptionsForKind(calendarKind, {
+    vacationMode: vacation.enabledForCalendar && vacation.snapshot.active,
+  });
   const memberColorMap = getMemberColorMap(members.find((m) => m.id === currentMemberId));
   const [step, setStep] = useState(1);
   const [title, setTitle] = useState('');
@@ -597,12 +601,13 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
           {step === 2 && (
             <motion.div key="step2" {...stepForward} className="space-y-6">
               <h2 className="text-2xl font-bold">{t('event.category')}</h2>
-              <div className="flex flex-col gap-2">
+              <div className={vacation.snapshot.active && vacation.enabledForCalendar ? 'grid grid-cols-2 gap-2' : 'flex flex-col gap-2'}>
                 {categoryOptions.map((key) => {
                   const meta = EVENT_CATEGORY_META[key];
                   const Icon = meta.Icon;
                   const selected = category === key;
                   const visuals = resolveCategoryVisuals(key, memberColorMap);
+                  const vacationGrid = vacation.snapshot.active && vacation.enabledForCalendar;
                   return (
                     <button
                       key={key}
@@ -613,13 +618,27 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                           goToWhatStep();
                         }
                       }}
-                      className={`rounded-xl py-3 px-4 text-sm font-medium transition-all flex items-center justify-between ${
-                        selected ? 'ring-2 ring-current' : 'bg-muted hover:bg-muted/80'
+                      className={`rounded-xl py-3 px-4 text-sm font-medium transition-all flex items-center ${
+                        vacationGrid ? 'gap-2.5 text-left' : 'justify-between'
+                      } ${
+                        selected ? 'ring-2 ring-current' : vacationGrid ? '' : 'bg-muted hover:bg-muted/80'
                       }`}
-                      style={selected ? { backgroundColor: visuals.soft, color: visuals.ink } : undefined}
+                      style={
+                        selected || vacationGrid
+                          ? { backgroundColor: visuals.soft, color: visuals.ink }
+                          : undefined
+                      }
                     >
-                      <span>{resolveCategoryLabel(key, null, locale)}</span>
-                      <Icon size={18} strokeWidth={2.5} style={{ color: visuals.ink }} />
+                      {vacationGrid && (
+                        <span
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                          style={{ backgroundColor: visuals.rail }}
+                        >
+                          <Icon size={16} strokeWidth={2.4} style={{ color: visuals.ink }} />
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1">{resolveCategoryLabel(key, null, locale)}</span>
+                      {!vacationGrid && <Icon size={18} strokeWidth={2.5} style={{ color: visuals.ink }} />}
                     </button>
                   );
                 })}

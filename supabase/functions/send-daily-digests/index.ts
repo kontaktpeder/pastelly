@@ -15,6 +15,7 @@ type MemberRow = {
   daily_digest_time: string;
   timezone: string;
   daily_digest_last_sent_on: string | null;
+  vacation_mode?: Record<string, unknown> | null;
 };
 
 type EventRow = {
@@ -25,7 +26,21 @@ type EventRow = {
   start_time: string | null;
   visibility_type: string;
   owner_member_id: string;
+  category?: string | null;
 };
+
+const WORKDAY_CATEGORIES = new Set([
+  'work',
+  'meeting',
+  'school',
+  'important',
+  'deadline',
+  'production',
+  'development',
+  'admin',
+  'client',
+  'focus',
+]);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -66,7 +81,7 @@ Deno.serve(async (req) => {
       let memberQuery = admin
         .from('household_members')
         .select(
-          'id, user_id, household_id, display_name, daily_digest_enabled, daily_digest_time, timezone, daily_digest_last_sent_on',
+          'id, user_id, household_id, display_name, daily_digest_enabled, daily_digest_time, timezone, daily_digest_last_sent_on, vacation_mode',
         )
         .eq('user_id', user.id)
         .eq('is_active', true)
@@ -112,7 +127,7 @@ Deno.serve(async (req) => {
     const { data: members, error: membersError } = await admin
       .from('household_members')
       .select(
-        'id, user_id, household_id, display_name, daily_digest_enabled, daily_digest_time, timezone, daily_digest_last_sent_on',
+        'id, user_id, household_id, display_name, daily_digest_enabled, daily_digest_time, timezone, daily_digest_last_sent_on, vacation_mode',
       )
       .eq('is_active', true)
       .eq('daily_digest_enabled', true);
@@ -215,7 +230,7 @@ async function sendDigestForMember(
 
   const { data: events, error: eventsError } = await admin
     .from('events')
-    .select('id, title, event_date, end_date, start_time, visibility_type, owner_member_id')
+    .select('id, title, event_date, end_date, start_time, visibility_type, owner_member_id, category')
     .eq('household_id', member.household_id)
     .lte('event_date', dateStr)
     .or(`end_date.gte.${dateStr},end_date.is.null`);
@@ -230,8 +245,32 @@ async function sendDigestForMember(
   });
 
   const visibleIds = await filterVisibleEventIds(admin, member.id, overlapping);
+  const prefs = (member.vacation_mode ?? {}) as Record<string, unknown>;
+  const muteHidden = prefs.muteHiddenNotifications === true;
+  let vacationActive = prefs.manualOn === true;
+  if (muteHidden) {
+    const until = typeof prefs.manualUntil === 'string' ? Date.parse(prefs.manualUntil) : NaN;
+    if (vacationActive && !Number.isNaN(until) && until <= Date.now()) vacationActive = false;
+    const suppressed =
+      typeof prefs.autoSuppressedUntil === 'string' && Date.parse(prefs.autoSuppressedUntil) > Date.now();
+    if (!vacationActive && !suppressed) {
+      const { data: holidayRows } = await admin
+        .from('countdowns')
+        .select('target_at, ends_at')
+        .eq('household_id', member.household_id)
+        .eq('status', 'active')
+        .eq('use_vacation_mode', true);
+      const now = Date.now();
+      vacationActive = ((holidayRows as { target_at: string; ends_at: string | null }[]) ?? []).some((row) => {
+        const start = new Date(row.target_at).getTime();
+        const end = row.ends_at ? new Date(row.ends_at).getTime() : start + 86400000;
+        return now >= start && now <= end;
+      });
+    }
+  }
   const visible = overlapping
     .filter((e) => visibleIds.has(e.id))
+    .filter((e) => !(muteHidden && vacationActive && e.category && WORKDAY_CATEGORIES.has(e.category)))
     .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
 
   const { data: listItems } = await admin

@@ -19,6 +19,7 @@ import { canEditEvent } from '@/lib/canEditEvent';
 import type { CalendarKind } from '@/lib/calendarKinds';
 import type { Highlight } from '@/pages/Index';
 import { useLocale } from '@/hooks/useLocale';
+import { useVacationMode } from '@/hooks/useVacationMode';
 import EventDetailSheet from '@/components/EventDetailSheet';
 import ViewHeader from '@/components/ViewHeader';
 import { useLongPress } from '@/hooks/useLongPress';
@@ -51,6 +52,7 @@ const ListView = ({
   embedded = false,
 }: ListViewProps) => {
   const { dateLocale } = useLocale();
+  const vacation = useVacationMode();
   const [selectedDate, setSelectedDate] = useState(initialDate || new Date());
   const [newItem, setNewItem] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -122,7 +124,7 @@ const ListView = ({
 
   const getMemberForEvent = (event: Event) => members.find((m) => m.id === event.owner_member_id);
 
-  const sortedEvents = [...events].sort((a, b) =>
+  const sortedEvents = vacation.filterEvents([...events]).sort((a, b) =>
     (a.start_time || '').localeCompare(b.start_time || ''),
   );
 

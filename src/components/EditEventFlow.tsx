@@ -21,6 +21,7 @@ import { blurSheetField } from '@/lib/focusSheetField';
 import { scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
 import { stepForward, stepSpring } from '@/lib/motion';
 import { useLocale } from '@/hooks/useLocale';
+import { useVacationMode } from '@/hooks/useVacationMode';
 import type { MessageKey } from '@/lib/i18n';
 
 interface EditEventFlowProps {
@@ -43,6 +44,7 @@ const ADD_BTN =
 
 const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarKind = 'home', showInOtherCalendars = false, onClose, onSaved }: EditEventFlowProps) => {
   const { t, dateLocale } = useLocale();
+  const vacation = useVacationMode();
   const updateEvent = useUpdateEvent();
   const memberColorMap = getMemberColorMap(members.find((m) => m.id === currentMemberId));
   const dayPartLabel = (key: string) => {
@@ -89,7 +91,9 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
   });
   const [category, setCategory] = useState<EventCategory | null>((event.category as EventCategory) || null);
   const categoryOptions = (() => {
-    const base = getCategoryOptionsForKind(calendarKind);
+    const base = getCategoryOptionsForKind(calendarKind, {
+      vacationMode: vacation.enabledForCalendar && vacation.snapshot.active,
+    });
     if (category && !base.includes(category) && EVENT_CATEGORY_META[category]) {
       return [category, ...base.filter((c) => c !== category)];
     }

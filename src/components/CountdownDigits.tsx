@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { getCountdownRemaining, type CountdownRemaining } from '@/lib/countdownTime';
 import { getCountdownTheme } from '@/lib/countdownThemes';
 import { useLocale } from '@/hooks/useLocale';
+import { formatVacationRange } from '@/lib/vacationMode';
+import { getIntlLocale } from '@/lib/i18n';
 
 export function useLiveRemaining(targetAt: string) {
   const [remaining, setRemaining] = useState(() => getCountdownRemaining(targetAt));
@@ -41,17 +43,36 @@ export function CountdownDigits({
   emoji,
   title,
   compact = false,
+  endsAt,
+  useVacationMode = false,
+  timeZone,
 }: {
   targetAt: string;
   themeId?: string | null;
   emoji?: string | null;
   title?: string;
   compact?: boolean;
+  endsAt?: string | null;
+  useVacationMode?: boolean;
+  timeZone?: string | null;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const remaining = useLiveRemaining(targetAt);
   const theme = getCountdownTheme(themeId);
   const { value, label } = countdownUnitLabel(remaining, t);
+  const untilLabel =
+    remaining.isPast || !title
+      ? label
+      : remaining.days === 1
+        ? t('countdown.dayUntilTitle', { title })
+        : remaining.days > 0
+          ? t('countdown.daysUntilTitle', { title })
+          : label;
+
+  const vacationRange =
+    useVacationMode && endsAt
+      ? formatVacationRange(new Date(targetAt), new Date(endsAt), getIntlLocale(locale), timeZone || undefined)
+      : null;
 
   return (
     <div
@@ -75,13 +96,18 @@ export function CountdownDigits({
         {value}
       </motion.p>
       <p className={`mt-2 font-semibold ${theme.accentText} ${compact ? 'text-xs' : 'text-sm'}`}>
-        {label}
+        {untilLabel}
       </p>
-      {title ? (
+      {title && remaining.isPast ? (
         <p className={`mt-2 font-bold text-foreground ${compact ? 'text-sm' : 'text-base'}`}>
           {title}
         </p>
       ) : null}
+      {vacationRange && (
+        <p className={`mt-2 font-medium text-foreground/80 ${compact ? 'text-[11px]' : 'text-xs'}`}>
+          {t('countdown.autoVacationRange', { range: vacationRange })}
+        </p>
+      )}
       {!remaining.isPast && remaining.days === 0 && (
         <p className="text-xs text-foreground/60 mt-2 font-medium tabular-nums">
           {String(remaining.hours).padStart(2, '0')}:

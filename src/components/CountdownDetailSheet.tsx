@@ -5,9 +5,13 @@ import {
   useRespondToCountdown,
   useInviteToCountdown,
   useCancelCountdown,
+  useUpdateCountdown,
   myParticipant,
   type CountdownWithParticipants,
 } from '@/hooks/useCountdowns';
+import { loadLocalJson, mergeCountdownVacation, parseStoredCountdownVacation, periodStorageKey } from '@/lib/vacationMode';
+import { zonedDateAndTimeToIso, VACATION_TIME_ZONES, resolveTimeZone, DEFAULT_TIME_ZONE } from '@/lib/timeZone';
+import { getIntlLocale } from '@/lib/i18n';
 import { getMemberColor } from '@/lib/colors';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import { useLocale } from '@/hooks/useLocale';
@@ -29,12 +33,32 @@ const CountdownDetailSheet = ({
   currentMemberId,
   onClose,
 }: CountdownDetailSheetProps) => {
-  const { t, dateLocale } = useLocale();
+  const { t, dateLocale, locale } = useLocale();
   const respond = useRespondToCountdown();
   const invite = useInviteToCountdown();
   const cancel = useCancelCountdown();
+  const updateCountdown = useUpdateCountdown();
+  const merged = mergeCountdownVacation(
+    countdown,
+    parseStoredCountdownVacation(loadLocalJson(periodStorageKey(countdown.id))),
+  );
   const [showInvite, setShowInvite] = useState(false);
   const [celebrateJoined, setCelebrateJoined] = useState(false);
+  const [editingDates, setEditingDates] = useState(false);
+  const start = new Date(merged.target_at);
+  const [editDate, setEditDate] = useState(start);
+  const [editTime, setEditTime] = useState(
+    `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`,
+  );
+  const initialEnd = merged.ends_at ? new Date(merged.ends_at) : null;
+  const [editEndDate, setEditEndDate] = useState<Date | null>(initialEnd);
+  const [editEndTime, setEditEndTime] = useState(
+    initialEnd
+      ? `${String(initialEnd.getHours()).padStart(2, '0')}:${String(initialEnd.getMinutes()).padStart(2, '0')}`
+      : '23:59',
+  );
+  const [editVacation, setEditVacation] = useState(!!merged.use_vacation_mode);
+  const [editTz, setEditTz] = useState(resolveTimeZone(merged.timezone || DEFAULT_TIME_ZONE));
 
   const mine = myParticipant(countdown, currentMemberId);
   const isCreator = countdown.created_by_member_id === currentMemberId;
@@ -81,6 +105,28 @@ const CountdownDetailSheet = ({
     try {
       await cancel.mutateAsync(countdown.id);
       onClose();
+    } catch (err: any) {
+      toast.error(err?.message ?? t('common.error'));
+    }
+  };
+
+  const handleSaveDates = async () => {
+    const targetAt = zonedDateAndTimeToIso(editDate, editTime, editTz);
+    const endsAt = editEndDate ? zonedDateAndTimeToIso(editEndDate, editEndTime || '23:59', editTz) : null;
+    if (endsAt && new Date(endsAt).getTime() <= new Date(targetAt).getTime()) {
+      toast.error(t('countdown.futureRequired'));
+      return;
+    }
+    try {
+      await updateCountdown.mutateAsync({
+        countdownId: countdown.id,
+        target_at: targetAt,
+        ends_at: endsAt,
+        clear_ends_at: !endsAt,
+        use_vacation_mode: editVacation,
+        timezone: editTz,
+      });
+      setEditingDates(false);
     } catch (err: any) {
       toast.error(err?.message ?? t('common.error'));
     }
@@ -137,10 +183,13 @@ const CountdownDetailSheet = ({
         data-sheet-scroll
       >
         <CountdownDigits
-          targetAt={countdown.target_at}
+          targetAt={merged.target_at}
           themeId={countdown.theme}
           emoji={countdown.emoji}
           title={countdown.title}
+          endsAt={merged.ends_at}
+          useVacationMode={!!merged.use_vacation_mode}
+          timeZone={merged.timezone}
         />
 
         <p id="countdown-detail-title" className="sr-only">
@@ -149,7 +198,101 @@ const CountdownDetailSheet = ({
 
         <p className="text-sm text-muted-foreground mt-4 capitalize text-center">
           {format(target, 'EEEE d. MMMM · HH:mm', { locale: dateLocale })}
+          {merged.ends_at
+            ? ` – ${format(new Date(merged.ends_at), 'EEEE d. MMMM · HH:mm', { locale: dateLocale })}`
+            : ''}
         </p>
+
+        {isCreator && countdown.status === 'active' && (
+          <div className="mt-4 space-y-3">
+            {!editingDates ? (
+              <button
+                type="button"
+                onClick={() => setEditingDates(true)}
+                className="w-full text-sm font-semibold text-foreground underline underline-offset-2"
+              >
+                {t('countdown.editDates')}
+              </button>
+            ) : (
+              <div className="space-y-2 rounded-2xl bg-muted/60 p-3 text-left">
+                <label className="block text-xs font-medium">{t('event.date')}
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                    value={format(editDate, 'yyyy-MM-dd')}
+                    onChange={(e) => {
+                      const [y, m, d] = e.target.value.split('-').map(Number);
+                      if (y && m && d) setEditDate(new Date(y, m - 1, d));
+                    }}
+                  />
+                </label>
+                <label className="block text-xs font-medium">{t('event.clock')}
+                  <input
+                    type="time"
+                    className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                    value={editTime}
+                    onChange={(e) => setEditTime(e.target.value)}
+                  />
+                </label>
+                <label className="block text-xs font-medium">{t('countdown.endDate')}
+                  <input
+                    type="date"
+                    className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                    value={editEndDate ? format(editEndDate, 'yyyy-MM-dd') : ''}
+                    onChange={(e) => {
+                      if (!e.target.value) {
+                        setEditEndDate(null);
+                        return;
+                      }
+                      const [y, m, d] = e.target.value.split('-').map(Number);
+                      if (y && m && d) setEditEndDate(new Date(y, m - 1, d));
+                    }}
+                  />
+                </label>
+                {editEndDate && (
+                  <label className="block text-xs font-medium">{t('countdown.endTime')}
+                    <input
+                      type="time"
+                      className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                      value={editEndTime}
+                      onChange={(e) => setEditEndTime(e.target.value)}
+                    />
+                  </label>
+                )}
+                <label className="block text-xs font-medium">{t('countdown.timezone')}
+                  <select
+                    className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                    value={editTz}
+                    onChange={(e) => setEditTz(e.target.value)}
+                  >
+                    {VACATION_TIME_ZONES.map((z) => (
+                      <option key={z.value} value={z.value}>
+                        {locale === 'en' ? z.labelEn : z.labelNb}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 accent-cyan-700"
+                    checked={editVacation}
+                    onChange={(e) => setEditVacation(e.target.checked)}
+                  />
+                  <span>{t('countdown.useVacationMode')}</span>
+                </label>
+                <button
+                  type="button"
+                  disabled={updateCountdown.isPending}
+                  onClick={() => void handleSaveDates()}
+                  className="w-full rounded-xl bg-cyan-200 text-cyan-950 py-2.5 text-sm font-semibold"
+                >
+                  {t('countdown.saveDates')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="mt-5 space-y-2 text-left">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground text-center mb-2">

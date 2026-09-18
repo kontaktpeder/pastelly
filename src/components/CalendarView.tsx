@@ -40,6 +40,9 @@ import {
   subscribePendingOpenCountdown,
 } from '@/lib/native/pendingOpenCountdown';
 import { BriefcaseBusiness, type LucideIcon } from 'lucide-react';
+import { useVacationMode } from '@/hooks/useVacationMode';
+import VacationModeBanner from '@/components/VacationModeBanner';
+import { eventIsWorkdayLayer } from '@/lib/vacationMode';
 
 interface CalendarViewProps {
   householdId: string;
@@ -78,7 +81,17 @@ const CATEGORY_ORDER: Record<string, number> = {
   celebration: 9,
   social: 10,
   travel: 11,
-  other: 12,
+  beach: 12,
+  breakfast: 13,
+  lunch: 14,
+  dinner: 15,
+  hotel: 16,
+  outing: 17,
+  activity: 18,
+  relaxation: 19,
+  shopping: 20,
+  practical: 21,
+  other: 22,
 };
 
 /** Commit when dragged past this fraction of width, or with enough velocity */
@@ -156,6 +169,7 @@ function buildMonthDays(monthDate: Date): Date[] {
 
 const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, onCurrentDateChange, onSelectDate, onCreateEvent, onCreateCountdown, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
   const { dateLocale } = useLocale();
+  const vacation = useVacationMode();
   const weekdayLabels = useMemo(() => {
     const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
     return Array.from({ length: 7 }, (_, i) =>
@@ -328,7 +342,19 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     marksVisible,
   ]);
 
-  const monthTheme = useMemo(() => getMonthTheme(currentDate), [currentDate]);
+  const monthTheme = useMemo(() => {
+    if (vacation.snapshot.active) {
+      return {
+        base: '#4EB8C8',
+        light: '#5ECFE0',
+        dark: '#083344',
+        textOnStrong: '#083344',
+        textOnLight: '#083344',
+        gradient: '#5ECFE0',
+      };
+    }
+    return getMonthTheme(currentDate);
+  }, [currentDate, vacation.snapshot.active]);
 
   const mergedByOffset = useMemo(() => {
     const locals = [eventsM2, eventsM1, events, eventsP1, eventsP2];
@@ -341,8 +367,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   }, [eventsM2, eventsM1, events, eventsP1, eventsP2, overlayEvents, stripDates]);
 
   const eventsByOffset = useMemo(
-    () => mergedByOffset.map(buildEventsByDate),
-    [mergedByOffset],
+    () => mergedByOffset.map((list) => buildEventsByDate(vacation.filterEvents(list))),
+    [mergedByOffset, vacation.filterEvents, vacation.snapshot.active, vacation.revealHidden],
   );
   const eventsByDate = eventsByOffset[WINDOW];
 
@@ -612,6 +638,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           )}
         </div>
 
+        {vacation.enabledForCalendar && <VacationModeBanner />}
+
         <div className="bg-transparent relative">
           <div className="flex px-1 py-1">
             <div className="w-3.5 shrink-0" aria-hidden />
@@ -631,7 +659,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         <div
           ref={trackRef}
           className="relative flex-1 min-h-0 overflow-hidden select-none calendar-gesture-surface"
-          style={{ backgroundColor: PASTEL.paper }}
+          style={{ backgroundColor: vacation.snapshot.active ? '#E7F8F9' : PASTEL.paper }}
         >
           <motion.div
             className="absolute top-0 bottom-0 flex will-change-transform"
@@ -672,6 +700,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                   getMemberForEvent={getMemberForEvent}
                   countdownEmojiByDate={countdownEmojiByDate}
                   marksVisible={marksVisible}
+                  vacationActive={vacation.snapshot.active}
+                  revealHidden={vacation.revealHidden}
                 />
               );
             })}
@@ -830,6 +860,8 @@ interface MonthPanelProps {
   getMemberForEvent: (event: Event) => HouseholdMember | undefined;
   countdownEmojiByDate?: Record<string, string>;
   marksVisible?: boolean;
+  vacationActive?: boolean;
+  revealHidden?: boolean;
 }
 
 const MonthPanel = ({
@@ -849,6 +881,8 @@ const MonthPanel = ({
   getMemberForEvent,
   countdownEmojiByDate,
   marksVisible = true,
+  vacationActive = false,
+  revealHidden = false,
 }: MonthPanelProps) => {
   const spanByDate = useMemo(
     () => buildSpanSegmentsByDate(days, eventsByDate, neighbourEventsByDate),
@@ -876,7 +910,7 @@ const MonthPanel = ({
           <div
             key={format(weekDays[0], 'yyyy-MM-dd')}
             className={`flex flex-1 min-h-0 gap-x-0 ${
-              weekIndex > 0 ? 'border-t border-border/15' : ''
+              weekIndex > 0 ? (vacationActive ? 'border-t border-transparent' : 'border-t border-border/15') : ''
             }`}
           >
             <div className="w-3.5 shrink-0 flex items-start justify-center pt-1">
@@ -912,6 +946,7 @@ const MonthPanel = ({
                     getMemberForEvent={getMemberForEvent}
                     countdownEmoji={countdownEmojiByDate?.[dateStr]}
                     marksVisible={marksVisible}
+                    dimWorkday={vacationActive && revealHidden}
                   />
                 );
               })}
@@ -944,6 +979,7 @@ interface DayCellProps {
   getMemberForEvent: (event: Event) => HouseholdMember | undefined;
   countdownEmoji?: string;
   marksVisible?: boolean;
+  dimWorkday?: boolean;
 }
 
 /** Max single-day marks shown before +N overflow */
@@ -1018,6 +1054,7 @@ const DayCell = ({
   getMemberForEvent,
   countdownEmoji,
   marksVisible = true,
+  dimWorkday = false,
 }: DayCellProps) => {
   const { dateLocale } = useLocale();
   const dayAriaLabel = format(day, 'EEEE d. MMMM yyyy', { locale: dateLocale });
@@ -1040,6 +1077,7 @@ const DayCell = ({
 
   const renderEventMark = (ev: DisplayEvent) => {
     const evHighlighted = highlight && highlight.eventId === ev.id;
+    const dim = dimWorkday && eventIsWorkdayLayer(ev);
 
     if (ev.isOverlay) {
       const fromWork = (ev.sourceHouseholdKind || '').toLowerCase() === 'work';
@@ -1047,7 +1085,7 @@ const DayCell = ({
         <div
           key={ev.id}
           title={ev.title}
-          className={`${DAY_PILL} ${evHighlighted ? 'ring-1 ring-primary/40' : ''}`}
+          className={`${DAY_PILL} ${evHighlighted ? 'ring-1 ring-primary/40' : ''} ${dim ? 'opacity-35' : ''}`}
           style={{
             background: categoryMarkFill(OVERLAY_MARK.soft, OVERLAY_MARK.rail),
             boxShadow: silverMarkRim(),
@@ -1069,7 +1107,7 @@ const DayCell = ({
       <div
         key={ev.id}
         title={ev.title}
-        className={`${DAY_PILL} ${evHighlighted ? 'ring-1 ring-primary/40' : ''}`}
+        className={`${DAY_PILL} ${evHighlighted ? 'ring-1 ring-primary/40' : ''} ${dim ? 'opacity-35' : ''}`}
         style={{
           background: categoryMarkFill(visuals.soft, visuals.rail),
           boxShadow: silverMarkRim(),

@@ -1,5 +1,6 @@
 import type { EventCategory } from '@/lib/eventCategories';
 import { getCategoryOptionsForKind } from '@/lib/eventCategories';
+import { VACATION_QUICK_CATEGORIES } from '@/lib/vacationMode';
 import type { CalendarKind } from '@/lib/calendarKinds';
 import { translateCategory } from '@/lib/i18n';
 import type { AppLocale } from '@/lib/i18n/types';
@@ -24,6 +25,17 @@ export const DEFAULT_CATEGORY_COLOR_MAP: Record<MainCategory, CategoryColorToken
   development: 'blue',
   admin: 'purple',
   personal: 'orange',
+  // Vacation layer
+  beach: 'teal',
+  breakfast: 'amber',
+  lunch: 'orange',
+  dinner: 'red',
+  hotel: 'blue',
+  outing: 'purple',
+  activity: 'green',
+  relaxation: 'pink',
+  shopping: 'pink',
+  practical: 'teal',
   // Legacy
   client: 'teal',
   deadline: 'orange',
@@ -153,5 +165,10 @@ export function getMemberColorMap(member: { category_color_map?: unknown } | nul
 export function getColorableCategoriesForKind(
   kind: CalendarKind | string | null | undefined,
 ): MainCategory[] {
-  return getCategoryOptionsForKind(kind).filter((c): c is MainCategory => c !== 'other');
+  const base = getCategoryOptionsForKind(kind).filter((c): c is MainCategory => c !== 'other');
+  if (kind === 'work') return base;
+  const extra = (VACATION_QUICK_CATEGORIES as readonly string[]).filter(
+    (c): c is MainCategory => c !== 'other' && !base.includes(c as MainCategory),
+  );
+  return [...base, ...extra];
 }

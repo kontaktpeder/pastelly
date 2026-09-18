@@ -19,7 +19,22 @@ type Body = {
 type MemberRow = {
   id: string;
   user_id: string;
+  timezone?: string | null;
+  vacation_mode?: Record<string, unknown> | null;
 };
+
+const WORKDAY_CATEGORIES = new Set([
+  'work',
+  'meeting',
+  'school',
+  'important',
+  'deadline',
+  'production',
+  'development',
+  'admin',
+  'client',
+  'focus',
+]);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -81,7 +96,7 @@ Deno.serve(async (req) => {
 
     const { data: allMembers, error: membersError } = await supabase
       .from('household_members')
-      .select('id, user_id')
+      .select('id, user_id, timezone, vacation_mode')
       .eq('household_id', householdId)
       .eq('is_active', true)
       .neq('user_id', user.id);
@@ -97,11 +112,13 @@ Deno.serve(async (req) => {
       candidates = candidates.filter((m) => wanted.has(m.user_id));
     }
 
+    let eventCategory: string | null = null;
+
     // Only notify people who can see this event in the calendar.
     if (payload.event_id) {
       const { data: event, error: eventError } = await supabase
         .from('events')
-        .select('id, household_id, visibility_type, owner_member_id, event_date')
+        .select('id, household_id, visibility_type, owner_member_id, event_date, category')
         .eq('id', payload.event_id)
         .maybeSingle();
 
@@ -111,6 +128,7 @@ Deno.serve(async (req) => {
       if (!event || event.household_id !== householdId) {
         return json({ error: 'Event not found in household' }, 404);
       }
+      eventCategory = typeof event.category === 'string' ? event.category : null;
 
       if (!date && typeof event.event_date === 'string') {
         date = event.event_date;
@@ -137,6 +155,32 @@ Deno.serve(async (req) => {
         candidates = candidates.filter((m) => allowed.has(m.id));
       }
       // all_members → keep all candidates
+    }
+
+    if (eventCategory && WORKDAY_CATEGORIES.has(eventCategory) && candidates.length > 0) {
+      const { data: holidayRows } = await supabase
+        .from('countdowns')
+        .select('target_at, ends_at, use_vacation_mode')
+        .eq('household_id', householdId)
+        .eq('status', 'active')
+        .eq('use_vacation_mode', true);
+      const now = Date.now();
+      const autoOn = ((holidayRows as { target_at: string; ends_at: string | null }[]) ?? []).some((row) => {
+        const start = new Date(row.target_at).getTime();
+        const end = row.ends_at ? new Date(row.ends_at).getTime() : start + 86400000;
+        return now >= start && now <= end;
+      });
+      candidates = candidates.filter((m) => {
+        const prefs = (m.vacation_mode ?? {}) as Record<string, unknown>;
+        if (prefs.muteHiddenNotifications !== true) return true;
+        const manualOn = prefs.manualOn === true;
+        const until = typeof prefs.manualUntil === 'string' ? Date.parse(prefs.manualUntil) : NaN;
+        const manualActive = manualOn && (Number.isNaN(until) || until > now);
+        const suppressed =
+          typeof prefs.autoSuppressedUntil === 'string' && Date.parse(prefs.autoSuppressedUntil) > now;
+        const vacationActive = manualActive || (autoOn && !suppressed);
+        return !vacationActive;
+      });
     }
 
     const externalIds = [...new Set(candidates.map((p) => p.user_id).filter(Boolean))];

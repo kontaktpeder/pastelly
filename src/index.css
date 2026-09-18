@@ -102,6 +102,37 @@
     --calendar-accent: 214 55% 86%;
     --list-accent: 200 40% 90%;
   }
+
+  /* Feriemodus — strand, vatn og sol. Tekst held høg kontrast. */
+  [data-vacation-mode="on"] {
+    --background: 186 48% 96%;
+    --foreground: 200 55% 12%;
+
+    --primary: 186 58% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 186 40% 90%;
+    --secondary-foreground: 200 55% 12%;
+
+    --muted: 186 32% 92%;
+    --muted-foreground: 200 25% 28%;
+
+    --accent: 16 85% 78%;
+    --accent-foreground: 200 55% 12%;
+
+    --border: 186 28% 82%;
+    --input: 186 28% 82%;
+    --ring: 186 58% 36%;
+
+    --today: 42 92% 62%;
+    --weekend: 186 40% 94%;
+    --month-stripe: 186 48% 62%;
+    --nav-bg: 186 48% 96%;
+    --nav-shadow: 186 30% 78%;
+
+    --calendar-accent: 186 50% 78%;
+    --list-accent: 186 40% 88%;
+  }
 }
 
 @layer base {

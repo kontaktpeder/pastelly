@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { notifyPartners } from '@/lib/notifyPartners';
 import { targetDateStr } from '@/lib/countdownTime';
+import { periodStorageKey, saveLocalJson } from '@/lib/vacationMode';
 import type { Tables } from '@/integrations/supabase/types';
 
 export type Countdown = Tables<'countdowns'>;
@@ -49,6 +50,9 @@ export type CreateCountdownInput = {
   invite_member_ids?: string[];
   /** For push: user_ids of invitees */
   invite_user_ids?: string[];
+  ends_at?: string | null;
+  use_vacation_mode?: boolean;
+  timezone?: string | null;
 };
 
 export function useCreateCountdown() {
@@ -62,12 +66,37 @@ export function useCreateCountdown() {
         p_theme: input.theme ?? 'rose',
         p_emoji: input.emoji ?? null,
         p_invite_member_ids: input.invite_member_ids ?? null,
+        p_ends_at: input.ends_at ?? null,
+        p_use_vacation_mode: input.use_vacation_mode ?? false,
+        p_timezone: input.timezone ?? null,
       });
-      if (error) throw error;
+      if (error) {
+        // Migration may not be applied yet — retry without period fields.
+        if (input.ends_at || input.use_vacation_mode || input.timezone) {
+          const fallback = await supabase.rpc('create_countdown', {
+            p_household_id: input.household_id,
+            p_title: input.title,
+            p_target_at: input.target_at,
+            p_theme: input.theme ?? 'rose',
+            p_emoji: input.emoji ?? null,
+            p_invite_member_ids: input.invite_member_ids ?? null,
+          });
+          if (fallback.error) throw fallback.error;
+          return fallback.data as Countdown;
+        }
+        throw error;
+      }
       return data as Countdown;
     },
     onSuccess: (created, vars) => {
       invalidateCountdowns(queryClient);
+      if (vars.ends_at || vars.use_vacation_mode || vars.timezone) {
+        saveLocalJson(periodStorageKey(created.id), {
+          ends_at: vars.ends_at ?? created.ends_at ?? null,
+          use_vacation_mode: vars.use_vacation_mode ?? created.use_vacation_mode ?? false,
+          timezone: vars.timezone ?? created.timezone ?? null,
+        });
+      }
       if (vars.invite_user_ids && vars.invite_user_ids.length > 0) {
         const date = targetDateStr(created.target_at);
         notifyPartners({
@@ -165,6 +194,51 @@ export function useCancelCountdown() {
       return data as Countdown;
     },
     onSuccess: () => invalidateCountdowns(queryClient),
+  });
+}
+
+export type UpdateCountdownInput = {
+  countdownId: string;
+  title?: string;
+  target_at?: string;
+  ends_at?: string | null;
+  clear_ends_at?: boolean;
+  use_vacation_mode?: boolean;
+  timezone?: string | null;
+};
+
+export function useUpdateCountdown() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: UpdateCountdownInput) => {
+      const { data, error } = await supabase.rpc('update_countdown', {
+        p_countdown_id: input.countdownId,
+        p_title: input.title ?? null,
+        p_target_at: input.target_at ?? null,
+        p_ends_at: input.ends_at ?? null,
+        p_use_vacation_mode: input.use_vacation_mode ?? null,
+        p_timezone: input.timezone ?? null,
+        p_clear_ends_at: input.clear_ends_at ?? false,
+      });
+      if (error) {
+        // Keep a local overlay so start/end still drive vacation mode before migration.
+        saveLocalJson(periodStorageKey(input.countdownId), {
+          ends_at: input.clear_ends_at ? null : (input.ends_at ?? null),
+          use_vacation_mode: input.use_vacation_mode ?? false,
+          timezone: input.timezone ?? null,
+        });
+        throw error;
+      }
+      return data as Countdown;
+    },
+    onSuccess: (updated, vars) => {
+      invalidateCountdowns(queryClient);
+      saveLocalJson(periodStorageKey(vars.countdownId), {
+        ends_at: vars.clear_ends_at ? null : (vars.ends_at ?? updated.ends_at ?? null),
+        use_vacation_mode: vars.use_vacation_mode ?? updated.use_vacation_mode ?? false,
+        timezone: vars.timezone ?? updated.timezone ?? null,
+      });
+    },
   });
 }
 

@@ -35,6 +35,8 @@ import NewCountdownFlow from '@/components/NewCountdownFlow';
 import { useActiveCountdowns, type CountdownWithParticipants } from '@/hooks/useCountdowns';
 import { useLocale } from '@/hooks/useLocale';
 import { defaultLocaleForKind } from '@/lib/i18n/types';
+import VacationModeToggle from '@/components/VacationModeToggle';
+import { loadLocalJson, mergeCountdownVacation, parseStoredCountdownVacation, periodStorageKey } from '@/lib/vacationMode';
 
 export type ProfileSheetMode = 'calendar' | 'account';
 
@@ -354,7 +356,12 @@ const ProfileSheet = ({
           {t('countdown.profileEmpty')}
         </p>
       ) : (
-        activeCountdowns.map((cd) => (
+        activeCountdowns.map((cd) => {
+          const merged = mergeCountdownVacation(
+            cd,
+            parseStoredCountdownVacation(loadLocalJson(periodStorageKey(cd.id))),
+          );
+          return (
           <button
             key={cd.id}
             type="button"
@@ -362,14 +369,18 @@ const ProfileSheet = ({
             className="w-full text-left"
           >
             <CountdownDigits
-              targetAt={cd.target_at}
+              targetAt={merged.target_at}
               themeId={cd.theme}
               emoji={cd.emoji}
               title={cd.title}
               compact
+              endsAt={merged.ends_at}
+              useVacationMode={!!merged.use_vacation_mode}
+              timeZone={merged.timezone}
             />
           </button>
-        ))
+          );
+        })
       )}
       <button
         type="button"
@@ -425,6 +436,15 @@ const ProfileSheet = ({
               </section>
 
               {countdownSection}
+
+              {isHomeCalendar && (
+                <section className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
+                    {t('vacation.mode')}
+                  </p>
+                  <VacationModeToggle />
+                </section>
+              )}
 
               <section className="space-y-3">
                 <label className="flex items-start gap-3 rounded-xl bg-muted/40 p-3 cursor-pointer">

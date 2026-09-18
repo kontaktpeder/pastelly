@@ -12,12 +12,23 @@ import { calendarDaysUntil } from '@/lib/countdownTime';
 import { getCountdownTheme } from '@/lib/countdownThemes';
 import PopupStickyFooter from '@/components/PopupStickyFooter';
 import { BriefcaseBusiness } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { useCreateEvent } from '@/hooks/useEvents';
+import { useVacationMode } from '@/hooks/useVacationMode';
+import { eventIsWorkdayLayer, itineraryLabels } from '@/lib/vacationMode';
+import { resolveCategoryLabel } from '@/lib/categoryPresentation';
+import type { EventCategory } from '@/lib/eventCategories';
+import VacationQuickAdd from '@/components/VacationQuickAdd';
 
 export interface DayOverviewProps {
   date: Date;
   events: DisplayEvent[];
   countdowns?: CountdownWithParticipants[];
   members: HouseholdMember[];
+  householdId?: string;
+  currentMemberId?: string;
   calendarKind?: string;
   canSeedWeek?: boolean;
   /** sheet = PopupStickyFooter; panel = bordered stack in desktop aside */
@@ -35,6 +46,8 @@ const DayOverview = ({
   events,
   countdowns = [],
   members,
+  householdId,
+  currentMemberId: _currentMemberId,
   calendarKind = 'home',
   canSeedWeek = false,
   layout = 'panel',
@@ -48,6 +61,11 @@ const DayOverview = ({
   const { t, locale, dateLocale } = useLocale();
   const getMember = (id: string) => members.find((m) => m.id === id);
   const showCountdownCta = calendarKind === 'home' && !!onCreateCountdown;
+  const vacation = useVacationMode();
+  const createEvent = useCreateEvent();
+  const [pendingCategory, setPendingCategory] = useState<string | null>(null);
+  const visibleEvents = vacation.filterEvents(events);
+  const vacationOn = vacation.enabledForCalendar && vacation.snapshot.active;
 
   const actions = (
     <>
@@ -83,11 +101,47 @@ const DayOverview = ({
       <button
         type="button"
         onClick={() => onCreateForDate(date)}
-        className="w-full rounded-2xl bg-green-200 py-3.5 font-semibold text-green-900"
+        className={`w-full rounded-2xl py-3.5 font-semibold ${
+          vacationOn
+            ? 'bg-cyan-200 text-cyan-950'
+            : 'bg-green-200 text-green-900'
+        }`}
       >
         {t('event.newActivity')}
       </button>
     </>
+  );
+
+  const handleQuickAdd = async (category: EventCategory) => {
+    if (!householdId) {
+      onCreateForDate(date);
+      return;
+    }
+    setPendingCategory(category);
+    try {
+      await createEvent.mutateAsync({
+        household_id: householdId,
+        title: resolveCategoryLabel(category, null, locale),
+        event_date: format(date, 'yyyy-MM-dd'),
+        day_part: 'afternoon',
+        day_part_start: 'afternoon',
+        day_part_end: 'afternoon',
+        start_time: '12:00',
+        end_time: '13:00',
+        category,
+      });
+      toast.success(t('vacation.added'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('common.error'));
+    } finally {
+      setPendingCategory(null);
+    }
+  };
+
+  const itinerary = itineraryLabels(
+    [...visibleEvents]
+      .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
+      .map((ev) => ev.title),
   );
 
   const formatEventTime = (ev: Event) => {
@@ -109,6 +163,15 @@ const DayOverview = ({
         className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain scroll-touch px-5 pb-3"
         data-sheet-scroll
       >
+        {vacationOn && itinerary && (
+          <div className="rounded-2xl bg-cyan-50 px-3 py-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-900/70">
+              {t('vacation.itinerary')}
+            </p>
+            <p className="mt-0.5 text-sm font-bold text-cyan-950">{itinerary}</p>
+          </div>
+        )}
+
         {countdowns.map((cd) => {
           const theme = getCountdownTheme(cd.theme);
           const daysFromNow = calendarDaysUntil(cd.target_at);
@@ -137,15 +200,21 @@ const DayOverview = ({
           );
         })}
 
-        {events.length === 0 && countdowns.length === 0 ? (
+        {visibleEvents.length === 0 && countdowns.length === 0 ? (
           <div className="flex h-full min-h-[8rem] flex-col items-center justify-center px-2 text-center">
-            <p className="font-medium text-foreground">{t('event.emptyDay')}</p>
+            <p className="font-medium text-foreground">
+              {vacationOn ? t('vacation.emptyDay') : t('event.emptyDay')}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {canSeedWeek ? t('event.emptyWeekHint') : t('event.emptyDayHint')}
+              {vacationOn
+                ? t('vacation.layerHint')
+                : canSeedWeek
+                  ? t('event.emptyWeekHint')
+                  : t('event.emptyDayHint')}
             </p>
           </div>
         ) : (
-          [...events]
+          [...visibleEvents]
             .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
             .map((ev) => {
               const timeLabel = formatEventTime(ev);
@@ -168,7 +237,9 @@ const DayOverview = ({
                     key={ev.id}
                     type="button"
                     onClick={() => onPickEvent(ev)}
-                    className="w-full rounded-xl p-3 text-left"
+                    className={`w-full rounded-xl p-3 text-left ${
+                      vacationOn && vacation.revealHidden && eventIsWorkdayLayer(ev) ? 'opacity-40' : ''
+                    }`}
                     style={{ backgroundColor: OVERLAY_MARK.soft }}
                   >
                     <div className="flex items-center gap-2">
@@ -204,7 +275,9 @@ const DayOverview = ({
                   key={ev.id}
                   type="button"
                   onClick={() => onPickEvent(ev)}
-                  className="w-full rounded-xl p-3 text-left"
+                  className={`w-full rounded-xl p-3 text-left ${
+                    vacationOn && vacation.revealHidden && eventIsWorkdayLayer(ev) ? 'opacity-40' : ''
+                  }`}
                   style={{ backgroundColor: visuals.soft || undefined }}
                 >
                   <div className="flex items-center gap-2">
@@ -227,6 +300,12 @@ const DayOverview = ({
                 </button>
               );
             })
+        )}
+
+        {vacationOn && householdId && (
+          <div className="pt-2">
+            <VacationQuickAdd onPick={(cat) => void handleQuickAdd(cat)} pendingCategory={pendingCategory} />
+          </div>
         )}
       </div>
 

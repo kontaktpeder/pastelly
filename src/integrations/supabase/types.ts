@@ -113,37 +113,46 @@ export type Database = {
           created_at: string
           created_by_member_id: string
           emoji: string | null
+          ends_at: string | null
           household_id: string
           id: string
           status: string
           target_at: string
           theme: string
+          timezone: string | null
           title: string
           updated_at: string
+          use_vacation_mode: boolean
         }
         Insert: {
           created_at?: string
           created_by_member_id: string
           emoji?: string | null
+          ends_at?: string | null
           household_id: string
           id?: string
           status?: string
           target_at: string
           theme?: string
+          timezone?: string | null
           title: string
           updated_at?: string
+          use_vacation_mode?: boolean
         }
         Update: {
           created_at?: string
           created_by_member_id?: string
           emoji?: string | null
+          ends_at?: string | null
           household_id?: string
           id?: string
           status?: string
           target_at?: string
           theme?: string
+          timezone?: string | null
           title?: string
           updated_at?: string
+          use_vacation_mode?: boolean
         }
         Relationships: [
           {
@@ -588,6 +597,7 @@ export type Database = {
           timezone: string
           updated_at: string
           user_id: string | null
+          vacation_mode: Json | null
         }
         Insert: {
           avatar_url?: string | null
@@ -606,6 +616,7 @@ export type Database = {
           timezone?: string
           updated_at?: string
           user_id?: string | null
+          vacation_mode?: Json | null
         }
         Update: {
           avatar_url?: string | null
@@ -624,6 +635,7 @@ export type Database = {
           timezone?: string
           updated_at?: string
           user_id?: string | null
+          vacation_mode?: Json | null
         }
         Relationships: [
           {
@@ -1055,23 +1067,61 @@ export type Database = {
       create_countdown: {
         Args: {
           p_emoji?: string
+          p_ends_at?: string
           p_household_id: string
           p_invite_member_ids?: string[]
           p_target_at: string
           p_theme?: string
+          p_timezone?: string
           p_title: string
+          p_use_vacation_mode?: boolean
         }
         Returns: {
           created_at: string
           created_by_member_id: string
           emoji: string | null
+          ends_at: string | null
           household_id: string
           id: string
           status: string
           target_at: string
           theme: string
+          timezone: string | null
           title: string
           updated_at: string
+          use_vacation_mode: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "countdowns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      update_countdown: {
+        Args: {
+          p_clear_ends_at?: boolean
+          p_countdown_id: string
+          p_ends_at?: string
+          p_target_at?: string
+          p_timezone?: string
+          p_title?: string
+          p_use_vacation_mode?: boolean
+        }
+        Returns: {
+          created_at: string
+          created_by_member_id: string
+          emoji: string | null
+          ends_at: string | null
+          household_id: string
+          id: string
+          status: string
+          target_at: string
+          theme: string
+          timezone: string | null
+          title: string
+          updated_at: string
+          use_vacation_mode: boolean
         }
         SetofOptions: {
           from: "*"

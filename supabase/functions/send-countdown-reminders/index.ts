@@ -29,6 +29,9 @@ type CountdownRow = {
   emoji: string | null;
   theme: string;
   status: string;
+  ends_at?: string | null;
+  use_vacation_mode?: boolean | null;
+  timezone?: string | null;
 };
 
 Deno.serve(async (req) => {
@@ -73,7 +76,7 @@ Deno.serve(async (req) => {
 
     const { data: countdowns, error } = await admin
       .from('countdowns')
-      .select('id, household_id, title, target_at, emoji, theme, status')
+      .select('id, household_id, title, target_at, emoji, theme, status, ends_at, use_vacation_mode, timezone')
       .eq('status', 'active');
 
     if (error) return json({ error: error.message }, 500);
@@ -118,9 +121,10 @@ async function processCountdown(
   const sent: unknown[] = [];
   const targetMs = new Date(countdown.target_at).getTime();
   const nowMs = Date.now();
+  const endMs = countdown.ends_at ? new Date(countdown.ends_at).getTime() : targetMs;
 
-  // Past target by more than 15 min → mark done
-  if (nowMs > targetMs + 15 * 60 * 1000) {
+  // Period (or single-moment) is over → mark done
+  if (nowMs > endMs + 15 * 60 * 1000) {
     await admin.from('countdowns').update({ status: 'done' }).eq('id', countdown.id);
     return { id: countdown.id, marked: 'done' };
   }
@@ -128,7 +132,7 @@ async function processCountdown(
   for (const part of joined) {
     const member = memberById.get(part.member_id);
     if (!member?.user_id) continue;
-    const tz = member.timezone || 'Europe/Oslo';
+    const tz = countdown.timezone || member.timezone || 'Europe/Oslo';
     const local = localParts(tz);
     const targetLocalDate = dateStrInTz(new Date(countdown.target_at), tz);
     const daysLeft = daysBetween(local.dateStr, targetLocalDate);
@@ -164,7 +168,9 @@ async function processCountdown(
     if (daysLeft >= 1 && daysLeft <= 7) {
       const body =
         daysLeft === 1
-          ? `I morgen er det ${countdown.title}!`
+          ? countdown.use_vacation_mode
+            ? `Feriemodus starter i morgen · ${countdown.title}`
+            : `I morgen er det ${countdown.title}!`
           : `${daysLeft} dager igjen til ${countdown.title}`;
       const ok = await sendOnce(
         admin,
@@ -206,10 +212,10 @@ async function processCountdown(
     }
   }
 
-  // Mark done right after moment window if we already passed target
-  if (nowMs >= targetMs) {
+  // Mark done after the period (or moment) has passed
+  if (nowMs >= endMs) {
     const allMomented = joined.length > 0;
-    if (allMomented && nowMs >= targetMs + 14 * 60 * 1000) {
+    if (allMomented && nowMs >= endMs + 14 * 60 * 1000) {
       await admin.from('countdowns').update({ status: 'done' }).eq('id', countdown.id);
     }
   }

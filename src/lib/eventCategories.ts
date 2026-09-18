@@ -13,10 +13,21 @@ import {
   ClipboardList,
   User,
   BookOpen,
+  Umbrella,
+  Coffee,
+  Salad,
+  UtensilsCrossed,
+  BedDouble,
+  Mountain,
+  Bike,
+  Sun,
+  ShoppingBag,
+  Ticket,
   type LucideIcon,
 } from 'lucide-react';
 import type { CalendarKind } from '@/lib/calendarKinds';
 import { resolveCalendarKind } from '@/lib/calendarKinds';
+import { VACATION_CATEGORY_OPTIONS } from '@/lib/vacationMode';
 
 export type HomeEventCategory =
   | 'couple'
@@ -42,8 +53,25 @@ export type WorkEventCategory =
 /** Legacy work keys still readable on old events. */
 export type LegacyWorkEventCategory = 'client' | 'deadline' | 'focus';
 
-/** All persisted category keys (home + work + legacy). */
-export type EventCategory = HomeEventCategory | WorkEventCategory | LegacyWorkEventCategory;
+/** Holiday-layer categories — stored on the same events table. */
+export type VacationEventCategory =
+  | 'beach'
+  | 'breakfast'
+  | 'lunch'
+  | 'dinner'
+  | 'hotel'
+  | 'outing'
+  | 'activity'
+  | 'relaxation'
+  | 'shopping'
+  | 'practical';
+
+/** All persisted category keys (home + work + legacy + vacation). */
+export type EventCategory =
+  | HomeEventCategory
+  | WorkEventCategory
+  | LegacyWorkEventCategory
+  | VacationEventCategory;
 
 export type EventPriority = 'normal' | 'high';
 
@@ -97,6 +125,76 @@ export const EVENT_CATEGORY_META: Record<EventCategory, CategoryMeta> = {
     chipBg: 'bg-member-mint/60',
     chipText: 'text-foreground',
     iconColor: 'text-teal-500',
+  },
+  beach: {
+    label: 'Strand og bading',
+    Icon: Umbrella,
+    chipBg: 'bg-cyan-100',
+    chipText: 'text-foreground',
+    iconColor: 'text-cyan-600',
+  },
+  breakfast: {
+    label: 'Frokost',
+    Icon: Coffee,
+    chipBg: 'bg-amber-100',
+    chipText: 'text-foreground',
+    iconColor: 'text-amber-500',
+  },
+  lunch: {
+    label: 'Lunsj',
+    Icon: Salad,
+    chipBg: 'bg-orange-100',
+    chipText: 'text-foreground',
+    iconColor: 'text-orange-500',
+  },
+  dinner: {
+    label: 'Middag / spise ute',
+    Icon: UtensilsCrossed,
+    chipBg: 'bg-rose-100',
+    chipText: 'text-foreground',
+    iconColor: 'text-rose-500',
+  },
+  hotel: {
+    label: 'Hotell og overnatting',
+    Icon: BedDouble,
+    chipBg: 'bg-sky-100',
+    chipText: 'text-foreground',
+    iconColor: 'text-sky-600',
+  },
+  outing: {
+    label: 'Utflukt og opplevelse',
+    Icon: Mountain,
+    chipBg: 'bg-violet-100',
+    chipText: 'text-foreground',
+    iconColor: 'text-violet-500',
+  },
+  activity: {
+    label: 'Aktivitet',
+    Icon: Bike,
+    chipBg: 'bg-green-100',
+    chipText: 'text-foreground',
+    iconColor: 'text-green-600',
+  },
+  relaxation: {
+    label: 'Avslapning',
+    Icon: Sun,
+    chipBg: 'bg-yellow-100',
+    chipText: 'text-foreground',
+    iconColor: 'text-yellow-500',
+  },
+  shopping: {
+    label: 'Shopping',
+    Icon: ShoppingBag,
+    chipBg: 'bg-pink-100',
+    chipText: 'text-foreground',
+    iconColor: 'text-pink-500',
+  },
+  practical: {
+    label: 'Praktisk / reservasjon',
+    Icon: Ticket,
+    chipBg: 'bg-teal-100',
+    chipText: 'text-foreground',
+    iconColor: 'text-teal-600',
   },
   school: {
     label: 'Skole',
@@ -197,9 +295,15 @@ export const WORK_CATEGORY_OPTIONS: EventCategory[] = [
 /** @deprecated Prefer getCategoryOptionsForKind — kept for callers that assume home. */
 export const CATEGORY_OPTIONS = HOME_CATEGORY_OPTIONS;
 
+export const VACATION_ADD_OPTIONS: EventCategory[] = [...VACATION_CATEGORY_OPTIONS];
+
 export function getCategoryOptionsForKind(
   kind: CalendarKind | string | null | undefined,
+  opts?: { vacationMode?: boolean },
 ): EventCategory[] {
+  if (opts?.vacationMode && resolveCalendarKind(kind) !== 'work') {
+    return VACATION_ADD_OPTIONS;
+  }
   return resolveCalendarKind(kind) === 'work'
     ? WORK_CATEGORY_OPTIONS
     : HOME_CATEGORY_OPTIONS;
@@ -231,5 +335,15 @@ export const CATEGORY_SORT_ORDER: Record<string, number> = {
   celebration: 12,
   social: 13,
   travel: 14,
-  other: 15,
+  beach: 15,
+  breakfast: 16,
+  lunch: 17,
+  dinner: 18,
+  hotel: 19,
+  outing: 20,
+  activity: 21,
+  relaxation: 22,
+  shopping: 23,
+  practical: 24,
+  other: 25,
 };

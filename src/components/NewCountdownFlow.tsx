@@ -4,7 +4,8 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useCreateCountdown } from '@/hooks/useCountdowns';
 import { COUNTDOWN_THEME_IDS, getCountdownTheme, type CountdownThemeId } from '@/lib/countdownThemes';
-import { localDateAndTimeToIso } from '@/lib/countdownTime';
+import { zonedDateAndTimeToIso, VACATION_TIME_ZONES, resolveTimeZone, DEFAULT_TIME_ZONE } from '@/lib/timeZone';
+import { persistCountdownVacationLocal } from '@/hooks/useVacationMode';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import { useLocale } from '@/hooks/useLocale';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
@@ -46,7 +47,14 @@ const NewCountdownFlow = ({
   const [title, setTitle] = useState('');
   const [emoji, setEmoji] = useState('✨');
   const [date, setDate] = useState(initialDate || new Date());
-  const [time, setTime] = useState('18:00');
+  const [time, setTime] = useState('08:00');
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [endTime, setEndTime] = useState('23:59');
+  const [useVacationMode, setUseVacationMode] = useState(false);
+  const currentMember = members.find((m) => m.id === currentMemberId);
+  const [timeZone, setTimeZone] = useState(() =>
+    resolveTimeZone(currentMember?.timezone || DEFAULT_TIME_ZONE),
+  );
   const [theme, setTheme] = useState<CountdownThemeId>('rose');
   const [inviteIds, setInviteIds] = useState<string[]>(() => {
     const others = members.filter((m) => m.id !== currentMemberId);
@@ -101,8 +109,13 @@ const NewCountdownFlow = ({
   };
 
   const handleCreate = async () => {
-    const targetAt = localDateAndTimeToIso(date, time);
+    const targetAt = zonedDateAndTimeToIso(date, time, timeZone);
     if (new Date(targetAt).getTime() <= Date.now()) {
+      toast.error(t('countdown.futureRequired'));
+      return;
+    }
+    const endsAt = endDate ? zonedDateAndTimeToIso(endDate, endTime || '23:59', timeZone) : null;
+    if (endsAt && new Date(endsAt).getTime() <= new Date(targetAt).getTime()) {
       toast.error(t('countdown.futureRequired'));
       return;
     }
@@ -120,6 +133,14 @@ const NewCountdownFlow = ({
         emoji: emoji || null,
         invite_member_ids: inviteIds,
         invite_user_ids: inviteUserIds,
+        ends_at: endsAt,
+        use_vacation_mode: useVacationMode,
+        timezone: timeZone,
+      });
+      persistCountdownVacationLocal(created.id, {
+        ends_at: endsAt,
+        use_vacation_mode: useVacationMode,
+        timezone: timeZone,
       });
 
       onCreated?.(created.id);
@@ -164,7 +185,7 @@ const NewCountdownFlow = ({
     step === 3 ? t('countdown.themeHint') :
     t('countdown.whoHint');
 
-  const needsScroll = step >= 3;
+  const needsScroll = step >= 2;
   const header = (
     <div className={`text-center shrink-0 ${keyboardOpen && step === 1 ? 'pt-1 pb-3' : 'pt-1 pb-4'}`}>
       <p className="text-xs font-medium text-muted-foreground mb-1">
@@ -232,6 +253,72 @@ const NewCountdownFlow = ({
             <p className="text-sm text-muted-foreground text-center capitalize">
               {format(date, 'EEEE d. MMMM', { locale: dateLocale })} · {time}
             </p>
+            <p className="text-xs text-muted-foreground text-center">{t('countdown.periodHint')}</p>
+            <label className="block">
+              <span className="text-sm font-medium mb-1.5 block text-center">{t('countdown.endDate')}</span>
+              <input
+                type="date"
+                className={FIELD}
+                value={endDate ? format(endDate, 'yyyy-MM-dd') : ''}
+                min={format(date, 'yyyy-MM-dd')}
+                onChange={(e) => {
+                  if (!e.target.value) {
+                    setEndDate(null);
+                    return;
+                  }
+                  const [y, m, d] = e.target.value.split('-').map(Number);
+                  if (y && m && d) setEndDate(new Date(y, m - 1, d));
+                }}
+              />
+            </label>
+            {endDate && (
+              <label className="block">
+                <span className="text-sm font-medium mb-1.5 block text-center">{t('countdown.endTime')}</span>
+                <input
+                  type="time"
+                  className={FIELD}
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                />
+              </label>
+            )}
+            <label className="block">
+              <span className="text-sm font-medium mb-1.5 block text-center">{t('countdown.timezone')}</span>
+              <select
+                className={FIELD}
+                value={timeZone}
+                onChange={(e) => setTimeZone(e.target.value)}
+              >
+                {VACATION_TIME_ZONES.map((z) => (
+                  <option key={z.value} value={z.value}>
+                    {locale === 'en' ? z.labelEn : z.labelNb}
+                  </option>
+                ))}
+                {!VACATION_TIME_ZONES.some((z) => z.value === timeZone) && (
+                  <option value={timeZone}>{timeZone}</option>
+                )}
+              </select>
+              <p className="text-xs text-muted-foreground text-center mt-1">{t('countdown.timezoneHint')}</p>
+            </label>
+            <label className="flex items-start gap-3 rounded-2xl bg-cyan-50 p-4 cursor-pointer text-left">
+              <input
+                type="checkbox"
+                className="mt-1 h-5 w-5 accent-cyan-700"
+                checked={useVacationMode}
+                onChange={(e) => {
+                  setUseVacationMode(e.target.checked);
+                  if (e.target.checked && !endDate) {
+                    setEndDate(date);
+                  }
+                }}
+              />
+              <span>
+                <span className="block font-semibold text-sm">{t('countdown.useVacationMode')}</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  {t('countdown.useVacationModeHint')}
+                </span>
+              </span>
+            </label>
           </div>
         )}
 

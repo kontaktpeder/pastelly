@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect, type Dispatch, type SetStateAction } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { startOfMonth } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -36,6 +36,8 @@ import { tryOpenSheet } from '@/lib/sheetGate';
 import { markAppReady } from '@/lib/native/appBoot';
 import BootVeil from '@/components/BootVeil';
 import { peekPendingOpenDay, subscribePendingOpenDay } from '@/lib/native/pendingOpenDay';
+import { useActiveCountdowns } from '@/hooks/useCountdowns';
+import { VacationModeProvider, useVacationMode } from '@/hooks/useVacationMode';
 
 export type Highlight = { eventId: string; dateStr: string; ts: number } | null;
 
@@ -59,6 +61,7 @@ const Index = () => {
     invalidate,
   } = useCurrentHouseholdContext();
   const { data: members = [] } = useMembers(household?.id);
+  const { data: activeCountdowns = [] } = useActiveCountdowns(household?.id);
   const { data: hasEvents, isSuccess: hasEventsReady } = useHouseholdHasEvents(household?.id);
   const queryClient = useQueryClient();
   const [focusedDate, setFocusedDate] = useState<Date>(() => new Date());
@@ -351,11 +354,12 @@ const Index = () => {
 
   return (
     <LocaleProvider calendarLocale={(household as any).locale}>
-    <div
-      data-calendar-kind={calendarKind}
-      className="h-[100dvh] w-full bg-background flex flex-col max-w-6xl mx-auto relative overflow-hidden"
-      style={{ backgroundColor: PASTEL.paper }}
+    <VacationModeProvider
+      member={currentMember}
+      calendarKind={calendarKind}
+      countdowns={activeCountdowns}
     >
+    <CalendarShell calendarKind={calendarKind}>
       {showBootVeil && <BootVeil revealing={bootPhase === 'revealing'} />}
 
       <motion.div
@@ -552,8 +556,29 @@ const Index = () => {
           onSignOut={handleSignOut}
         />
       )}
-    </div>
+    </CalendarShell>
+    </VacationModeProvider>
     </LocaleProvider>
+  );
+};
+
+const CalendarShell = ({
+  calendarKind,
+  children,
+}: {
+  calendarKind: string;
+  children: ReactNode;
+}) => {
+  const vacation = useVacationMode();
+  return (
+    <div
+      data-calendar-kind={calendarKind}
+      data-vacation-mode={vacation.snapshot.active ? 'on' : 'off'}
+      className="h-[100dvh] w-full bg-background flex flex-col max-w-6xl mx-auto relative overflow-hidden"
+      style={{ backgroundColor: vacation.snapshot.active ? '#E7F8F9' : PASTEL.paper }}
+    >
+      {children}
+    </div>
   );
 };
 
