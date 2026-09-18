@@ -1,7 +1,7 @@
 import { DAY_PART_LABELS } from '@/lib/colors';
 import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
 import { resolveCategoryVisuals, getMemberColorMap } from '@/lib/categoryPresentation';
-import { formatMultiDayLabel } from '@/lib/multiDaySpans';
+import { formatMultiDayLabel, isMultiDayEvent } from '@/lib/multiDaySpans';
 import { translateDayPart } from '@/lib/i18n';
 import { useLocale } from '@/hooks/useLocale';
 import type { Event } from '@/hooks/useEvents';
@@ -33,8 +33,8 @@ export interface DayOverviewProps {
   currentMemberId?: string;
   calendarKind?: string;
   canSeedWeek?: boolean;
-  /** sheet = PopupStickyFooter; panel = bordered stack in desktop aside */
-  layout?: 'sheet' | 'panel';
+  /** sheet = PopupStickyFooter; panel = bordered stack in desktop aside; agenda = inline week program */
+  layout?: 'sheet' | 'panel' | 'agenda';
   onPickEvent: (event: DisplayEvent) => void;
   onPickCountdown?: (countdown: CountdownWithParticipants) => void;
   onCreateForDate: (date: Date) => void;
@@ -66,8 +66,17 @@ const DayOverview = ({
   const [pendingCategory, setPendingCategory] = useState<string | null>(null);
   const visibleEvents = vacation.filterEvents(events);
   const vacationOn = vacation.enabledForCalendar && vacation.snapshot.active;
+  const isAgenda = layout === 'agenda';
 
-  const actions = (
+  const actions = isAgenda ? (
+    <button
+      type="button"
+      onClick={() => onCreateForDate(date)}
+      className="w-full py-3 text-sm font-semibold text-[#0B4A5C]"
+    >
+      {t('event.addDiscreet')}
+    </button>
+  ) : (
     <>
       {canSeedWeek && events.length === 0 && onSeedWeek && (
         <button
@@ -87,7 +96,7 @@ const DayOverview = ({
           {t('countdown.new')}
         </button>
       )}
-      {vacation.enabledForCalendar && <VacationModeToggle />}
+      {vacation.enabledForCalendar && !vacationOn && <VacationModeToggle />}
       <button
         type="button"
         onClick={() => onCreateForDate(date)}
@@ -134,8 +143,21 @@ const DayOverview = ({
       .map((ev) => ev.title),
   );
 
+  const formatAgendaTime = (ev: Event) => {
+    if (ev.start_time) return ev.start_time.slice(0, 5);
+    const dps = (ev as { day_part_start?: string | null }).day_part_start;
+    if (dps === 'all_day' || ev.day_part === 'all_day' || isMultiDayEvent(ev)) {
+      return t('dayPart.all_day');
+    }
+    return (
+      translateDayPart(locale, dps || ev.day_part) ||
+      DAY_PART_LABELS[dps || ev.day_part] ||
+      t('dayPart.all_day')
+    );
+  };
+
   const formatEventTime = (ev: Event) => {
-    const dps = (ev as any).day_part_start as string | null;
+    const dps = (ev as { day_part_start?: string | null }).day_part_start;
     const parts: string[] = [];
     if (ev.start_time) {
       parts.push(ev.start_time.slice(0, 5));
@@ -153,7 +175,7 @@ const DayOverview = ({
         className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain scroll-touch px-5 pb-3"
         data-sheet-scroll
       >
-        {vacationOn && itinerary && (
+        {vacationOn && !isAgenda && itinerary && (
           <div className="rounded-2xl bg-cyan-50 px-3 py-2.5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-900/70">
               {t('vacation.itinerary')}
@@ -163,6 +185,24 @@ const DayOverview = ({
         )}
 
         {countdowns.map((cd) => {
+          if (isAgenda) {
+            return (
+              <button
+                key={cd.id}
+                type="button"
+                onClick={() => onPickCountdown?.(cd)}
+                className="flex w-full items-start gap-3 py-2.5 text-left"
+              >
+                <span className="w-[4.75rem] shrink-0 pt-0.5 text-[13px] font-semibold text-muted-foreground">
+                  {t('countdown.onDay')}
+                </span>
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center text-base">
+                  {cd.emoji || '✨'}
+                </span>
+                <span className="min-w-0 flex-1 pt-0.5 text-sm font-semibold">{cd.title}</span>
+              </button>
+            );
+          }
           const theme = getCountdownTheme(cd.theme);
           const daysFromNow = calendarDaysUntil(cd.target_at);
           const label =
@@ -191,7 +231,9 @@ const DayOverview = ({
         })}
 
         {visibleEvents.length === 0 && countdowns.length === 0 ? (
-          <div className="flex h-full min-h-[8rem] flex-col items-center justify-center px-2 text-center">
+          <div className={`flex flex-col items-center justify-center px-2 text-center ${
+            isAgenda ? 'min-h-[4.5rem] py-6' : 'h-full min-h-[8rem]'
+          }`}>
             <p className="font-medium text-foreground">
               {vacationOn ? t('vacation.emptyDay') : t('event.emptyDay')}
             </p>
@@ -207,11 +249,11 @@ const DayOverview = ({
           [...visibleEvents]
             .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
             .map((ev) => {
-              const timeLabel = formatEventTime(ev);
+              const dim = vacationOn && vacation.revealHidden && eventIsWorkdayLayer(ev) ? 'opacity-40' : '';
               const multiLabel = formatMultiDayLabel(ev, {
                 dateLocale,
                 daysLabel: (() => {
-                  const end = (ev as any).end_date as string | undefined;
+                  const end = (ev as { end_date?: string }).end_date;
                   if (!end) return '';
                   const start = new Date(ev.event_date + 'T12:00:00');
                   const endD = new Date(end + 'T12:00:00');
@@ -219,6 +261,41 @@ const DayOverview = ({
                   return t('event.daysCount', { count: days });
                 })(),
               });
+
+              if (isAgenda) {
+                const member = ev.isOverlay ? undefined : getMember(ev.owner_member_id);
+                const meta = EVENT_CATEGORY_META[(ev.category as keyof typeof EVENT_CATEGORY_META) || 'other'];
+                const visuals = ev.isOverlay
+                  ? { soft: OVERLAY_MARK.soft, ink: OVERLAY_MARK.ink, rail: OVERLAY_MARK.rail }
+                  : resolveCategoryVisuals(ev.category, getMemberColorMap(member));
+                const Icon = ev.isOverlay ? BriefcaseBusiness : meta?.Icon;
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => onPickEvent(ev)}
+                    className={`flex w-full items-start gap-3 py-2.5 text-left ${dim}`}
+                  >
+                    <span className="w-[4.75rem] shrink-0 pt-0.5 text-[13px] font-semibold tabular-nums text-muted-foreground">
+                      {formatAgendaTime(ev)}
+                    </span>
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                      style={{ backgroundColor: visuals.soft, color: visuals.ink }}
+                    >
+                      {Icon ? <Icon size={14} strokeWidth={2.3} /> : null}
+                    </span>
+                    <span className="min-w-0 flex-1 pt-0.5">
+                      <span className="block text-sm font-semibold leading-snug text-foreground">{ev.title}</span>
+                      {multiLabel && (
+                        <span className="mt-0.5 block text-xs text-muted-foreground">{multiLabel}</span>
+                      )}
+                    </span>
+                  </button>
+                );
+              }
+
+              const timeLabel = formatEventTime(ev);
 
               if (ev.isOverlay) {
                 const fromWork = (ev.sourceHouseholdKind || '').toLowerCase() === 'work';
@@ -307,7 +384,9 @@ const DayOverview = ({
         )}
       </div>
 
-      {layout === 'sheet' ? (
+      {isAgenda ? (
+        <div className="shrink-0 px-5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">{actions}</div>
+      ) : layout === 'sheet' ? (
         <PopupStickyFooter className="space-y-2">{actions}</PopupStickyFooter>
       ) : (
         <div className="shrink-0 space-y-2 border-t border-border/60 bg-card/90 px-5 py-3">

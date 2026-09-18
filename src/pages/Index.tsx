@@ -386,7 +386,7 @@ const Index = () => {
         </button>
       </header>
 
-      <main className="flex-1 min-h-0 overflow-hidden relative bg-background md:grid md:grid-cols-[minmax(0,1fr)_22rem] lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <main className="flex-1 min-h-0 overflow-hidden relative bg-background md:grid md:grid-cols-[minmax(0,1fr)_22rem] lg:grid-cols-[minmax(0,1fr)_24rem] group-data-[vacation-mode=on]:md:grid-cols-1 group-data-[vacation-mode=on]:lg:grid-cols-1">
         {/* Single instance — no exit/enter overlap (avoids layered calendars) */}
         <motion.div
           key={household.id}
@@ -418,7 +418,7 @@ const Index = () => {
           />
         </motion.div>
 
-        <aside className="hidden min-h-0 flex-col border-l border-border/70 bg-card/70 md:flex">
+        <aside className="hidden min-h-0 flex-col border-l border-border/70 bg-card/70 md:flex group-data-[vacation-mode=on]:hidden">
           <DesktopDayPanel
             date={focusedDate}
             householdId={household.id}
@@ -552,7 +552,7 @@ function CalendarDateBridge({
 }: {
   focusedDate: Date;
   onFocusedDateChange: Dispatch<SetStateAction<Date>>;
-} & Omit<ComponentProps<typeof CalendarView>, 'currentDate' | 'onCurrentDateChange'>) {
+} & Omit<ComponentProps<typeof CalendarView>, 'currentDate' | 'selectedDate' | 'onCurrentDateChange'>) {
   const vacation = useVacationMode();
   const weekMode = vacation.enabledForCalendar && vacation.snapshot.active;
   const currentDate = useMemo(
@@ -569,6 +569,7 @@ function CalendarDateBridge({
     <CalendarView
       {...calendarProps}
       currentDate={currentDate}
+      selectedDate={focusedDate}
       onCurrentDateChange={onCurrentDateChange}
     />
   );
@@ -586,8 +587,8 @@ const CalendarShell = ({
     <div
       data-calendar-kind={calendarKind}
       data-vacation-mode={vacation.snapshot.active ? 'on' : 'off'}
-      className="h-[100dvh] w-full bg-background flex flex-col max-w-6xl mx-auto relative overflow-hidden"
-      style={{ backgroundColor: vacation.snapshot.active ? '#E7F8F9' : PASTEL.paper }}
+      className="group h-[100dvh] w-full bg-background flex flex-col max-w-6xl mx-auto relative overflow-hidden"
+      style={{ backgroundColor: PASTEL.paper }}
     >
       {children}
     </div>

@@ -196,6 +196,7 @@ export const nb = {
   'event.openSourceCalendar': 'Åpne kalenderen',
   'event.overlayHint': 'Vises her fra en annen kalender som tidspunkt',
   'event.newActivity': 'Ny aktivitet',
+  'event.addDiscreet': '+ Legg til',
   'event.seeList': 'Se liste',
   'event.addListItem': 'Legg til punkt…',
   'event.list': 'Liste',
@@ -340,9 +341,9 @@ export const nb = {
   'vacation.off': 'Av',
   'vacation.toggle': 'Feriemodus: av/på',
   'vacation.layerHint': 'Et lag over kalenderen — avtaler slettes ikke.',
-  'vacation.showRest': 'Vis resten av kalenderen',
-  'vacation.hideRest': 'Skjul jobb og hverdag igjen',
-  'vacation.bannerOn': 'Feriemodus er på',
+  'vacation.showRest': 'Vis hele kalenderen',
+  'vacation.hideRest': 'Skjul hverdagen igjen',
+  'vacation.bannerOn': 'Feriemodus på',
   'vacation.bannerNamed': 'Feriemodus · {title}',
   'vacation.overridden': 'Overstyrt manuelt — slår ikke på igjen før neste ferieperiode.',
   'vacation.startsTomorrow': 'Feriemodus starter i morgen',
@@ -364,6 +365,7 @@ export const nb = {
   'vacation.added': 'Lagt til',
   'vacation.turnOn': 'Slå på feriemodus',
   'vacation.turnOff': 'Slå av feriemodus',
+  'vacation.weekLabel': 'Uke {week} · {range}',
 } as const;
 
 export type MessageKey = keyof typeof nb;

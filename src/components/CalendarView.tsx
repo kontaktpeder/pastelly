@@ -45,6 +45,8 @@ import {
 } from '@/lib/native/pendingOpenCountdown';
 import { BriefcaseBusiness, type LucideIcon } from 'lucide-react';
 import { useVacationMode } from '@/hooks/useVacationMode';
+import DayOverview from '@/components/DayOverview';
+import { VacationWeekHeader, VacationWeekStrip } from '@/components/VacationWeekStrip';
 import VacationModeBanner from '@/components/VacationModeBanner';
 import { eventIsWorkdayLayer, formatVacationRange } from '@/lib/vacationMode';
 import { getIntlLocale } from '@/lib/i18n';
@@ -55,6 +57,7 @@ interface CalendarViewProps {
   currentMemberId: string;
   calendarKind?: CalendarKind | string;
   currentDate?: Date;
+  selectedDate?: Date;
   onCurrentDateChange?: Dispatch<SetStateAction<Date>>;
   onSelectDate: (date: Date) => void;
   onCreateEvent: (date: Date) => void;
@@ -196,8 +199,8 @@ function buildMonthDays(monthDate: Date): Date[] {
   return eachDayOfInterval({ start: calStart, end: calEnd });
 }
 
-const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, onCurrentDateChange, onSelectDate, onCreateEvent, onCreateCountdown, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
-  const { dateLocale, locale } = useLocale();
+const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, selectedDate, onCurrentDateChange, onSelectDate, onCreateEvent, onCreateCountdown, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
+  const { dateLocale, locale, t } = useLocale();
   const vacation = useVacationMode();
   const weekMode = vacation.enabledForCalendar && vacation.snapshot.active;
   const weekdayLabels = useMemo(() => {
@@ -209,6 +212,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const isMobile = useIsMobile();
   const [internalDate, setInternalDate] = useState(new Date());
   const currentDate = controlledDate ?? internalDate;
+  const focusedDay = selectedDate ?? currentDate;
   const setCurrentDate = useCallback(
     (updater: SetStateAction<Date>) => {
       if (onCurrentDateChange) onCurrentDateChange(updater);
@@ -466,7 +470,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [weekMode]);
 
   const stopPagingAnim = useCallback(() => {
     animationControlsRef.current?.stop();
@@ -647,9 +651,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   };
 
   const handleDayTap = (day: Date) => {
+    requestAnimationFrame(() => onSelectDate(day));
+    if (weekMode) return;
     // iPhone uses a sheet; iPad updates the persistent day inspector.
     if (isMobile) tryOpenSheet(() => setDaySheetDate(day));
-    requestAnimationFrame(() => onSelectDate(day));
   };
 
   const getMemberForEvent = (event: Event) => {
@@ -678,11 +683,121 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const daySheetEvents = daySheetDate
     ? eventsByDate[format(daySheetDate, 'yyyy-MM-dd')] || []
     : [];
+  const agendaDateStr = format(focusedDay, 'yyyy-MM-dd');
+  const agendaEvents = eventsByDate[agendaDateStr] || [];
+  const centerWeekStart = stripDates[WINDOW];
+  const canPrevWeek =
+    !weekMode ||
+    !vacation.visibleDateRange ||
+    weekOverlapsYmd(addWeeks(centerWeekStart, -1), vacation.visibleDateRange);
+  const canNextWeek =
+    !weekMode ||
+    !vacation.visibleDateRange ||
+    weekOverlapsYmd(addWeeks(centerWeekStart, 1), vacation.visibleDateRange);
+  const weekCaption = t('vacation.weekLabel', {
+    week: getISOWeek(centerWeekStart),
+    range: formatVacationRange(
+      centerWeekStart,
+      addDays(centerWeekStart, 6),
+      getIntlLocale(locale),
+      undefined,
+      'short',
+    ),
+  });
+  const monthLabel = format(focusedDay, 'MMMM', { locale: dateLocale });
+  const stepWeek = (dir: 1 | -1) => {
+    if (pageWidth) flingToHops(dir);
+    else setCurrentDate((d) => addWeeks(d, dir));
+  };
+  const pickAgendaEvent = (ev: DisplayEvent) => {
+    if (ev.isOverlay) setOverlayEvent(ev);
+    else setDetailEvent(ev);
+  };
+
+  const weekStrip = (
+    <div
+      ref={weekMode ? trackRef : undefined}
+      className="relative shrink-0 overflow-hidden select-none calendar-gesture-surface border-b border-border/50"
+    >
+      <motion.div
+        className="flex will-change-transform"
+        style={{
+          x,
+          width: pageWidth ? pageWidth * (WINDOW * 2 + 1) : '500%',
+          marginLeft: pageWidth ? -pageWidth * WINDOW : '-200%',
+          touchAction: 'none',
+          WebkitUserSelect: 'none',
+          userSelect: 'none',
+        }}
+        onPanStart={showYear ? undefined : handlePanStart}
+        onPan={showYear ? undefined : handlePan}
+        onPanEnd={showYear ? undefined : handlePanEnd}
+      >
+        {stripDates.map((date, i) => (
+          <VacationWeekStrip
+            key={format(date, 'yyyy-MM-dd')}
+            width={pageWidth}
+            days={daysByOffset[i]}
+            weekdayLabels={weekdayLabels}
+            selectedDate={focusedDay}
+            eventsByDate={eventsByOffset[i]}
+            members={members}
+            interactive={i === WINDOW}
+            rangeStart={visibleRangeStart}
+            rangeEnd={visibleRangeEnd}
+            onSelectDate={handleDayTap}
+            onLongPress={onCreateEvent}
+            onPressLock={lockStripForPress}
+            onPressUnlock={unlockStripForPress}
+          />
+        ))}
+      </motion.div>
+    </div>
+  );
 
   return (
     <>
       <div className="relative flex flex-col h-full min-h-0">
         <div className={`flex flex-col h-full min-h-0 ${showYear ? 'invisible pointer-events-none' : ''}`}>
+        {weekMode ? (
+          <>
+            <VacationWeekHeader
+              monthLabel={monthLabel}
+              weekCaption={weekCaption}
+              onPrev={() => stepWeek(-1)}
+              onNext={() => stepWeek(1)}
+              onTitleClick={openYearView}
+              canPrev={canPrevWeek}
+              canNext={canNextWeek}
+              showToday={!isOnCurrentMonth}
+              onToday={goToToday}
+            />
+            <VacationModeBanner />
+            {weekStrip}
+            <h2 className="shrink-0 px-5 pt-3 pb-1 text-lg font-bold capitalize text-foreground">
+              {format(focusedDay, 'EEEE d. MMMM', { locale: dateLocale })}
+            </h2>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <DayOverview
+                date={focusedDay}
+                events={agendaEvents}
+                countdowns={countdownsByDate[agendaDateStr] || []}
+                members={members}
+                householdId={householdId}
+                currentMemberId={currentMemberId}
+                calendarKind={calendarKind}
+                canSeedWeek={canSeedWeek}
+                layout="agenda"
+                onPickEvent={pickAgendaEvent}
+                onPickCountdown={(cd) => setDetailCountdown(cd)}
+                onCreateForDate={onCreateEvent}
+                onCreateCountdown={onCreateCountdown}
+                onSeedWeek={onSeedWeek}
+              />
+            </div>
+          </>
+        ) : (
+          <>
         {/* Month hint strip — soft wash, peeks with the day grid */}
         <div className="relative rounded-b-xl overflow-hidden shrink-0">
           <div className="relative h-9 overflow-hidden">
@@ -696,17 +811,9 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
             >
               {stripDates.map((date, i) => (
                 <MonthHeaderPanel
-                  key={weekMode ? format(date, 'yyyy-MM-dd') : `${date.getFullYear()}-${date.getMonth()}`}
+                  key={`${date.getFullYear()}-${date.getMonth()}`}
                   width={pageWidth}
-                  label={
-                    weekMode
-                      ? formatVacationRange(
-                          date,
-                          addDays(date, 6),
-                          getIntlLocale(locale),
-                        )
-                      : format(date, 'MMMM yyyy', { locale: dateLocale })
-                  }
+                  label={format(date, 'MMMM yyyy', { locale: dateLocale })}
                   fill={i === WINDOW ? monthTheme.light : getMonthTheme(date).light}
                   textColor={i === WINDOW ? monthTheme.textOnLight : getMonthTheme(date).textOnLight}
                   onTitleClick={i === WINDOW ? openYearView : undefined}
@@ -747,7 +854,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         <div
           ref={trackRef}
           className="relative flex-1 min-h-0 overflow-hidden select-none calendar-gesture-surface"
-          style={{ backgroundColor: vacation.snapshot.active ? '#E7F8F9' : PASTEL.paper }}
+          style={{ backgroundColor: PASTEL.paper }}
         >
           <motion.div
             className="absolute top-0 bottom-0 flex will-change-transform"
@@ -771,7 +878,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
               };
               return (
                 <MonthPanel
-                  key={weekMode ? format(date, 'yyyy-MM-dd') : `${date.getFullYear()}-${date.getMonth()}`}
+                  key={`${date.getFullYear()}-${date.getMonth()}`}
                   width={pageWidth}
                   monthDate={date}
                   days={daysByOffset[i]}
@@ -795,6 +902,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
             })}
           </motion.div>
         </div>
+          </>
+        )}
         </div>
 
         <AnimatePresence>

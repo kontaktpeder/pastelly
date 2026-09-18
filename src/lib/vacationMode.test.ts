@@ -448,8 +448,22 @@ describe('presentation helpers', () => {
       'nb-NO',
       'Europe/Madrid',
     );
-    expect(label).toMatch(/3/);
-    expect(label).toMatch(/15/);
+    expect(label).not.toMatch(/\d\.\./);
+    expect(label).toMatch(/3\./);
+    expect(label).toMatch(/15\./);
     expect(label.toLowerCase()).toMatch(/oktober/);
+  });
+
+  it('formats a short Norwegian week range without double periods', () => {
+    const label = formatVacationRange(
+      new Date(2026, 8, 14),
+      new Date(2026, 8, 20),
+      'nb-NO',
+      undefined,
+      'short',
+    );
+    expect(label).not.toMatch(/\d\.\./);
+    expect(label).toMatch(/^14\.–20\. /);
+    expect(label.toLowerCase()).toMatch(/sep/);
   });
 });

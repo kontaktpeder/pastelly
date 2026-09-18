@@ -552,30 +552,40 @@ export function shouldMuteEventNotification(
   return eventIsWorkdayLayer(event);
 }
 
+function intlDayNumber(date: Date, locale: string, timeZone?: string): string {
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone }).format(date).replace(/\.$/, '');
+}
+
+function intlMonthName(
+  date: Date,
+  locale: string,
+  timeZone: string | undefined,
+  width: 'long' | 'short',
+): string {
+  return new Intl.DateTimeFormat(locale, { month: width, timeZone }).format(date).replace(/\.$/, '');
+}
+
 export function formatVacationRange(
   start: Date,
   end: Date,
   locale: string,
   timeZone?: string,
+  style: 'long' | 'short' = 'long',
 ): string {
-  const opts: Intl.DateTimeFormatOptions = {
-    day: 'numeric',
-    month: 'long',
-    timeZone: timeZone || undefined,
-  };
-  const startMonth = new Intl.DateTimeFormat(locale, { month: 'long', timeZone }).format(start);
-  const endMonth = new Intl.DateTimeFormat(locale, { month: 'long', timeZone }).format(end);
-  const startDay = new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone }).format(start);
-  const endDay = new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone }).format(end);
+  const monthWidth = style === 'short' ? 'short' : 'long';
+  const startMonth = intlMonthName(start, locale, timeZone, monthWidth);
+  const endMonth = intlMonthName(end, locale, timeZone, monthWidth);
+  const startDay = intlDayNumber(start, locale, timeZone);
+  const endDay = intlDayNumber(end, locale, timeZone);
+  const norwegian = locale.startsWith('nb') || locale.startsWith('nn') || locale.startsWith('no');
   if (startMonth === endMonth && start.getFullYear() === end.getFullYear()) {
-    if (locale.startsWith('nb') || locale.startsWith('nn') || locale.startsWith('no')) {
-      return `${startDay}.–${endDay}. ${endMonth}`;
-    }
+    if (norwegian) return `${startDay}.–${endDay}. ${endMonth}`;
     return `${startDay}–${endDay} ${endMonth}`;
   }
-  const startLabel = new Intl.DateTimeFormat(locale, opts).format(start);
-  const endLabel = new Intl.DateTimeFormat(locale, opts).format(end);
-  return `${startLabel}–${endLabel}`;
+  if (norwegian) {
+    return `${startDay}. ${startMonth}–${endDay}. ${endMonth}`;
+  }
+  return `${startDay} ${startMonth}–${endDay} ${endMonth}`;
 }
 
 export function itineraryLabels(titles: string[]): string {
