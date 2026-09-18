@@ -2,6 +2,8 @@ import { resolveTimeZone, getZonedParts, calendarDaysBetweenZoned, endOfZonedDay
 
 export type ManualVacationSource = 'now' | 'until_date' | 'until_workday' | 'countdown';
 
+export type VacationPrefsSyncStatus = 'synced' | 'pending';
+
 export type VacationModePrefs = {
   version: 1;
   manualOn: boolean;
@@ -18,6 +20,8 @@ export type VacationModePrefs = {
   muteHiddenNotifications: boolean;
   /** Default true: hide weekday events (still available via “show the rest”). */
   hideWorkdayEvents: boolean;
+  /** ISO time of the last local/server write. Used to merge pending local edits. */
+  updatedAt: string | null;
 };
 
 export const DEFAULT_VACATION_PREFS: VacationModePrefs = {
@@ -29,6 +33,12 @@ export const DEFAULT_VACATION_PREFS: VacationModePrefs = {
   autoSuppressedUntil: null,
   muteHiddenNotifications: false,
   hideWorkdayEvents: true,
+  updatedAt: null,
+};
+
+export type VacationParticipantLike = {
+  member_id: string;
+  status: string | null;
 };
 
 export type VacationCountdownLike = {
@@ -39,6 +49,7 @@ export type VacationCountdownLike = {
   ends_at?: string | null;
   use_vacation_mode?: boolean | null;
   timezone?: string | null;
+  countdown_participants?: VacationParticipantLike[] | null;
 };
 
 export type VacationPeriod = {
@@ -128,7 +139,86 @@ export function parseVacationPrefs(raw: unknown): VacationModePrefs {
         : null,
     muteHiddenNotifications: o.muteHiddenNotifications === true,
     hideWorkdayEvents: o.hideWorkdayEvents !== false,
+    updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
+}
+
+export type StoredPrefsMeta = {
+  syncStatus: VacationPrefsSyncStatus;
+  updatedAt: string | null;
+};
+
+/** Local-only envelope field — never persist `_syncStatus` to the database. */
+export function readStoredPrefsMeta(raw: unknown): StoredPrefsMeta {
+  if (!raw || typeof raw !== 'object') {
+    return { syncStatus: 'synced', updatedAt: null };
+  }
+  const o = raw as Record<string, unknown>;
+  const updatedAt = typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null;
+  if (o._syncStatus === 'pending') {
+    return { syncStatus: 'pending', updatedAt };
+  }
+  if (o._syncStatus === 'synced') {
+    return { syncStatus: 'synced', updatedAt };
+  }
+  // Legacy local cache (no sync flag): keep an in-flight manual session, but never
+  // let default mute/hide values beat a newer server row.
+  const hasLiveSession =
+    o.manualOn === true ||
+    (typeof o.autoSuppressedUntil === 'string' && !!o.autoSuppressedUntil);
+  if (hasLiveSession) {
+    return { syncStatus: 'pending', updatedAt: updatedAt ?? '9999-01-01T00:00:00.000Z' };
+  }
+  return { syncStatus: 'synced', updatedAt };
+}
+
+export function stampPrefsUpdatedAt(
+  prefs: VacationModePrefs,
+  now: Date = new Date(),
+): VacationModePrefs {
+  return { ...prefs, updatedAt: now.toISOString() };
+}
+
+export function prefsForLocalStore(
+  prefs: VacationModePrefs,
+  syncStatus: VacationPrefsSyncStatus,
+): VacationModePrefs & { _syncStatus: VacationPrefsSyncStatus } {
+  return { ...prefs, _syncStatus: syncStatus };
+}
+
+/**
+ * After migration, the server row is source of truth.
+ * Local cache wins only when it is marked pending (or a legacy in-flight session)
+ * and is newer than the database value.
+ * Before migration (`dbColumnPresent=false`), local is a development fallback.
+ */
+export function mergeVacationPrefsFromSources(input: {
+  dbRaw: unknown;
+  dbColumnPresent: boolean;
+  localRaw: unknown;
+}): { prefs: VacationModePrefs; syncStatus: VacationPrefsSyncStatus } {
+  const localPrefs = parseVacationPrefs(input.localRaw);
+  const localMeta = readStoredPrefsMeta(input.localRaw);
+
+  if (!input.dbColumnPresent) {
+    return {
+      prefs: localPrefs,
+      syncStatus: localMeta.syncStatus,
+    };
+  }
+
+  const dbPrefs = parseVacationPrefs(input.dbRaw);
+  const dbUpdated = dbPrefs.updatedAt ? Date.parse(dbPrefs.updatedAt) : 0;
+  const localUpdated = localMeta.updatedAt ? Date.parse(localMeta.updatedAt) : 0;
+  const pendingNewer =
+    localMeta.syncStatus === 'pending' &&
+    Number.isFinite(localUpdated) &&
+    localUpdated > dbUpdated;
+
+  if (pendingNewer) {
+    return { prefs: localPrefs, syncStatus: 'pending' };
+  }
+  return { prefs: dbPrefs, syncStatus: 'synced' };
 }
 
 export type StoredCountdownVacation = {
@@ -151,11 +241,44 @@ export function mergeCountdownVacation<T extends VacationCountdownLike>(
   countdown: T,
   stored: StoredCountdownVacation | null,
 ): T {
-  const ends_at = countdown.ends_at ?? stored?.ends_at ?? null;
-  const use_vacation_mode =
-    countdown.use_vacation_mode ?? stored?.use_vacation_mode ?? false;
-  const timezone = countdown.timezone ?? stored?.timezone ?? null;
-  return { ...countdown, ends_at, use_vacation_mode, timezone };
+  const serverHasColumn = countdown.use_vacation_mode !== undefined;
+  if (serverHasColumn || !stored) {
+    return {
+      ...countdown,
+      ends_at: countdown.ends_at ?? null,
+      use_vacation_mode: countdown.use_vacation_mode ?? false,
+      timezone: countdown.timezone ?? null,
+    };
+  }
+  return {
+    ...countdown,
+    ends_at: stored.ends_at,
+    use_vacation_mode: stored.use_vacation_mode,
+    timezone: stored.timezone,
+  };
+}
+
+export function memberHasJoinedCountdown(
+  countdown: { countdown_participants?: VacationParticipantLike[] | null },
+  memberId: string | null | undefined,
+): boolean {
+  if (!memberId) return false;
+  return (countdown.countdown_participants ?? []).some(
+    (p) => p.member_id === memberId && p.status === 'joined',
+  );
+}
+
+/** Invitation is not participation — auto vacation only after the member has joined. */
+export function collectVacationPeriodsForMember(
+  countdowns: VacationCountdownLike[],
+  memberId: string | null | undefined,
+  fallbackTimeZone: string,
+): VacationPeriod[] {
+  if (!memberId) return [];
+  return collectVacationPeriods(
+    countdowns.filter((cd) => memberHasJoinedCountdown(cd, memberId)),
+    fallbackTimeZone,
+  );
 }
 
 function defaultEndAt(start: Date, timeZone: string): Date {

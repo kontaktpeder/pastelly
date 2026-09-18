@@ -10,7 +10,13 @@ import {
   type CountdownWithParticipants,
 } from '@/hooks/useCountdowns';
 import { loadLocalJson, mergeCountdownVacation, parseStoredCountdownVacation, periodStorageKey } from '@/lib/vacationMode';
-import { zonedDateAndTimeToIso, VACATION_TIME_ZONES, resolveTimeZone, DEFAULT_TIME_ZONE } from '@/lib/timeZone';
+import {
+  civilDateAndTimeFromInstant,
+  zonedDateAndTimeToIso,
+  VACATION_TIME_ZONES,
+  resolveTimeZone,
+  DEFAULT_TIME_ZONE,
+} from '@/lib/timeZone';
 import { getIntlLocale } from '@/lib/i18n';
 import { getMemberColor } from '@/lib/colors';
 import type { HouseholdMember } from '@/hooks/useHousehold';
@@ -45,20 +51,17 @@ const CountdownDetailSheet = ({
   const [showInvite, setShowInvite] = useState(false);
   const [celebrateJoined, setCelebrateJoined] = useState(false);
   const [editingDates, setEditingDates] = useState(false);
-  const start = new Date(merged.target_at);
-  const [editDate, setEditDate] = useState(start);
-  const [editTime, setEditTime] = useState(
-    `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`,
-  );
-  const initialEnd = merged.ends_at ? new Date(merged.ends_at) : null;
-  const [editEndDate, setEditEndDate] = useState<Date | null>(initialEnd);
-  const [editEndTime, setEditEndTime] = useState(
-    initialEnd
-      ? `${String(initialEnd.getHours()).padStart(2, '0')}:${String(initialEnd.getMinutes()).padStart(2, '0')}`
-      : '23:59',
-  );
+  const destTz = resolveTimeZone(merged.timezone || DEFAULT_TIME_ZONE);
+  const startWall = civilDateAndTimeFromInstant(new Date(merged.target_at), destTz);
+  const [editDate, setEditDate] = useState(startWall.date);
+  const [editTime, setEditTime] = useState(startWall.timeHm);
+  const endWall = merged.ends_at
+    ? civilDateAndTimeFromInstant(new Date(merged.ends_at), destTz)
+    : null;
+  const [editEndDate, setEditEndDate] = useState<Date | null>(endWall?.date ?? null);
+  const [editEndTime, setEditEndTime] = useState(endWall?.timeHm ?? '23:59');
   const [editVacation, setEditVacation] = useState(!!merged.use_vacation_mode);
-  const [editTz, setEditTz] = useState(resolveTimeZone(merged.timezone || DEFAULT_TIME_ZONE));
+  const [editTz, setEditTz] = useState(destTz);
 
   const mine = myParticipant(countdown, currentMemberId);
   const isCreator = countdown.created_by_member_id === currentMemberId;

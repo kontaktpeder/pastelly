@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_VACATION_PREFS,
   collectVacationPeriods,
+  collectVacationPeriodsForMember,
   eventIsWorkdayLayer,
   filterEventsForVacationLayer,
   formatVacationRange,
   itineraryLabels,
+  mergeCountdownVacation,
+  mergeVacationPrefsFromSources,
   parseVacationPrefs,
   periodStartingTomorrow,
   prefsAfterManualOff,
@@ -15,6 +18,7 @@ import {
   shouldMuteEventNotification,
   type VacationCountdownLike,
 } from './vacationMode';
+import { shouldMuteWorkdayPush } from '../../supabase/functions/_shared/personalVacation';
 
 const mallorca: VacationCountdownLike = {
   id: 'mallorca',
@@ -43,6 +47,13 @@ const dateNight: VacationCountdownLike = {
   use_vacation_mode: false,
   status: 'active',
 };
+
+function withJoins(
+  countdown: VacationCountdownLike,
+  participants: { member_id: string; status: string }[],
+): VacationCountdownLike {
+  return { ...countdown, countdown_participants: participants };
+}
 
 describe('vacation periods', () => {
   it('ignores countdowns that do not opt into vacation mode', () => {
@@ -255,6 +266,161 @@ describe('event layer', () => {
   it('treats work overlays as weekday layer', () => {
     expect(eventIsWorkdayLayer(overlay)).toBe(true);
     expect(eventIsWorkdayLayer(beach)).toBe(false);
+  });
+});
+
+describe('invitation is not participation', () => {
+  const duringMallorca = new Date('2026-10-05T12:00:00.000Z');
+  const invitedOnly = withJoins(mallorca, [
+    { member_id: 'alice', status: 'joined' },
+    { member_id: 'bob', status: 'invited' },
+  ]);
+
+  it('does not auto-on for a member who is only invited', () => {
+    const periods = collectVacationPeriodsForMember([invitedOnly], 'bob', 'Europe/Oslo');
+    expect(periods).toHaveLength(0);
+    const snap = resolveVacationMode(DEFAULT_VACATION_PREFS, periods, duringMallorca);
+    expect(snap.active).toBe(false);
+    expect(snap.source).toBe('off');
+  });
+
+  it('auto-on for the member who has joined', () => {
+    const periods = collectVacationPeriodsForMember([invitedOnly], 'alice', 'Europe/Oslo');
+    expect(periods).toHaveLength(1);
+    const snap = resolveVacationMode(DEFAULT_VACATION_PREFS, periods, duringMallorca);
+    expect(snap.active).toBe(true);
+    expect(snap.source).toBe('auto');
+    expect(snap.activePeriods.map((p) => p.id)).toEqual(['mallorca']);
+  });
+});
+
+describe('two members with different holidays', () => {
+  const mallorcaTrip = withJoins(mallorca, [
+    { member_id: 'alice', status: 'joined' },
+    { member_id: 'bob', status: 'invited' },
+  ]);
+  const tenerifeTrip = withJoins(tenerife, [
+    { member_id: 'bob', status: 'joined' },
+    { member_id: 'alice', status: 'invited' },
+  ]);
+  const duringOverlap = new Date('2026-10-12T12:00:00.000Z');
+  const mutePrefs = { ...DEFAULT_VACATION_PREFS, muteHiddenNotifications: true };
+
+  it('activates only the trip each member has joined', () => {
+    const alicePeriods = collectVacationPeriodsForMember(
+      [mallorcaTrip, tenerifeTrip],
+      'alice',
+      'Europe/Oslo',
+    );
+    const bobPeriods = collectVacationPeriodsForMember(
+      [mallorcaTrip, tenerifeTrip],
+      'bob',
+      'Europe/Oslo',
+    );
+    const alice = resolveVacationMode(DEFAULT_VACATION_PREFS, alicePeriods, duringOverlap);
+    const bob = resolveVacationMode(DEFAULT_VACATION_PREFS, bobPeriods, duringOverlap);
+    expect(alice.activePeriods.map((p) => p.id)).toEqual(['mallorca']);
+    expect(bob.activePeriods.map((p) => p.id)).toEqual(['tenerife']);
+  });
+
+  it('mutes weekday pushes per member, not for the household', () => {
+    const holidays = [mallorcaTrip, tenerifeTrip];
+    const now = duringOverlap.getTime();
+    expect(shouldMuteWorkdayPush('alice', mutePrefs, holidays, now)).toBe(true);
+    expect(shouldMuteWorkdayPush('bob', mutePrefs, holidays, now)).toBe(true);
+
+    const beforeTenerife = new Date('2026-10-05T12:00:00.000Z').getTime();
+    expect(shouldMuteWorkdayPush('alice', mutePrefs, holidays, beforeTenerife)).toBe(true);
+    expect(shouldMuteWorkdayPush('bob', mutePrefs, holidays, beforeTenerife)).toBe(false);
+
+    const bobNoMute = { ...DEFAULT_VACATION_PREFS, muteHiddenNotifications: false };
+    expect(shouldMuteWorkdayPush('bob', bobNoMute, holidays, now)).toBe(false);
+  });
+
+  it('does not mute a member who opted in but never joined the active trip', () => {
+    const holidays = [mallorcaTrip];
+    expect(
+      shouldMuteWorkdayPush('bob', mutePrefs, holidays, duringOverlap.getTime()),
+    ).toBe(false);
+  });
+});
+
+describe('prefs merge: server is source of truth after migration', () => {
+  const serverMute = {
+    ...DEFAULT_VACATION_PREFS,
+    muteHiddenNotifications: true,
+    updatedAt: '2026-09-18T08:00:00.000Z',
+  };
+
+  it('uses the database row on a new device with local defaults', () => {
+    const merged = mergeVacationPrefsFromSources({
+      dbRaw: serverMute,
+      dbColumnPresent: true,
+      localRaw: null,
+    });
+    expect(merged.prefs.muteHiddenNotifications).toBe(true);
+    expect(merged.syncStatus).toBe('synced');
+  });
+
+  it('does not let unsynced local defaults override muteHiddenNotifications', () => {
+    const merged = mergeVacationPrefsFromSources({
+      dbRaw: serverMute,
+      dbColumnPresent: true,
+      localRaw: { ...DEFAULT_VACATION_PREFS, muteHiddenNotifications: false },
+    });
+    expect(merged.prefs.muteHiddenNotifications).toBe(true);
+    expect(merged.syncStatus).toBe('synced');
+  });
+
+  it('keeps a pending local write that is newer than the server', () => {
+    const merged = mergeVacationPrefsFromSources({
+      dbRaw: serverMute,
+      dbColumnPresent: true,
+      localRaw: {
+        ...DEFAULT_VACATION_PREFS,
+        muteHiddenNotifications: false,
+        updatedAt: '2026-09-18T09:00:00.000Z',
+        _syncStatus: 'pending',
+      },
+    });
+    expect(merged.prefs.muteHiddenNotifications).toBe(false);
+    expect(merged.syncStatus).toBe('pending');
+  });
+
+  it('falls back to local only when the database column is missing', () => {
+    const merged = mergeVacationPrefsFromSources({
+      dbRaw: undefined,
+      dbColumnPresent: false,
+      localRaw: { muteHiddenNotifications: true },
+    });
+    expect(merged.prefs.muteHiddenNotifications).toBe(true);
+  });
+});
+
+describe('countdown local overlay', () => {
+  it('does not let local storage win after the server has vacation columns', () => {
+    const merged = mergeCountdownVacation(
+      { ...mallorca, use_vacation_mode: false, ends_at: null, timezone: null },
+      { ends_at: mallorca.ends_at!, use_vacation_mode: true, timezone: 'Europe/Madrid' },
+    );
+    expect(merged.use_vacation_mode).toBe(false);
+    expect(merged.ends_at).toBeNull();
+  });
+
+  it('uses local overlay only before migration (column missing)', () => {
+    const fromServer: VacationCountdownLike = {
+      id: 'mallorca',
+      title: 'Mallorca',
+      target_at: mallorca.target_at,
+      status: 'active',
+    };
+    const merged = mergeCountdownVacation(fromServer, {
+      ends_at: mallorca.ends_at!,
+      use_vacation_mode: true,
+      timezone: 'Europe/Madrid',
+    });
+    expect(merged.use_vacation_mode).toBe(true);
+    expect(merged.timezone).toBe('Europe/Madrid');
   });
 });
 

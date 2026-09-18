@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   getZonedParts,
   zonedLocalToUtcMs,
+  zonedDateAndTimeToIso,
+  civilDateAndTimeFromInstant,
   startOfNextWorkdayMs,
   calendarDaysBetweenZoned,
   resolveTimeZone,
@@ -61,5 +63,23 @@ describe('timeZone', () => {
     const now = new Date('2026-09-19T10:00:00+02:00');
     const start = new Date('2026-10-03T06:00:00.000Z'); // 08:00 Madrid
     expect(calendarDaysBetweenZoned(now, start, 'Europe/Madrid')).toBe(14);
+  });
+
+  it('seeds countdown edit fields in the destination zone so save-without-change is a no-op', () => {
+    const iso = '2026-10-03T06:00:00.000Z'; // 08:00 Europe/Madrid
+    const instant = new Date(iso);
+    const bali = getZonedParts(instant, 'Asia/Makassar');
+    expect(bali.hour).toBe(14);
+
+    const wall = civilDateAndTimeFromInstant(instant, 'Europe/Madrid');
+    expect(wall.timeHm).toBe('08:00');
+    expect(zonedDateAndTimeToIso(wall.date, wall.timeHm, 'Europe/Madrid')).toBe(iso);
+
+    const endIso = '2026-10-15T21:59:59.000Z';
+    const endWall = civilDateAndTimeFromInstant(new Date(endIso), 'Europe/Madrid');
+    expect(endWall.timeHm).toBe('23:59');
+    expect(zonedDateAndTimeToIso(endWall.date, endWall.timeHm, 'Europe/Madrid')).toBe(
+      '2026-10-15T21:59:00.000Z',
+    );
   });
 });

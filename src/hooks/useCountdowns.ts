@@ -90,11 +90,14 @@ export function useCreateCountdown() {
     },
     onSuccess: (created, vars) => {
       invalidateCountdowns(queryClient);
-      if (vars.ends_at || vars.use_vacation_mode || vars.timezone) {
+      if (
+        created.use_vacation_mode === undefined &&
+        (vars.ends_at || vars.use_vacation_mode || vars.timezone)
+      ) {
         saveLocalJson(periodStorageKey(created.id), {
-          ends_at: vars.ends_at ?? created.ends_at ?? null,
-          use_vacation_mode: vars.use_vacation_mode ?? created.use_vacation_mode ?? false,
-          timezone: vars.timezone ?? created.timezone ?? null,
+          ends_at: vars.ends_at ?? null,
+          use_vacation_mode: vars.use_vacation_mode ?? false,
+          timezone: vars.timezone ?? null,
         });
       }
       if (vars.invite_user_ids && vars.invite_user_ids.length > 0) {
@@ -231,13 +234,8 @@ export function useUpdateCountdown() {
       }
       return data as Countdown;
     },
-    onSuccess: (updated, vars) => {
+    onSuccess: () => {
       invalidateCountdowns(queryClient);
-      saveLocalJson(periodStorageKey(vars.countdownId), {
-        ends_at: vars.clear_ends_at ? null : (vars.ends_at ?? updated.ends_at ?? null),
-        use_vacation_mode: vars.use_vacation_mode ?? updated.use_vacation_mode ?? false,
-        timezone: vars.timezone ?? updated.timezone ?? null,
-      });
     },
   });
 }

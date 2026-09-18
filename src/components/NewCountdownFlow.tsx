@@ -137,11 +137,13 @@ const NewCountdownFlow = ({
         use_vacation_mode: useVacationMode,
         timezone: timeZone,
       });
-      persistCountdownVacationLocal(created.id, {
-        ends_at: endsAt,
-        use_vacation_mode: useVacationMode,
-        timezone: timeZone,
-      });
+      if (created.use_vacation_mode === undefined) {
+        persistCountdownVacationLocal(created.id, {
+          ends_at: endsAt,
+          use_vacation_mode: useVacationMode,
+          timezone: timeZone,
+        });
+      }
 
       onCreated?.(created.id);
       setCelebrate({

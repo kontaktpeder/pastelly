@@ -1,4 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import {
+  shouldMuteWorkdayPush,
+  type HolidayWithJoins,
+} from '../_shared/personalVacation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -160,26 +164,15 @@ Deno.serve(async (req) => {
     if (eventCategory && WORKDAY_CATEGORIES.has(eventCategory) && candidates.length > 0) {
       const { data: holidayRows } = await supabase
         .from('countdowns')
-        .select('target_at, ends_at, use_vacation_mode')
+        .select('id, target_at, ends_at, countdown_participants(member_id, status)')
         .eq('household_id', householdId)
         .eq('status', 'active')
         .eq('use_vacation_mode', true);
       const now = Date.now();
-      const autoOn = ((holidayRows as { target_at: string; ends_at: string | null }[]) ?? []).some((row) => {
-        const start = new Date(row.target_at).getTime();
-        const end = row.ends_at ? new Date(row.ends_at).getTime() : start + 86400000;
-        return now >= start && now <= end;
-      });
+      const holidays = (holidayRows ?? []) as HolidayWithJoins[];
       candidates = candidates.filter((m) => {
         const prefs = (m.vacation_mode ?? {}) as Record<string, unknown>;
-        if (prefs.muteHiddenNotifications !== true) return true;
-        const manualOn = prefs.manualOn === true;
-        const until = typeof prefs.manualUntil === 'string' ? Date.parse(prefs.manualUntil) : NaN;
-        const manualActive = manualOn && (Number.isNaN(until) || until > now);
-        const suppressed =
-          typeof prefs.autoSuppressedUntil === 'string' && Date.parse(prefs.autoSuppressedUntil) > now;
-        const vacationActive = manualActive || (autoOn && !suppressed);
-        return !vacationActive;
+        return !shouldMuteWorkdayPush(m.id, prefs, holidays, now);
       });
     }
 

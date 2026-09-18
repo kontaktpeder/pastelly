@@ -125,6 +125,18 @@ export function zonedDateAndTimeToIso(
   return new Date(ms).toISOString();
 }
 
+/** Civil date + HH:mm in `timeZone` — use this to seed edit forms, not Date#getHours. */
+export function civilDateAndTimeFromInstant(
+  instant: Date,
+  timeZone: string,
+): { date: Date; timeHm: string } {
+  const p = getZonedParts(instant, timeZone);
+  return {
+    date: new Date(p.year, p.month - 1, p.day),
+    timeHm: `${pad2(p.hour)}:${pad2(p.minute)}`,
+  };
+}
+
 export function startOfZonedDayMs(date: Date, timeZone: string): number {
   const p = getZonedParts(date, timeZone);
   return zonedLocalToUtcMs(p.year, p.month, p.day, 0, 0, 0, timeZone);

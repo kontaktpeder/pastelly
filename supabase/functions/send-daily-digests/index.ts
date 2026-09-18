@@ -1,4 +1,8 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import {
+  shouldMuteWorkdayPush,
+  type HolidayWithJoins,
+} from '../_shared/personalVacation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -246,31 +250,24 @@ async function sendDigestForMember(
 
   const visibleIds = await filterVisibleEventIds(admin, member.id, overlapping);
   const prefs = (member.vacation_mode ?? {}) as Record<string, unknown>;
-  const muteHidden = prefs.muteHiddenNotifications === true;
-  let vacationActive = prefs.manualOn === true;
-  if (muteHidden) {
-    const until = typeof prefs.manualUntil === 'string' ? Date.parse(prefs.manualUntil) : NaN;
-    if (vacationActive && !Number.isNaN(until) && until <= Date.now()) vacationActive = false;
-    const suppressed =
-      typeof prefs.autoSuppressedUntil === 'string' && Date.parse(prefs.autoSuppressedUntil) > Date.now();
-    if (!vacationActive && !suppressed) {
-      const { data: holidayRows } = await admin
-        .from('countdowns')
-        .select('target_at, ends_at')
-        .eq('household_id', member.household_id)
-        .eq('status', 'active')
-        .eq('use_vacation_mode', true);
-      const now = Date.now();
-      vacationActive = ((holidayRows as { target_at: string; ends_at: string | null }[]) ?? []).some((row) => {
-        const start = new Date(row.target_at).getTime();
-        const end = row.ends_at ? new Date(row.ends_at).getTime() : start + 86400000;
-        return now >= start && now <= end;
-      });
-    }
+  let muteWorkday = false;
+  if (prefs.muteHiddenNotifications === true) {
+    const { data: holidayRows } = await admin
+      .from('countdowns')
+      .select('id, target_at, ends_at, countdown_participants(member_id, status)')
+      .eq('household_id', member.household_id)
+      .eq('status', 'active')
+      .eq('use_vacation_mode', true);
+    muteWorkday = shouldMuteWorkdayPush(
+      member.id,
+      prefs,
+      (holidayRows ?? []) as HolidayWithJoins[],
+      Date.now(),
+    );
   }
   const visible = overlapping
     .filter((e) => visibleIds.has(e.id))
-    .filter((e) => !(muteHidden && vacationActive && e.category && WORKDAY_CATEGORIES.has(e.category)))
+    .filter((e) => !(muteWorkday && e.category && WORKDAY_CATEGORIES.has(e.category)))
     .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
 
   const { data: listItems } = await admin

@@ -15,20 +15,22 @@ import type { HouseholdMember } from '@/hooks/useHousehold';
 import type { CountdownWithParticipants } from '@/hooks/useCountdowns';
 import { useLocale } from '@/hooks/useLocale';
 import {
-  collectVacationPeriods,
+  collectVacationPeriodsForMember,
   DEFAULT_VACATION_PREFS,
   filterEventsForVacationLayer,
   loadLocalJson,
   mergeCountdownVacation,
+  mergeVacationPrefsFromSources,
   parseStoredCountdownVacation,
-  parseVacationPrefs,
   periodStorageKey,
   prefsAfterManualOff,
   prefsAfterManualOn,
+  prefsForLocalStore,
   prefsStorageKey,
   pruneExpiredPrefs,
   resolveVacationMode,
   saveLocalJson,
+  stampPrefsUpdatedAt,
   warnStorageKey,
   type ManualVacationSource,
   type StoredCountdownVacation,
@@ -37,6 +39,7 @@ import {
   type VacationModePrefs,
   type VacationModeSnapshot,
   type VacationPeriod,
+  type VacationPrefsSyncStatus,
 } from '@/lib/vacationMode';
 import { DEFAULT_TIME_ZONE, endOfZonedDayMs, resolveTimeZone } from '@/lib/timeZone';
 
@@ -57,13 +60,10 @@ export type VacationModeContextValue = {
   setMuteHiddenNotifications: (next: boolean) => void;
   filterEvents: <T extends VacationEventLike>(events: T[]) => T[];
   mergedCountdowns: CountdownWithParticipants[];
+  prefsSyncStatus: VacationPrefsSyncStatus;
 };
 
 const VacationModeContext = createContext<VacationModeContextValue | null>(null);
-
-function readLocalPrefs(memberId: string): VacationModePrefs {
-  return parseVacationPrefs(loadLocalJson(prefsStorageKey(memberId)));
-}
 
 function readLocalPeriod(countdownId: string): StoredCountdownVacation | null {
   return parseStoredCountdownVacation(loadLocalJson(periodStorageKey(countdownId)));
@@ -76,13 +76,22 @@ export function persistCountdownVacationLocal(
   saveLocalJson(periodStorageKey(countdownId), fields);
 }
 
-function mergeMemberPrefs(member: HouseholdMember | null | undefined): VacationModePrefs {
-  const local = member ? readLocalPrefs(member.id) : DEFAULT_VACATION_PREFS;
-  const fromDb = parseVacationPrefs((member as { vacation_mode?: unknown } | null)?.vacation_mode);
-  // Local cache wins if it has a manual session or override the DB row hasn't caught yet.
-  const hasLocalSession =
-    local.manualOn || local.autoSuppressedUntil || local.muteHiddenNotifications !== fromDb.muteHiddenNotifications;
-  return hasLocalSession ? { ...fromDb, ...local } : { ...local, ...fromDb };
+function memberHasVacationColumn(member: HouseholdMember | null | undefined): boolean {
+  return !!member && Object.prototype.hasOwnProperty.call(member, 'vacation_mode');
+}
+
+function mergeMemberPrefs(member: HouseholdMember | null | undefined): {
+  prefs: VacationModePrefs;
+  syncStatus: VacationPrefsSyncStatus;
+} {
+  if (!member) {
+    return { prefs: DEFAULT_VACATION_PREFS, syncStatus: 'synced' };
+  }
+  return mergeVacationPrefsFromSources({
+    dbRaw: (member as { vacation_mode?: unknown }).vacation_mode,
+    dbColumnPresent: memberHasVacationColumn(member),
+    localRaw: loadLocalJson(prefsStorageKey(member.id)),
+  });
 }
 
 export function VacationModeProvider({
@@ -103,13 +112,19 @@ export function VacationModeProvider({
   const memberTz = resolveTimeZone(member?.timezone || DEFAULT_TIME_ZONE);
 
   const memberVacationRaw = (member as { vacation_mode?: unknown } | undefined)?.vacation_mode;
-  const [prefs, setPrefs] = useState<VacationModePrefs>(() => mergeMemberPrefs(member));
+  const initialMerged = mergeMemberPrefs(member);
+  const [prefs, setPrefs] = useState<VacationModePrefs>(() => initialMerged.prefs);
+  const [prefsSyncStatus, setPrefsSyncStatus] = useState<VacationPrefsSyncStatus>(
+    () => initialMerged.syncStatus,
+  );
   const [now, setNow] = useState(() => new Date());
   const [revealHidden, setRevealHidden] = useState(false);
   const warnedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setPrefs(mergeMemberPrefs(member));
+    const merged = mergeMemberPrefs(member);
+    setPrefs(merged.prefs);
+    setPrefsSyncStatus(merged.syncStatus);
   }, [member, memberVacationRaw]);
 
   useEffect(() => {
@@ -130,8 +145,13 @@ export function VacationModeProvider({
   }, [countdowns]);
 
   const periods = useMemo(
-    () => collectVacationPeriods(mergedCountdowns as VacationCountdownLike[], memberTz),
-    [mergedCountdowns, memberTz],
+    () =>
+      collectVacationPeriodsForMember(
+        mergedCountdowns as VacationCountdownLike[],
+        memberId,
+        memberTz,
+      ),
+    [mergedCountdowns, memberId, memberTz],
   );
 
   const pruned = useMemo(() => pruneExpiredPrefs(prefs, now), [prefs, now]);
@@ -152,7 +172,7 @@ export function VacationModeProvider({
   const persist = useMutation({
     mutationFn: async (next: VacationModePrefs) => {
       if (!memberId) return;
-      saveLocalJson(prefsStorageKey(memberId), next);
+      saveLocalJson(prefsStorageKey(memberId), prefsForLocalStore(next, 'pending'));
       const { error } = await supabase
         .from('household_members')
         .update({ vacation_mode: next as never })
@@ -160,7 +180,11 @@ export function VacationModeProvider({
       if (error) {
         // Column may not exist until the migration is applied — local cache still works.
         console.warn('[vacation] prefs persist failed', error.message);
+        setPrefsSyncStatus('pending');
+        return;
       }
+      saveLocalJson(prefsStorageKey(memberId), prefsForLocalStore(next, 'synced'));
+      setPrefsSyncStatus('synced');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
@@ -171,8 +195,10 @@ export function VacationModeProvider({
 
   const commitPrefs = useCallback(
     (next: VacationModePrefs) => {
-      setPrefs(next);
-      persist.mutate(next);
+      const stamped = stampPrefsUpdatedAt(next);
+      setPrefs(stamped);
+      setPrefsSyncStatus('pending');
+      persist.mutate(stamped);
     },
     [persist],
   );
@@ -243,6 +269,7 @@ export function VacationModeProvider({
       setMuteHiddenNotifications,
       filterEvents,
       mergedCountdowns,
+      prefsSyncStatus,
     }),
     [
       enabledForCalendar,
@@ -256,6 +283,7 @@ export function VacationModeProvider({
       setMuteHiddenNotifications,
       filterEvents,
       mergedCountdowns,
+      prefsSyncStatus,
     ],
   );
 
@@ -278,6 +306,7 @@ export function useVacationMode(): VacationModeContextValue {
       setMuteHiddenNotifications: () => undefined,
       filterEvents: (events) => events,
       mergedCountdowns: [],
+      prefsSyncStatus: 'synced',
     };
   }
   return ctx;
