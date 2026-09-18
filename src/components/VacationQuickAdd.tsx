@@ -13,7 +13,7 @@ const VacationQuickAdd = ({ onPick, pendingCategory }: VacationQuickAddProps) =>
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-vacation-ink/70 px-0.5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-cyan-950/70 px-0.5">
         {t('vacation.quickAdd')}
       </p>
       <div className="grid grid-cols-2 gap-2">

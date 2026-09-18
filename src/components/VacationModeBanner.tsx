@@ -35,17 +35,19 @@ const VacationModeBanner = () => {
         <span className="pointer-events-none absolute -right-2 -top-3 text-4xl opacity-40" aria-hidden>
           {snapshot.active ? '☀️' : '🌊'}
         </span>
-        <div className="relative flex items-center justify-between gap-2">
-          <div className="min-w-0">
+        <div className="relative flex items-center justify-between gap-2 min-w-0">
+          <div className="min-w-0 flex-1 pr-1">
             <p className="text-sm font-extrabold text-[#083344] truncate">{heading}</p>
             {snapshot.active && range && (
-              <p className="text-[11px] font-medium text-[#0B4A5C]/80">{range}</p>
+              <p className="text-[11px] font-medium text-[#0B4A5C]/80 break-words">{range}</p>
             )}
             {snapshot.autoSuppressed && (
-              <p className="text-[11px] font-medium text-[#0B4A5C]/80 mt-0.5">{t('vacation.overridden')}</p>
+              <p className="text-[11px] font-medium text-[#0B4A5C]/80 mt-0.5 break-words leading-snug">{t('vacation.overridden')}</p>
             )}
           </div>
-          <VacationModeToggle compact />
+          <div className="shrink-0">
+            <VacationModeToggle compact />
+          </div>
         </div>
       </div>
 

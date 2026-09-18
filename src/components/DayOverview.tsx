@@ -168,7 +168,7 @@ const DayOverview = ({
             <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-900/70">
               {t('vacation.itinerary')}
             </p>
-            <p className="mt-0.5 text-sm font-bold text-cyan-950">{itinerary}</p>
+            <p className="mt-0.5 text-sm font-bold text-cyan-950 break-words">{itinerary}</p>
           </div>
         )}
 
