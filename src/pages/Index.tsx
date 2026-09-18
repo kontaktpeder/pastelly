@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo, useRef, useEffect, type Dispatch, type SetStateAction, type ReactNode } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, type ComponentProps, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { startOfMonth } from 'date-fns';
+import { applyCalendarStripChange, calendarStripAnchor } from '@/lib/calendarStrip';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { getRecoveryState } from '@/lib/auth/recoveryState';
@@ -189,23 +189,6 @@ const Index = () => {
     if (y && m && d) setFocusedDate(new Date(y, m - 1, d));
     window.setTimeout(() => setHighlight(null), 1400);
   }, []);
-
-  const handleCalendarMonthChange = useCallback<Dispatch<SetStateAction<Date>>>(
-    (update) => {
-      setFocusedDate((prev) => {
-        const anchor = startOfMonth(prev);
-        const nextAnchor = typeof update === 'function' ? update(anchor) : update;
-        const y = nextAnchor.getFullYear();
-        const m = nextAnchor.getMonth();
-        const lastDay = new Date(y, m + 1, 0).getDate();
-        const day = Math.min(prev.getDate(), lastDay);
-        return new Date(y, m, day);
-      });
-    },
-    [],
-  );
-
-  const calendarMonthAnchor = useMemo(() => startOfMonth(focusedDate), [focusedDate]);
 
   useEffect(() => {
     setStackMotionOn(true);
@@ -412,13 +395,13 @@ const Index = () => {
           transition={stackTransition}
           className="h-full min-w-0 flex flex-col bg-background"
         >
-          <CalendarView
+          <CalendarDateBridge
+            focusedDate={focusedDate}
+            onFocusedDateChange={setFocusedDate}
             householdId={household.id}
             members={members}
             currentMemberId={currentMember.id}
             calendarKind={calendarKind}
-            currentDate={calendarMonthAnchor}
-            onCurrentDateChange={handleCalendarMonthChange}
             onSelectDate={handleSelectDate}
             onCreateEvent={handleCreateEvent}
             onCreateCountdown={calendarKind === 'home' ? handleCreateCountdown : undefined}
@@ -561,6 +544,35 @@ const Index = () => {
     </LocaleProvider>
   );
 };
+
+function CalendarDateBridge({
+  focusedDate,
+  onFocusedDateChange,
+  ...calendarProps
+}: {
+  focusedDate: Date;
+  onFocusedDateChange: Dispatch<SetStateAction<Date>>;
+} & Omit<ComponentProps<typeof CalendarView>, 'currentDate' | 'onCurrentDateChange'>) {
+  const vacation = useVacationMode();
+  const weekMode = vacation.enabledForCalendar && vacation.snapshot.active;
+  const currentDate = useMemo(
+    () => calendarStripAnchor(focusedDate, weekMode),
+    [focusedDate, weekMode],
+  );
+  const onCurrentDateChange = useCallback<Dispatch<SetStateAction<Date>>>(
+    (update) => {
+      onFocusedDateChange((prev) => applyCalendarStripChange(prev, update, weekMode));
+    },
+    [onFocusedDateChange, weekMode],
+  );
+  return (
+    <CalendarView
+      {...calendarProps}
+      currentDate={currentDate}
+      onCurrentDateChange={onCurrentDateChange}
+    />
+  );
+}
 
 const CalendarShell = ({
   calendarKind,

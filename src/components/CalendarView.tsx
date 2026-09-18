@@ -1,6 +1,10 @@
 import { useState, useMemo, useCallback, useRef, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { motion, AnimatePresence, useMotionValue, animate, type PanInfo } from 'framer-motion';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isWeekend, isSameMonth, isSameWeek, addMonths, subMonths, addWeeks, getISOWeek, addDays } from 'date-fns';
+import {
+  resolveVacationFocusDate,
+  weekOverlapsYmd,
+} from '@/lib/calendarStrip';
 import { useEventsForMonth, type Event } from '@/hooks/useEvents';
 import {
   mergeEventsWithOverlays,
@@ -180,12 +184,6 @@ function eventsForWeek(all: DisplayEvent[], weekStart: Date): DisplayEvent[] {
   });
 }
 
-function weekOverlapsYmd(weekStart: Date, range: { start: string; end: string }): boolean {
-  const start = format(weekStart, 'yyyy-MM-dd');
-  const end = format(addDays(weekStart, 6), 'yyyy-MM-dd');
-  return start <= range.end && end >= range.start;
-}
-
 function buildWeekDays(weekStart: Date): Date[] {
   return eachDayOfInterval({ start: weekStart, end: addDays(weekStart, 6) });
 }
@@ -219,19 +217,19 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     [onCurrentDateChange],
   );
 
+  const visibleRangeStart = vacation.visibleDateRange?.start ?? null;
+  const visibleRangeEnd = vacation.visibleDateRange?.end ?? null;
+
   useEffect(() => {
     if (!weekMode) return;
-    setCurrentDate((d) => {
-      let next = startOfWeek(d, { weekStartsOn: 1 });
-      const range = vacation.visibleDateRange;
-      if (range && !weekOverlapsYmd(next, range)) {
-        const [y, m, day] = range.start.split('-').map(Number);
-        next = startOfWeek(new Date(y, (m || 1) - 1, day || 1), { weekStartsOn: 1 });
-      }
-      if (next.getTime() === d.getTime()) return d;
-      return next;
-    });
-  }, [weekMode, vacation.visibleDateRange, setCurrentDate]);
+    const range =
+      visibleRangeStart && visibleRangeEnd
+        ? { start: visibleRangeStart, end: visibleRangeEnd }
+        : null;
+    const next = resolveVacationFocusDate(currentDate, range);
+    if (next.getTime() === currentDate.getTime()) return;
+    setCurrentDate(next);
+  }, [weekMode, visibleRangeStart, visibleRangeEnd, currentDate, setCurrentDate]);
   const [showYear, setShowYear] = useState(false);
   const [daySheetDate, setDaySheetDate] = useState<Date | null>(null);
   const [detailEvent, setDetailEvent] = useState<Event | null>(null);
@@ -315,16 +313,23 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     [currentDate, stripOffsets, weekMode],
   );
 
+  const eventFetchDates = useMemo(() => {
+    if (!weekMode) return stripDates;
+    const first = stripDates[0];
+    const last = stripDates[stripDates.length - 1];
+    return [first, addDays(first, 6), currentDate, last, addDays(last, 6)];
+  }, [stripDates, weekMode, currentDate]);
+
   // Prefetch ±WINDOW so continuous swipe never peeks empty
-  const { data: eventsM2 = [] } = useEventsForMonth(householdId, stripDates[0].getFullYear(), stripDates[0].getMonth());
-  const { data: eventsM1 = [] } = useEventsForMonth(householdId, stripDates[1].getFullYear(), stripDates[1].getMonth());
+  const { data: eventsM2 = [] } = useEventsForMonth(householdId, eventFetchDates[0].getFullYear(), eventFetchDates[0].getMonth());
+  const { data: eventsM1 = [] } = useEventsForMonth(householdId, eventFetchDates[1].getFullYear(), eventFetchDates[1].getMonth());
   const {
     data: eventsRaw,
     isFetched: monthFetched,
     isError: monthError,
   } = useEventsForMonth(householdId, year, month);
-  const { data: eventsP1 = [] } = useEventsForMonth(householdId, stripDates[3].getFullYear(), stripDates[3].getMonth());
-  const { data: eventsP2 = [] } = useEventsForMonth(householdId, stripDates[4].getFullYear(), stripDates[4].getMonth());
+  const { data: eventsP1 = [] } = useEventsForMonth(householdId, eventFetchDates[3].getFullYear(), eventFetchDates[3].getMonth());
+  const { data: eventsP2 = [] } = useEventsForMonth(householdId, eventFetchDates[4].getFullYear(), eventFetchDates[4].getMonth());
 
   const overlayRange = useMemo(() => {
     if (weekMode) {
@@ -477,11 +482,13 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     (date: Date) => {
       stopPagingAnim();
       x.set(0);
-      setCurrentDate(
-        weekMode ? startOfWeek(date, { weekStartsOn: 1 }) : startOfMonth(date),
-      );
+      if (weekMode) {
+        setCurrentDate(resolveVacationFocusDate(date, vacation.visibleDateRange));
+      } else {
+        setCurrentDate(startOfMonth(date));
+      }
     },
-    [setCurrentDate, stopPagingAnim, x, weekMode],
+    [setCurrentDate, stopPagingAnim, x, weekMode, vacation.visibleDateRange],
   );
 
   const lockStripForPress = useCallback(() => {
