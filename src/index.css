@@ -217,6 +217,11 @@ body {
   touch-action: none;
   overscroll-behavior: none;
 }
+/* Vacation week: vertical scroll on the day program, horizontal pan changes week. */
+.calendar-week-pager {
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
+}
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

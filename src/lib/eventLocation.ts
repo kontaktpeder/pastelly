@@ -1,4 +1,3 @@
-import { toast } from 'sonner';
 import { Browser } from '@capacitor/browser';
 
 export function mapsUrlsForLocation(raw: string): {
@@ -49,21 +48,12 @@ export function googleMapsSearchUrl(query: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
-export function offerMapsChooser(
-  location: string,
-  labels: { title: string; google: string; apple: string },
-) {
-  const urls = mapsUrlsForLocation(location);
-  toast(labels.title, {
-    description: urls.label,
-    duration: 9000,
-    action: {
-      label: labels.google,
-      onClick: () => void openExternalUrl(urls.google),
-    },
-    cancel: {
-      label: labels.apple,
-      onClick: () => void openExternalUrl(urls.apple),
-    },
-  });
+/** Visible label for an address or pasted Maps URL. */
+export function addressDisplayLabel(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  const urls = mapsUrlsForLocation(trimmed);
+  if (!/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (urls.label && urls.label !== trimmed && !/^https?:\/\//i.test(urls.label)) return urls.label;
+  return trimmed.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
 }

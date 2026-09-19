@@ -23,7 +23,7 @@ import { resolveCategoryLabel } from '@/lib/categoryPresentation';
 import type { EventCategory } from '@/lib/eventCategories';
 import VacationQuickAdd from '@/components/VacationQuickAdd';
 import VacationModeToggle from '@/components/VacationModeToggle';
-import DayListItems from '@/components/DayListItems';
+import EventAddressLink from '@/components/EventAddressLink';
 import CenteredPopup from '@/components/CenteredPopup';
 import { tryOpenSheet } from '@/lib/sheetGate';
 
@@ -183,6 +183,7 @@ const DayOverview = ({
     <div className="flex min-h-0 flex-1 flex-col">
       <div
         className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain scroll-touch px-5 pb-3"
+        style={isAgenda ? { touchAction: 'pan-y' } : undefined}
         data-sheet-scroll
       >
         {vacationOn && !isAgenda && itinerary && (
@@ -275,15 +276,14 @@ const DayOverview = ({
               if (ev.isOverlay) {
                 const fromWork = (ev.sourceHouseholdKind || '').toLowerCase() === 'work';
                 return (
-                  <button
+                  <div
                     key={ev.id}
-                    type="button"
-                    onClick={() => onPickEvent(ev)}
                     className={`w-full rounded-xl p-3 text-left ${
                       vacationOn && vacation.revealHidden && eventIsWorkdayLayer(ev) ? 'opacity-40' : ''
                     }`}
                     style={{ backgroundColor: OVERLAY_MARK.soft }}
                   >
+                    <button type="button" onClick={() => onPickEvent(ev)} className="w-full text-left">
                     <div className="flex items-center gap-2">
                       {fromWork && (
                         <span
@@ -298,15 +298,18 @@ const DayOverview = ({
                         {timeLabel && (
                           <p className="mt-0.5 text-xs text-muted-foreground">{timeLabel}</p>
                         )}
-                        {ev.location && (
-                          <p className="mt-0.5 text-xs text-foreground/80 truncate">📍 {ev.location}</p>
-                        )}
                         <p className="mt-1 text-[11px] text-muted-foreground">
                           {t('event.overlayHint')}
                         </p>
                       </span>
                     </div>
-                  </button>
+                    </button>
+                    {ev.location && (
+                      <div className="mt-1">
+                        <EventAddressLink location={ev.location} className="text-xs" />
+                      </div>
+                    )}
+                  </div>
                 );
               }
 
@@ -316,15 +319,14 @@ const DayOverview = ({
               const Icon = meta?.Icon;
 
               return (
-                <button
+                <div
                   key={ev.id}
-                  type="button"
-                  onClick={() => onPickEvent(ev)}
                   className={`w-full rounded-xl p-3 text-left ${
                     vacationOn && vacation.revealHidden && eventIsWorkdayLayer(ev) ? 'opacity-40' : ''
                   }`}
                   style={{ backgroundColor: visuals.soft || undefined }}
                 >
+                  <button type="button" onClick={() => onPickEvent(ev)} className="w-full text-left">
                   <div className="flex items-center gap-2">
                     {Icon && (
                       <span
@@ -342,10 +344,13 @@ const DayOverview = ({
                   {!(ev.category === 'hotel' && stayLabel) && timeLabel && (
                     <p className="mt-0.5 text-xs text-muted-foreground">{timeLabel}</p>
                   )}
+                  </button>
                   {ev.location && (
-                    <p className="mt-0.5 text-xs text-foreground/80 truncate">📍 {ev.location}</p>
+                    <div className="mt-1">
+                      <EventAddressLink location={ev.location} className="text-xs" />
+                    </div>
                   )}
-                </button>
+                </div>
               );
             })
         )}

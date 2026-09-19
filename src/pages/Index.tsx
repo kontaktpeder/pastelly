@@ -38,6 +38,7 @@ import BootVeil from '@/components/BootVeil';
 import { peekPendingOpenDay, subscribePendingOpenDay } from '@/lib/native/pendingOpenDay';
 import { useActiveCountdowns } from '@/hooks/useCountdowns';
 import { VacationModeProvider, useVacationMode } from '@/hooks/useVacationMode';
+import VacationModeBanner from '@/components/VacationModeBanner';
 
 export type Highlight = { eventId: string; dateStr: string; ts: number } | null;
 
@@ -365,7 +366,9 @@ const Index = () => {
             });
           }}
         />
-        <button
+        <div className="flex items-center gap-2 shrink-0">
+          <VacationModeBanner variant="header" selectedDate={focusedDate} />
+          <button
           onClick={() => {
             window.requestAnimationFrame(() => {
               tryOpenSheet(() => setProfileMode('account'));
@@ -384,6 +387,7 @@ const Index = () => {
             currentMember.display_name.charAt(0)
           )}
         </button>
+        </div>
       </header>
 
       <main className="flex-1 min-h-0 overflow-hidden relative bg-background md:grid md:grid-cols-[minmax(0,1fr)_22rem] lg:grid-cols-[minmax(0,1fr)_24rem] group-data-[vacation-mode=on]:md:grid-cols-1 group-data-[vacation-mode=on]:lg:grid-cols-1">

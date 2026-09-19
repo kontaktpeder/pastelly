@@ -9,7 +9,13 @@ import { getIntlLocale } from '@/lib/i18n';
 import CenteredPopup from '@/components/CenteredPopup';
 import { tryOpenSheet } from '@/lib/sheetGate';
 
-const VacationModeBanner = ({ selectedDate }: { selectedDate?: Date }) => {
+const VacationModeBanner = ({
+  selectedDate,
+  variant = 'banner',
+}: {
+  selectedDate?: Date;
+  variant?: 'banner' | 'header';
+}) => {
   const { t, locale } = useLocale();
   const vacation = useVacationMode();
   const [sheet, setSheet] = useState(false);
@@ -22,7 +28,6 @@ const VacationModeBanner = ({ selectedDate }: { selectedDate?: Date }) => {
   const statusParts = [
     title,
     progress ? t('vacation.dayProgress', { day: progress.day, of: progress.of }) : null,
-    t('vacation.onShort'),
   ].filter(Boolean);
 
   const untilDate = period?.endAt
@@ -33,15 +38,30 @@ const VacationModeBanner = ({ selectedDate }: { selectedDate?: Date }) => {
       })
     : t('vacation.onUntilManual');
 
+  const openSheet = () => tryOpenSheet(() => setSheet(true));
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => tryOpenSheet(() => setSheet(true))}
-        className="w-full px-5 py-1 text-center text-[13px] font-normal text-[#0B4A5C]"
-      >
-        <span className="block truncate">{statusParts.join(' · ')}</span>
-      </button>
+      {variant === 'header' ? (
+        <button
+          type="button"
+          onClick={openSheet}
+          aria-label={statusParts.length ? `${statusParts.join(' · ')} · ${t('vacation.onShort')}` : t('vacation.onShort')}
+          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-[#4EB8C8]/80 bg-white px-3 text-[11px] font-semibold tracking-wide text-[#0B4A5C]"
+        >
+          {t('vacation.onShort')}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={openSheet}
+          className="w-full px-5 py-1 text-center text-[13px] font-normal text-[#0B4A5C]"
+        >
+          <span className="block truncate">
+            {[...statusParts, t('vacation.onShort')].filter(Boolean).join(' · ')}
+          </span>
+        </button>
+      )}
 
       {sheet && (
         <CenteredPopup
@@ -51,7 +71,12 @@ const VacationModeBanner = ({ selectedDate }: { selectedDate?: Date }) => {
           zClassName="z-[80]"
         >
           <div className="px-1 py-1">
-            <p className="px-4 pb-2 pt-3 text-sm text-foreground">{untilLabel}</p>
+            {statusParts.length > 0 && (
+              <p className="px-4 pb-1 pt-3 text-sm font-medium text-foreground">{statusParts.join(' · ')}</p>
+            )}
+            <p className={`px-4 pb-2 text-sm text-muted-foreground ${statusParts.length ? 'pt-0' : 'pt-3'}`}>
+              {untilLabel}
+            </p>
             <button
               type="button"
               onClick={() => vacation.setRevealHidden(!vacation.revealHidden)}

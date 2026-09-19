@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { googleMapsSearchUrl, mapsUrlsForLocation } from './eventLocation';
+import { googleMapsSearchUrl, mapsUrlsForLocation, addressDisplayLabel } from './eventLocation';
 
 describe('event address maps links', () => {
   it('turns a street address into Google and Apple search URLs', () => {
@@ -21,5 +21,11 @@ describe('event address maps links', () => {
 
   it('opens Google Maps search from a typed query', () => {
     expect(googleMapsSearchUrl('Palma harbour')).toContain('query=Palma%20harbour');
+  });
+
+  it('shows a readable label for a Google Maps link', () => {
+    expect(
+      addressDisplayLabel('https://www.google.com/maps/search/?api=1&query=Hotel%20Playa'),
+    ).toBe('Hotel Playa');
   });
 });

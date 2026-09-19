@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { motion, AnimatePresence, useMotionValue, animate, type PanInfo } from 'framer-motion';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isWeekend, isSameMonth, isSameWeek, addMonths, subMonths, addWeeks, getISOWeek, addDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isWeekend, isSameMonth, isSameWeek, addMonths, subMonths, addWeeks, getISOWeek, addDays, differenceInCalendarDays } from 'date-fns';
 import {
   resolveVacationFocusDate,
   weekOverlapsYmd,
@@ -47,7 +47,6 @@ import { BriefcaseBusiness, type LucideIcon } from 'lucide-react';
 import { useVacationMode } from '@/hooks/useVacationMode';
 import DayOverview from '@/components/DayOverview';
 import { VacationWeekStrip } from '@/components/VacationWeekStrip';
-import VacationModeBanner from '@/components/VacationModeBanner';
 import { eventIsWorkdayLayer, formatVacationRange } from '@/lib/vacationMode';
 import { getIntlLocale } from '@/lib/i18n';
 
@@ -579,9 +578,9 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         x.set(panStartXRef.current);
         return;
       }
-      // Vertical wins → calendar stack (same gesture model on iOS + Android)
+      // Vertical: week agenda scrolls natively; month view can switch calendars.
       if (ady >= PAN_ACTIVATE_PX && ady > adx * AXIS_LOCK_RATIO) {
-        panModeRef.current = canSwipeCalendarStack ? 'stack' : 'blocked';
+        panModeRef.current = !weekMode && canSwipeCalendarStack ? 'stack' : 'blocked';
         x.set(panStartXRef.current);
         return;
       }
@@ -674,135 +673,123 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const daySheetEvents = daySheetDate
     ? eventsByDate[format(daySheetDate, 'yyyy-MM-dd')] || []
     : [];
-  const agendaDateStr = format(focusedDay, 'yyyy-MM-dd');
-  const agendaEvents = eventsByDate[agendaDateStr] || [];
+  const weekdayOffset = Math.min(
+    6,
+    Math.max(0, differenceInCalendarDays(focusedDay, startOfWeek(focusedDay, { weekStartsOn: 1 }))),
+  );
   const pickAgendaEvent = (ev: DisplayEvent) => {
     if (ev.isOverlay) setOverlayEvent(ev);
     else setDetailEvent(ev);
   };
-
-  const weekHeader = (
-    <div className="relative rounded-b-xl overflow-hidden shrink-0">
-      <div className="relative h-9 overflow-hidden select-none calendar-gesture-surface">
-        <motion.div
-          className="absolute top-0 bottom-0 flex will-change-transform"
-          style={{
-            x,
-            width: pageWidth ? pageWidth * (WINDOW * 2 + 1) : '500%',
-            left: pageWidth ? -pageWidth * WINDOW : '-200%',
-            touchAction: 'none',
-          }}
-          onPanStart={showYear ? undefined : handlePanStart}
-          onPan={showYear ? undefined : handlePan}
-          onPanEnd={showYear ? undefined : handlePanEnd}
-        >
-          {stripDates.map((date, i) => (
-            <MonthHeaderPanel
-              key={format(date, 'yyyy-MM-dd')}
-              width={pageWidth}
-              label={formatVacationRange(date, addDays(date, 6), getIntlLocale(locale))}
-              fill={i === WINDOW ? monthTheme.light : getMonthTheme(date).light}
-              textColor={i === WINDOW ? monthTheme.textOnLight : getMonthTheme(date).textOnLight}
-            />
-          ))}
-        </motion.div>
-      </div>
-      {!isOnCurrentMonth && (
-        <button
-          type="button"
-          onClick={goToToday}
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 min-h-7 px-2 rounded-full bg-white/80 active:bg-white text-[11px] font-semibold tracking-wide"
-          style={{ color: monthTheme.dark }}
-        >
-          I dag
-        </button>
-      )}
-    </div>
-  );
-
-  const weekStrip = (
-    <div
-      ref={weekMode ? trackRef : undefined}
-      className="relative shrink-0 overflow-hidden select-none calendar-gesture-surface"
-    >
-      <motion.div
-        className="flex will-change-transform"
-        style={{
-          x,
-          width: pageWidth ? pageWidth * (WINDOW * 2 + 1) : '500%',
-          marginLeft: pageWidth ? -pageWidth * WINDOW : '-200%',
-          touchAction: 'none',
-          WebkitUserSelect: 'none',
-          userSelect: 'none',
-        }}
-        onPanStart={showYear ? undefined : handlePanStart}
-        onPan={showYear ? undefined : handlePan}
-        onPanEnd={showYear ? undefined : handlePanEnd}
-      >
-        {stripDates.map((date, i) => (
-          <VacationWeekStrip
-            key={format(date, 'yyyy-MM-dd')}
-            width={pageWidth}
-            days={daysByOffset[i]}
-            selectedDate={focusedDay}
-            selectedFill={i === WINDOW ? monthTheme.base : getMonthTheme(date).base}
-            interactive={i === WINDOW}
-            rangeStart={visibleRangeStart}
-            rangeEnd={visibleRangeEnd}
-            onSelectDate={handleDayTap}
-            onLongPress={onCreateEvent}
-            onPressLock={lockStripForPress}
-            onPressUnlock={unlockStripForPress}
-          />
-        ))}
-      </motion.div>
-    </div>
-  );
 
   return (
     <>
       <div className="relative flex flex-col h-full min-h-0">
         <div className={`flex flex-col h-full min-h-0 ${showYear ? 'invisible pointer-events-none' : ''}`}>
         {weekMode ? (
-          <>
-            {weekHeader}
-            <VacationModeBanner selectedDate={focusedDay} />
-            <div className="bg-transparent relative">
-              <div className="flex px-1 py-1">
-                <div className="grid grid-cols-7 flex-1 min-w-0">
-                  {weekdayLabels.map((d, i) => (
-                    <div key={`${d}-${i}`} className={`text-center text-[10px] font-semibold uppercase tracking-[0.12em] ${
-                      i >= 5 ? 'text-primary/60' : 'text-foreground/55'
-                    }`}>
-                      {d}
+          <div
+            ref={trackRef}
+            className="relative flex min-h-0 flex-1 flex-col overflow-hidden select-none calendar-week-pager"
+          >
+            {!isOnCurrentMonth && (
+              <button
+                type="button"
+                onClick={goToToday}
+                className="absolute right-1.5 top-1.5 z-10 min-h-7 px-2 rounded-full bg-white/80 active:bg-white text-[11px] font-semibold tracking-wide"
+                style={{ color: monthTheme.dark }}
+              >
+                I dag
+              </button>
+            )}
+            <motion.div
+              className="flex h-full min-h-0 will-change-transform"
+              style={{
+                x,
+                width: pageWidth ? pageWidth * (WINDOW * 2 + 1) : '500%',
+                marginLeft: pageWidth ? -pageWidth * WINDOW : '-200%',
+                touchAction: 'pan-y',
+                WebkitUserSelect: 'none',
+                userSelect: 'none',
+              }}
+              onPanStart={showYear ? undefined : handlePanStart}
+              onPan={showYear ? undefined : handlePan}
+              onPanEnd={showYear ? undefined : handlePanEnd}
+            >
+              {stripDates.map((date, i) => {
+                const agendaDate = addDays(date, weekdayOffset);
+                const dateStr = format(agendaDate, 'yyyy-MM-dd');
+                const theme = i === WINDOW ? monthTheme : getMonthTheme(date);
+                return (
+                  <div
+                    key={format(date, 'yyyy-MM-dd')}
+                    className={`flex h-full min-h-0 shrink-0 flex-col ${
+                      i === WINDOW ? '' : 'pointer-events-none'
+                    }`}
+                    style={{ width: pageWidth || '20%' }}
+                  >
+                    <div
+                      className="flex h-9 shrink-0 items-center justify-center px-5"
+                      style={{ backgroundColor: theme.light, color: theme.textOnLight }}
+                    >
+                      <h2 className="text-base font-extrabold capitalize tracking-wide text-center">
+                        {formatVacationRange(date, addDays(date, 6), getIntlLocale(locale))}
+                      </h2>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {weekStrip}
-            <h2 className="shrink-0 px-5 pt-3 pb-1 text-lg font-bold capitalize text-foreground">
-              {format(focusedDay, 'EEEE d. MMMM', { locale: dateLocale })}
-            </h2>
-            <div className="flex min-h-0 flex-1 flex-col">
-              <DayOverview
-                date={focusedDay}
-                events={agendaEvents}
-                countdowns={countdownsByDate[agendaDateStr] || []}
-                members={members}
-                householdId={householdId}
-                currentMemberId={currentMemberId}
-                calendarKind={calendarKind}
-                canSeedWeek={canSeedWeek}
-                layout="agenda"
-                onPickEvent={pickAgendaEvent}
-                onPickCountdown={(cd) => setDetailCountdown(cd)}
-                onCreateForDate={onCreateEvent}
-                onCreateCountdown={onCreateCountdown}
-                onSeedWeek={onSeedWeek}
-              />
-            </div>
-          </>
+                    <div className="relative shrink-0 bg-transparent">
+                      <div className="flex px-1 py-1">
+                        <div className="grid min-w-0 flex-1 grid-cols-7">
+                          {weekdayLabels.map((d, wi) => (
+                            <div
+                              key={`${d}-${wi}`}
+                              className={`text-center text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                                wi >= 5 ? 'text-primary/60' : 'text-foreground/55'
+                              }`}
+                            >
+                              {d}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <VacationWeekStrip
+                      width={pageWidth}
+                      days={daysByOffset[i]}
+                      selectedDate={agendaDate}
+                      selectedFill={theme.base}
+                      interactive={i === WINDOW}
+                      rangeStart={visibleRangeStart}
+                      rangeEnd={visibleRangeEnd}
+                      onSelectDate={handleDayTap}
+                      onLongPress={onCreateEvent}
+                      onPressLock={lockStripForPress}
+                      onPressUnlock={unlockStripForPress}
+                    />
+                    <h2 className="shrink-0 px-5 pt-3 pb-1 text-lg font-bold capitalize text-foreground">
+                      {format(agendaDate, 'EEEE d. MMMM', { locale: dateLocale })}
+                    </h2>
+                    <div className="flex min-h-0 flex-1 flex-col">
+                      <DayOverview
+                        date={agendaDate}
+                        events={eventsByOffset[i][dateStr] || []}
+                        countdowns={countdownsByDate[dateStr] || []}
+                        members={members}
+                        householdId={householdId}
+                        currentMemberId={currentMemberId}
+                        calendarKind={calendarKind}
+                        canSeedWeek={canSeedWeek}
+                        layout="agenda"
+                        onPickEvent={pickAgendaEvent}
+                        onPickCountdown={(cd) => setDetailCountdown(cd)}
+                        onCreateForDate={onCreateEvent}
+                        onCreateCountdown={onCreateCountdown}
+                        onSeedWeek={onSeedWeek}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </motion.div>
+          </div>
         ) : (
           <>
         {/* Month hint strip — soft wash, peeks with the day grid */}
@@ -839,8 +826,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
             </button>
           )}
         </div>
-
-        {vacation.enabledForCalendar && <VacationModeBanner selectedDate={focusedDay} />}
 
         <div className="bg-transparent relative">
           <div className="flex px-1 py-1">

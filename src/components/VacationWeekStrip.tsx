@@ -29,7 +29,7 @@ export function VacationWeekStrip({
   return (
     <div
       className={`shrink-0 px-1 pb-2 pt-0.5 ${interactive ? '' : 'pointer-events-none'}`}
-      style={{ width: width || '33.333%' }}
+      style={{ width: width || '100%' }}
     >
       <div className="grid grid-cols-7">
         {days.map((day) => {

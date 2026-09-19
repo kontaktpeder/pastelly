@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useEventComments, useAddComment, useDeleteEvent, type Event } from '@/hooks/useEvents';
@@ -8,8 +8,8 @@ import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
 import { resolveCategoryVisuals, resolveCategoryLabel, getMemberColorMap } from '@/lib/categoryPresentation';
 import { formatMultiDayLabel } from '@/lib/multiDaySpans';
 import { formatEventStayLabel } from '@/lib/eventStay';
-import { offerMapsChooser } from '@/lib/eventLocation';
 import { isHotelCategory } from '@/lib/vacationSchedule';
+import EventAddressLink from '@/components/EventAddressLink';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import CenteredPopup from '@/components/CenteredPopup';
 import PopupStickyFooter from '@/components/PopupStickyFooter';
@@ -57,19 +57,6 @@ const EventDetailSheet = ({
   const owner = members.find((m) => m.id === event.owner_member_id);
   const ownerColor = owner ? getMemberColor(owner.color_token) : getMemberColor('pastel-blue');
   const editable = canEditEvent(event, currentMemberId, calendarKind);
-
-  const mapsLabels = {
-    title: t('event.openInMaps'),
-    google: t('event.googleMaps'),
-    apple: t('event.appleMaps'),
-  };
-
-  useEffect(() => {
-    if (!event.location) return;
-    offerMapsChooser(event.location, mapsLabels);
-    // Show once per opened event so the address is easy to open in Maps.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id, event.location]);
 
   const dayPartLabel = (key: string | null | undefined) => {
     if (!key) return '';
@@ -169,14 +156,9 @@ const EventDetailSheet = ({
           </p>
           )}
           {event.location && (
-            <button
-              type="button"
-              onClick={() => offerMapsChooser(event.location!, mapsLabels)}
-              className="mt-2 block w-full text-left text-sm"
-            >
-              <span className="block">📍 {event.location}</span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">{t('event.openInMaps')}</span>
-            </button>
+            <div className="mt-2">
+              <EventAddressLink location={event.location} className="text-sm" />
+            </div>
           )}
           {event.notes && <p className="text-sm mt-2 text-muted-foreground">{event.notes}</p>}
           {(() => {
