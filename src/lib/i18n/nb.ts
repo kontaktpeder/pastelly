@@ -391,6 +391,7 @@ export const nb = {
   'vacation.turnOn': 'Slå på feriemodus',
   'vacation.turnOff': 'Slå av feriemodus',
   'vacation.weekLabel': 'Uke {week} · {range}',
+  'vacation.pickWeek': 'Velg uke',
 } as const;
 
 export type MessageKey = keyof typeof nb;

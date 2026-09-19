@@ -381,4 +381,5 @@ export const en: Record<MessageKey, string> = {
   'vacation.turnOn': 'Turn on vacation mode',
   'vacation.turnOff': 'Turn off vacation mode',
   'vacation.weekLabel': 'Week {week} · {range}',
+  'vacation.pickWeek': 'Choose week',
 };

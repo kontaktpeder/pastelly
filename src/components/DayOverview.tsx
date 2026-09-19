@@ -23,7 +23,7 @@ import { resolveCategoryLabel } from '@/lib/categoryPresentation';
 import type { EventCategory } from '@/lib/eventCategories';
 import VacationQuickAdd from '@/components/VacationQuickAdd';
 import VacationModeToggle from '@/components/VacationModeToggle';
-import EventAddressLink from '@/components/EventAddressLink';
+import { addressDisplayLabel } from '@/lib/eventLocation';
 import CenteredPopup from '@/components/CenteredPopup';
 import { tryOpenSheet } from '@/lib/sheetGate';
 
@@ -276,14 +276,15 @@ const DayOverview = ({
               if (ev.isOverlay) {
                 const fromWork = (ev.sourceHouseholdKind || '').toLowerCase() === 'work';
                 return (
-                  <div
+                  <button
                     key={ev.id}
+                    type="button"
+                    onClick={() => onPickEvent(ev)}
                     className={`w-full rounded-xl p-3 text-left ${
                       vacationOn && vacation.revealHidden && eventIsWorkdayLayer(ev) ? 'opacity-40' : ''
                     }`}
                     style={{ backgroundColor: OVERLAY_MARK.soft }}
                   >
-                    <button type="button" onClick={() => onPickEvent(ev)} className="w-full text-left">
                     <div className="flex items-center gap-2">
                       {fromWork && (
                         <span
@@ -303,13 +304,10 @@ const DayOverview = ({
                         </p>
                       </span>
                     </div>
-                    </button>
                     {ev.location && (
-                      <div className="mt-1">
-                        <EventAddressLink location={ev.location} className="text-xs" />
-                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">{addressDisplayLabel(ev.location)}</p>
                     )}
-                  </div>
+                  </button>
                 );
               }
 
@@ -319,14 +317,15 @@ const DayOverview = ({
               const Icon = meta?.Icon;
 
               return (
-                <div
+                <button
                   key={ev.id}
+                  type="button"
+                  onClick={() => onPickEvent(ev)}
                   className={`w-full rounded-xl p-3 text-left ${
                     vacationOn && vacation.revealHidden && eventIsWorkdayLayer(ev) ? 'opacity-40' : ''
                   }`}
                   style={{ backgroundColor: visuals.soft || undefined }}
                 >
-                  <button type="button" onClick={() => onPickEvent(ev)} className="w-full text-left">
                   <div className="flex items-center gap-2">
                     {Icon && (
                       <span
@@ -344,13 +343,10 @@ const DayOverview = ({
                   {!(ev.category === 'hotel' && stayLabel) && timeLabel && (
                     <p className="mt-0.5 text-xs text-muted-foreground">{timeLabel}</p>
                   )}
-                  </button>
                   {ev.location && (
-                    <div className="mt-1">
-                      <EventAddressLink location={ev.location} className="text-xs" />
-                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{addressDisplayLabel(ev.location)}</p>
                   )}
-                </div>
+                </button>
               );
             })
         )}
@@ -366,7 +362,7 @@ const DayOverview = ({
       </div>
 
       {isAgenda ? (
-        <div className="shrink-0 px-5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">{actions}</div>
+        <div className="shrink-0 px-5 pb-1">{actions}</div>
       ) : layout === 'sheet' ? (
         <PopupStickyFooter className="space-y-2">{actions}</PopupStickyFooter>
       ) : (
