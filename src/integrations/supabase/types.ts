@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_cron_token: {
+        Row: {
+          id: number
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       countdown_participants: {
         Row: {
           countdown_id: string
@@ -1049,37 +1067,6 @@ export type Database = {
           created_at: string
           created_by_member_id: string
           emoji: string | null
-          household_id: string
-          id: string
-          status: string
-          target_at: string
-          theme: string
-          title: string
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "countdowns"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
-      create_countdown: {
-        Args: {
-          p_emoji?: string
-          p_ends_at?: string
-          p_household_id: string
-          p_invite_member_ids?: string[]
-          p_target_at: string
-          p_theme?: string
-          p_timezone?: string
-          p_title: string
-          p_use_vacation_mode?: boolean
-        }
-        Returns: {
-          created_at: string
-          created_by_member_id: string
-          emoji: string | null
           ends_at: string | null
           household_id: string
           id: string
@@ -1098,14 +1085,16 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      update_countdown: {
+      create_countdown: {
         Args: {
-          p_clear_ends_at?: boolean
-          p_countdown_id: string
+          p_emoji?: string
           p_ends_at?: string
-          p_target_at?: string
+          p_household_id: string
+          p_invite_member_ids?: string[]
+          p_target_at: string
+          p_theme?: string
           p_timezone?: string
-          p_title?: string
+          p_title: string
           p_use_vacation_mode?: boolean
         }
         Returns: {
@@ -1294,6 +1283,38 @@ export type Database = {
         Args: { p_event_id: string; p_viewer_household_id: string }
         Returns: undefined
       }
+      update_countdown: {
+        Args: {
+          p_clear_ends_at?: boolean
+          p_countdown_id: string
+          p_ends_at?: string
+          p_target_at?: string
+          p_timezone?: string
+          p_title?: string
+          p_use_vacation_mode?: boolean
+        }
+        Returns: {
+          created_at: string
+          created_by_member_id: string
+          emoji: string | null
+          ends_at: string | null
+          household_id: string
+          id: string
+          status: string
+          target_at: string
+          theme: string
+          timezone: string | null
+          title: string
+          updated_at: string
+          use_vacation_mode: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "countdowns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       entity_relationship_kind:
@@ -1320,12 +1341,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1349,11 +1370,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1374,11 +1395,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1399,11 +1420,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1416,11 +1437,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
