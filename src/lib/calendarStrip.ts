@@ -1,4 +1,4 @@
-import { addDays, differenceInCalendarDays, startOfMonth, startOfWeek } from 'date-fns';
+import { addDays, addWeeks, startOfMonth, startOfWeek } from 'date-fns';
 import type { SetStateAction } from 'react';
 
 export const WEEK_STARTS_ON = 1 as const;
@@ -31,7 +31,8 @@ export function weekOverlapsYmd(weekStart: Date, range: YmdRange): boolean {
 
 /**
  * Keep the focused day when the calendar strip moves.
- * Month swipes keep the day-of-month; week swipes keep the weekday.
+ * Month swipes keep the day-of-month.
+ * Vacation swipes apply to the focused day (day paging, or week jumps).
  * Direct Date jumps in week mode keep the given day (today / trip start).
  */
 export function applyCalendarStripChange(
@@ -47,18 +48,31 @@ export function applyCalendarStripChange(
     const day = Math.min(prev.getDate(), lastDay);
     return new Date(y, m, day);
   }
-  const nextAnchor = update(calendarStripAnchor(prev, weekMode));
-  if (weekMode) {
-    const nextWeek = startOfWeek(nextAnchor, { weekStartsOn: WEEK_STARTS_ON });
-    const prevWeek = startOfWeek(prev, { weekStartsOn: WEEK_STARTS_ON });
-    const offset = Math.min(6, Math.max(0, differenceInCalendarDays(prev, prevWeek)));
-    return addDays(nextWeek, offset);
-  }
+  if (weekMode) return update(prev);
+  const nextAnchor = update(calendarStripAnchor(prev, false));
   const y = nextAnchor.getFullYear();
   const m = nextAnchor.getMonth();
   const lastDay = new Date(y, m + 1, 0).getDate();
   const day = Math.min(prev.getDate(), lastDay);
   return new Date(y, m, day);
+}
+
+export function clampDayToYmdRange(date: Date, range: YmdRange | null): Date {
+  if (!range) return date;
+  const ymd = formatYmd(date);
+  if (ymd < range.start) return ymdToLocalDate(range.start);
+  if (ymd > range.end) return ymdToLocalDate(range.end);
+  return date;
+}
+
+export function weeksOverlappingRange(range: YmdRange): Date[] {
+  const weeks: Date[] = [];
+  let week = startOfWeek(ymdToLocalDate(range.start), { weekStartsOn: WEEK_STARTS_ON });
+  for (let i = 0; i < 60 && weekOverlapsYmd(week, range); i += 1) {
+    weeks.push(week);
+    week = addWeeks(week, 1);
+  }
+  return weeks;
 }
 
 /**

@@ -378,8 +378,10 @@ const CenteredPopup = ({
     paddingLeft: 'env(safe-area-inset-left)',
     paddingRight: 'env(safe-area-inset-right)',
     paddingBottom:
-      size !== 'sheet' && keyboardOpen
-        ? `${Math.min(keyboardInset, Math.round(window.innerHeight * 0.42))}px`
+      size !== 'sheet'
+        ? keyboardOpen
+          ? `${Math.min(keyboardInset, Math.round(window.innerHeight * 0.42))}px`
+          : 'max(0.5rem, env(safe-area-inset-bottom))'
         : '0px',
     transition: padReady ? KEYBOARD_PAD_TRANSITION : undefined,
   };
