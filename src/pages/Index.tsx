@@ -233,15 +233,22 @@ const Index = () => {
   }
 
   if (authLoading || ctxLoading) {
-    // Quiet boot — native splash stays up; web shows splash-matching surface (no spinner).
+    // Quiet boot — native splash stays up; web matches it (icon on white, no spinner).
     return (
       <LocaleProvider>
         <div
-          className="min-h-[100dvh] bg-background"
+          className="min-h-[100dvh] bg-background flex items-center justify-center"
           style={{ backgroundColor: PASTEL.paper }}
           aria-busy="true"
           aria-label="Laster"
-        />
+        >
+          <img
+            src="/brand/app-icon.png"
+            alt=""
+            className="h-32 w-32 rounded-[22.37%]"
+            draggable={false}
+          />
+        </div>
       </LocaleProvider>
     );
   }
