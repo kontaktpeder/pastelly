@@ -392,13 +392,12 @@ export function resolveVacationMode(
   const source: VacationModeSource = manual ? 'manual' : auto ? 'auto' : 'off';
   const upcomingPeriod = nextUpcomingPeriod(periods, now);
   const startsTomorrow = periodStartingTomorrow(periods, now);
-  const headlineTitle =
-    activePeriods[0]?.title ??
-    (manual && prefs.manualCountdownId
+  const manualTitle =
+    manual && prefs.manualCountdownId
       ? periods.find((p) => p.id === prefs.manualCountdownId)?.title ?? null
-      : null) ??
-    upcomingPeriod?.title ??
-    null;
+      : null;
+  const headlineTitle =
+    activePeriods[0]?.title ?? manualTitle ?? upcomingPeriod?.title ?? null;
 
   return {
     active,

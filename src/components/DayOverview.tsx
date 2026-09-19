@@ -25,6 +25,7 @@ import VacationQuickAdd from '@/components/VacationQuickAdd';
 import VacationModeToggle from '@/components/VacationModeToggle';
 import EventAddressLink from '@/components/EventAddressLink';
 import CenteredPopup from '@/components/CenteredPopup';
+import DayListItems from '@/components/DayListItems';
 import { tryOpenSheet } from '@/lib/sheetGate';
 
 export interface DayOverviewProps {
