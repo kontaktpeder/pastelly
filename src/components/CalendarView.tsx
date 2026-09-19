@@ -46,9 +46,9 @@ import {
 import { BriefcaseBusiness, type LucideIcon } from 'lucide-react';
 import { useVacationMode } from '@/hooks/useVacationMode';
 import DayOverview from '@/components/DayOverview';
-import { VacationWeekHeader, VacationWeekStrip } from '@/components/VacationWeekStrip';
+import { VacationWeekStrip } from '@/components/VacationWeekStrip';
 import VacationModeBanner from '@/components/VacationModeBanner';
-import { eventIsWorkdayLayer, formatVacationDay, formatVacationRange } from '@/lib/vacationMode';
+import { eventIsWorkdayLayer, formatVacationRange } from '@/lib/vacationMode';
 import { getIntlLocale } from '@/lib/i18n';
 
 interface CalendarViewProps {
@@ -411,19 +411,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     marksVisible,
   ]);
 
-  const monthTheme = useMemo(() => {
-    if (vacation.snapshot.active) {
-      return {
-        base: '#4EB8C8',
-        light: '#5ECFE0',
-        dark: '#083344',
-        textOnStrong: '#083344',
-        textOnLight: '#083344',
-        gradient: '#5ECFE0',
-      };
-    }
-    return getMonthTheme(currentDate);
-  }, [currentDate, vacation.snapshot.active]);
+  const monthTheme = useMemo(() => getMonthTheme(currentDate), [currentDate]);
 
   const mergedByOffset = useMemo(() => {
     if (weekMode) {
@@ -688,35 +676,54 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     : [];
   const agendaDateStr = format(focusedDay, 'yyyy-MM-dd');
   const agendaEvents = eventsByDate[agendaDateStr] || [];
-  const centerWeekStart = stripDates[WINDOW];
-  const canPrevWeek =
-    !weekMode ||
-    !vacation.visibleDateRange ||
-    weekOverlapsYmd(addWeeks(centerWeekStart, -1), vacation.visibleDateRange);
-  const canNextWeek =
-    !weekMode ||
-    !vacation.visibleDateRange ||
-    weekOverlapsYmd(addWeeks(centerWeekStart, 1), vacation.visibleDateRange);
-  const weekRangeLabel = formatVacationRange(
-    centerWeekStart,
-    addDays(centerWeekStart, 6),
-    getIntlLocale(locale),
-  );
-  const weekdayName = format(focusedDay, 'EEEE', { locale: dateLocale });
-  const agendaHeading = `${weekdayName.charAt(0).toLocaleUpperCase(getIntlLocale(locale))}${weekdayName.slice(1)} ${formatVacationDay(focusedDay, getIntlLocale(locale))}`;
-  const stepWeek = (dir: 1 | -1) => {
-    if (pageWidth) flingToHops(dir);
-    else setCurrentDate((d) => addWeeks(d, dir));
-  };
   const pickAgendaEvent = (ev: DisplayEvent) => {
     if (ev.isOverlay) setOverlayEvent(ev);
     else setDetailEvent(ev);
   };
 
+  const weekHeader = (
+    <div className="relative rounded-b-xl overflow-hidden shrink-0">
+      <div className="relative h-9 overflow-hidden select-none calendar-gesture-surface">
+        <motion.div
+          className="absolute top-0 bottom-0 flex will-change-transform"
+          style={{
+            x,
+            width: pageWidth ? pageWidth * (WINDOW * 2 + 1) : '500%',
+            left: pageWidth ? -pageWidth * WINDOW : '-200%',
+            touchAction: 'none',
+          }}
+          onPanStart={showYear ? undefined : handlePanStart}
+          onPan={showYear ? undefined : handlePan}
+          onPanEnd={showYear ? undefined : handlePanEnd}
+        >
+          {stripDates.map((date, i) => (
+            <MonthHeaderPanel
+              key={format(date, 'yyyy-MM-dd')}
+              width={pageWidth}
+              label={formatVacationRange(date, addDays(date, 6), getIntlLocale(locale))}
+              fill={i === WINDOW ? monthTheme.light : getMonthTheme(date).light}
+              textColor={i === WINDOW ? monthTheme.textOnLight : getMonthTheme(date).textOnLight}
+            />
+          ))}
+        </motion.div>
+      </div>
+      {!isOnCurrentMonth && (
+        <button
+          type="button"
+          onClick={goToToday}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 min-h-7 px-2 rounded-full bg-white/80 active:bg-white text-[11px] font-semibold tracking-wide"
+          style={{ color: monthTheme.dark }}
+        >
+          I dag
+        </button>
+      )}
+    </div>
+  );
+
   const weekStrip = (
     <div
       ref={weekMode ? trackRef : undefined}
-      className="relative shrink-0 overflow-hidden select-none calendar-gesture-surface border-b border-border/50"
+      className="relative shrink-0 overflow-hidden select-none calendar-gesture-surface"
     >
       <motion.div
         className="flex will-change-transform"
@@ -737,8 +744,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
             key={format(date, 'yyyy-MM-dd')}
             width={pageWidth}
             days={daysByOffset[i]}
-            weekdayLabels={weekdayLabels}
             selectedDate={focusedDay}
+            selectedFill={i === WINDOW ? monthTheme.base : getMonthTheme(date).base}
             interactive={i === WINDOW}
             rangeStart={visibleRangeStart}
             rangeEnd={visibleRangeEnd}
@@ -758,17 +765,24 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         <div className={`flex flex-col h-full min-h-0 ${showYear ? 'invisible pointer-events-none' : ''}`}>
         {weekMode ? (
           <>
-            <VacationWeekHeader
-              rangeLabel={weekRangeLabel}
-              onPrev={() => stepWeek(-1)}
-              onNext={() => stepWeek(1)}
-              canPrev={canPrevWeek}
-              canNext={canNextWeek}
-            />
+            {weekHeader}
             <VacationModeBanner selectedDate={focusedDay} />
+            <div className="bg-transparent relative">
+              <div className="flex px-1 py-1">
+                <div className="grid grid-cols-7 flex-1 min-w-0">
+                  {weekdayLabels.map((d, i) => (
+                    <div key={`${d}-${i}`} className={`text-center text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                      i >= 5 ? 'text-primary/60' : 'text-foreground/55'
+                    }`}>
+                      {d}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
             {weekStrip}
-            <h2 className="shrink-0 px-5 pt-3 pb-1 text-sm font-medium text-foreground">
-              {agendaHeading}
+            <h2 className="shrink-0 px-5 pt-3 pb-1 text-lg font-bold capitalize text-foreground">
+              {format(focusedDay, 'EEEE d. MMMM', { locale: dateLocale })}
             </h2>
             <div className="flex min-h-0 flex-1 flex-col">
               <DayOverview

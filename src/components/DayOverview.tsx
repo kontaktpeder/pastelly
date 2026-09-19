@@ -1,7 +1,7 @@
 import { DAY_PART_LABELS } from '@/lib/colors';
 import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
 import { resolveCategoryVisuals, getMemberColorMap } from '@/lib/categoryPresentation';
-import { formatMultiDayLabel, isMultiDayEvent } from '@/lib/multiDaySpans';
+import { formatMultiDayLabel } from '@/lib/multiDaySpans';
 import { translateDayPart } from '@/lib/i18n';
 import { useLocale } from '@/hooks/useLocale';
 import type { Event } from '@/hooks/useEvents';
@@ -14,10 +14,11 @@ import PopupStickyFooter from '@/components/PopupStickyFooter';
 import { BriefcaseBusiness } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
 import { useCreateEvent } from '@/hooks/useEvents';
 import { useVacationMode } from '@/hooks/useVacationMode';
 import { eventIsWorkdayLayer, eventMirrorsVacationPeriod, itineraryLabels, VACATION_EMPTY_DAY_SUGGESTIONS } from '@/lib/vacationMode';
+import { vacationQuickAddPayload } from '@/lib/vacationSchedule';
+import { formatEventStayLabel } from '@/lib/eventStay';
 import { resolveCategoryLabel } from '@/lib/categoryPresentation';
 import type { EventCategory } from '@/lib/eventCategories';
 import VacationQuickAdd from '@/components/VacationQuickAdd';
@@ -139,13 +140,8 @@ const DayOverview = ({
       await createEvent.mutateAsync({
         household_id: householdId,
         title: title ?? resolveCategoryLabel(category, null, locale),
-        event_date: format(date, 'yyyy-MM-dd'),
-        day_part: 'afternoon',
-        day_part_start: 'afternoon',
-        day_part_end: 'afternoon',
-        start_time: '12:00',
-        end_time: '13:00',
         category,
+        ...vacationQuickAddPayload(category, date),
       });
       toast.success(t('vacation.added'));
       setShowAddMenu(false);
@@ -156,24 +152,19 @@ const DayOverview = ({
     }
   };
 
+  const stayOpts = {
+    dateLocale,
+    firstDay: t('event.firstDay'),
+    lastDay: t('event.lastDay'),
+    checkIn: t('event.checkIn'),
+    checkOut: t('event.checkOut'),
+  };
+
   const itinerary = itineraryLabels(
     [...programEvents]
       .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
       .map((ev) => ev.title),
   );
-
-  const formatAgendaTime = (ev: Event) => {
-    if (ev.start_time) return ev.start_time.slice(0, 5);
-    const dps = (ev as { day_part_start?: string | null }).day_part_start;
-    if (dps === 'all_day' || ev.day_part === 'all_day' || isMultiDayEvent(ev)) {
-      return t('dayPart.all_day');
-    }
-    return (
-      translateDayPart(locale, dps || ev.day_part) ||
-      DAY_PART_LABELS[dps || ev.day_part] ||
-      t('dayPart.all_day')
-    );
-  };
 
   const formatEventTime = (ev: Event) => {
     const dps = (ev as { day_part_start?: string | null }).day_part_start;
@@ -204,21 +195,6 @@ const DayOverview = ({
         )}
 
         {programCountdowns.map((cd) => {
-          if (isAgenda) {
-            return (
-              <button
-                key={cd.id}
-                type="button"
-                onClick={() => onPickCountdown?.(cd)}
-                className="flex w-full items-baseline gap-4 py-1.5 text-left"
-              >
-                <span className="w-[3.5rem] shrink-0 text-sm text-muted-foreground">
-                  {cd.emoji || '✨'}
-                </span>
-                <span className="min-w-0 flex-1 text-sm text-foreground">{cd.title}</span>
-              </button>
-            );
-          }
           const theme = getCountdownTheme(cd.theme);
           const daysFromNow = calendarDaysUntil(cd.target_at);
           const label =
@@ -281,8 +257,8 @@ const DayOverview = ({
           [...programEvents]
             .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
             .map((ev) => {
-              const dim = vacationOn && vacation.revealHidden && eventIsWorkdayLayer(ev) ? 'opacity-40' : '';
-              const multiLabel = formatMultiDayLabel(ev, {
+              const stayLabel = formatEventStayLabel(ev, stayOpts);
+              const multiLabel = stayLabel || formatMultiDayLabel(ev, {
                 dateLocale,
                 daysLabel: (() => {
                   const end = (ev as { end_date?: string }).end_date;
@@ -293,22 +269,6 @@ const DayOverview = ({
                   return t('event.daysCount', { count: days });
                 })(),
               });
-
-              if (isAgenda) {
-                return (
-                  <button
-                    key={ev.id}
-                    type="button"
-                    onClick={() => onPickEvent(ev)}
-                    className={`flex w-full items-baseline gap-4 py-1.5 text-left ${dim}`}
-                  >
-                    <span className="w-[3.5rem] shrink-0 text-sm tabular-nums text-muted-foreground">
-                      {formatAgendaTime(ev)}
-                    </span>
-                    <span className="min-w-0 flex-1 text-sm text-foreground">{ev.title}</span>
-                  </button>
-                );
-              }
 
               const timeLabel = formatEventTime(ev);
 
@@ -337,6 +297,9 @@ const DayOverview = ({
                         <span className="block truncate text-sm font-semibold">{ev.title}</span>
                         {timeLabel && (
                           <p className="mt-0.5 text-xs text-muted-foreground">{timeLabel}</p>
+                        )}
+                        {ev.location && (
+                          <p className="mt-0.5 text-xs text-foreground/80 truncate">📍 {ev.location}</p>
                         )}
                         <p className="mt-1 text-[11px] text-muted-foreground">
                           {t('event.overlayHint')}
@@ -376,8 +339,11 @@ const DayOverview = ({
                   {multiLabel && (
                     <p className="mt-0.5 text-xs font-medium text-foreground/70">{multiLabel}</p>
                   )}
-                  {timeLabel && (
+                  {!(ev.category === 'hotel' && stayLabel) && timeLabel && (
                     <p className="mt-0.5 text-xs text-muted-foreground">{timeLabel}</p>
+                  )}
+                  {ev.location && (
+                    <p className="mt-0.5 text-xs text-foreground/80 truncate">📍 {ev.location}</p>
                   )}
                 </button>
               );

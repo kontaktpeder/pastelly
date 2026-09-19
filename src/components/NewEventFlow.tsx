@@ -23,6 +23,9 @@ import { focusFieldSoftly, scrollFocusIntoView } from '@/lib/scrollFocusIntoView
 import { stepForward, stepSpring } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { useVacationMode } from '@/hooks/useVacationMode';
+import EventPeriodFields from '@/components/EventPeriodFields';
+import EventAddressField from '@/components/EventAddressField';
+import { applyVacationCategoryTiming, isHotelCategory } from '@/lib/vacationSchedule';
 
 /** Shared size for date/time inputs — equality = simplicity */
 const FIELD =
@@ -144,8 +147,9 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
   const dayPartStart = DAY_PART_ORDER[selectedDayParts[0]];
   const dayPartEnd = DAY_PART_ORDER[selectedDayParts[1]];
   const dayPartCompat = (!dayPartStart || dayPartStart === 'all_day' || dayPartStart === 'full_diem') ? 'morning' : dayPartStart;
+  const isHotel = isHotelCategory(category);
   const isMultiDay = !!endDate;
-  const useAllDay = isMultiDay ? !showTimedMultiDay : isAllDayPart(dayPartStart);
+  const useAllDay = isHotel ? false : isMultiDay ? !showTimedMultiDay : isAllDayPart(dayPartStart);
 
   // --- Two-way sync helpers ---
 
@@ -246,25 +250,30 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
     return idx >= selectedDayParts[0] && idx <= selectedDayParts[1];
   };
 
-  const handleAddDay = () => {
-    const becomingMulti = !endDate;
-    if (!endDate) {
-      setEndDate(addDays(startDate, 1));
-    } else {
-      setEndDate(addDays(endDate, 1));
+  const handleStayStartTime = (value: string) => {
+    if (isHotel) {
+      setStartTime(value);
+      if (endTime) {
+        const newRange = timeRangeToDayParts(value, endTime);
+        setSelectedDayParts(newRange);
+        setDayPartClickCount(newRange[0] === newRange[1] ? 1 : 2);
+      }
+      return;
     }
-    if (becomingMulti) applyAllDay();
+    handleStartTimeChange(value);
   };
 
-  const clearEndDate = () => {
-    const wasUntimedAllDay = isMultiDay && !showTimedMultiDay;
-    setEndDate(null);
-    setShowTimedMultiDay(false);
-    if (wasUntimedAllDay) {
-      setSelectedDayParts([AFTERNOON_INDEX, AFTERNOON_INDEX]);
-      setDayPartClickCount(1);
-      setStartTime('12:00');
-      setEndTime(null);
+  const applyCategoryTiming = (key: EventCategory) => {
+    const patch = applyVacationCategoryTiming(key, { startDate, endDate });
+    if (!patch) return;
+    setStartTime(patch.startTime);
+    setEndTime(patch.endTime);
+    setEndDate(patch.endDate);
+    setSelectedDayParts(patch.dayParts);
+    setDayPartClickCount(patch.dayParts[0] === patch.dayParts[1] ? 1 : 2);
+    if (patch.timedStay) {
+      setShowTimedMultiDay(true);
+      setShowDayParts(false);
     }
   };
 
@@ -273,7 +282,11 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
       toast.error('Kunne ikke opprette: mangler husholdning eller medlem');
       return;
     }
-    const eventEndDate = endDate ? format(endDate, 'yyyy-MM-dd') : format(startDate, 'yyyy-MM-dd');
+    const eventEndDate = endDate
+      ? format(endDate, 'yyyy-MM-dd')
+      : isHotel
+        ? format(addDays(startDate, 1), 'yyyy-MM-dd')
+        : format(startDate, 'yyyy-MM-dd');
     const dateStr = format(startDate, 'yyyy-MM-dd');
     try {
       const result = await createEvent.mutateAsync({
@@ -380,50 +393,34 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
             <motion.div key="step1" {...stepForward} className="space-y-6">
               <h2 className="text-2xl font-bold">{t('event.when')}</h2>
 
-              {/* Start date + add day button */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">{t('event.date')}</label>
-                <div className="flex gap-2">
-                  <input
-                    type="date"
-                    value={format(startDate, 'yyyy-MM-dd')}
-                    onChange={(e) => {
-                      const newDate = new Date(e.target.value + 'T12:00:00');
-                      setStartDate(newDate);
-                      if (endDate && endDate <= newDate) setEndDate(null);
-                    }}
-                    className={`flex-1 ${FIELD}`}
-                  />
-                  <button type="button" onClick={handleAddDay} className={ADD_BTN}>
-                    {t('event.addDay')}
-                  </button>
-                </div>
-              </div>
+              <EventPeriodFields
+                isHotel={isHotel}
+                startDate={startDate}
+                endDate={endDate}
+                startTime={startTime}
+                endTime={endTime}
+                onStartDate={(d) => {
+                  setStartDate(d);
+                  if (!isHotel && endDate && endDate <= d) setEndDate(null);
+                }}
+                onEndDate={setEndDate}
+                onStartTime={handleStayStartTime}
+                onEndTime={(value) => {
+                  if (isHotel) {
+                    setEndTime(value);
+                    if (startTime) {
+                      const newRange = timeRangeToDayParts(startTime, value);
+                      setSelectedDayParts(newRange);
+                      setDayPartClickCount(newRange[0] === newRange[1] ? 1 : 2);
+                    }
+                    return;
+                  }
+                  handleEndTimeChange(value);
+                }}
+              />
 
-              {/* End date (if multi-day) */}
-              {endDate && (
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <label className="text-sm font-medium mb-2 block">{t('event.endDate')}</label>
-                    <input
-                      type="date"
-                      value={format(endDate, 'yyyy-MM-dd')}
-                      onChange={(e) => setEndDate(new Date(e.target.value + 'T12:00:00'))}
-                      min={format(addDays(startDate, 1), 'yyyy-MM-dd')}
-                      className={`w-full ${FIELD}`}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={clearEndDate}
-                    className="mt-7 p-2 rounded-full hover:bg-muted text-muted-foreground"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                  </button>
-                </div>
-              )}
-
-              {/* Clock / all-day — multi-day defaults to hele dagen */}
+              {/* Clock / all-day — hotel uses check-in / check-out instead */}
+              {!isHotel && (
               <div className="space-y-3">
                 {isMultiDay && !showTimedMultiDay ? (
                   <>
@@ -533,6 +530,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                   </>
                 )}
               </div>
+              )}
 
               {/* Optional details — closed by default, expand without layout thrash */}
               <div className="space-y-3">
@@ -552,15 +550,10 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                 {showLocation && (
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
-                      <label className="text-sm font-medium mb-1 block">{t('event.place')}</label>
-                      <input
-                        ref={locationRef}
-                        type="text"
+                      <EventAddressField
+                        inputRef={locationRef}
                         value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        placeholder={t('common.optional')}
-                        onFocus={scrollFocusIntoView}
-                        className={`w-full ${FIELD}`}
+                        onChange={setLocation}
                       />
                     </div>
                     <button
@@ -615,6 +608,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                       key={key}
                       onClick={() => {
                         setCategory(key);
+                        applyCategoryTiming(key);
                         if (key !== 'other') {
                           setOtherLabel('');
                           goToWhatStep();

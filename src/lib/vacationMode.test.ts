@@ -3,6 +3,7 @@ import {
   DEFAULT_VACATION_PREFS,
   collectVacationPeriods,
   collectVacationPeriodsForMember,
+  eventIsVacationLayer,
   eventIsWorkdayLayer,
   eventMirrorsVacationPeriod,
   filterEventsForVacationLayer,
@@ -223,15 +224,18 @@ describe('event layer', () => {
   const beach = { category: 'beach' };
   const overlay = { category: 'other', isOverlay: true, sourceHouseholdKind: 'work' };
 
-  it('never drops events when vacation mode is off', () => {
-    const events = [work, beach];
+  it('hides vacation-layer events when vacation mode is off', () => {
+    const travel = { category: 'travel' };
+    const events = [work, beach, travel];
     expect(
       filterEventsForVacationLayer(events, {
         vacationActive: false,
         revealHidden: false,
         hideWorkdayEvents: true,
       }),
-    ).toEqual(events);
+    ).toEqual([work, travel]);
+    expect(eventIsVacationLayer(beach)).toBe(true);
+    expect(eventIsVacationLayer(travel)).toBe(false);
   });
 
   it('hides weekday and work-overlay events by default', () => {

@@ -105,6 +105,20 @@ export const VACATION_EMPTY_DAY_SUGGESTIONS = ['breakfast', 'beach', 'dinner'] a
 
 export const VACATION_CATEGORY_OPTIONS = [...VACATION_QUICK_CATEGORIES, 'other'] as const;
 
+/** Vacation-only categories hidden on the home calendar when feriemodus is off. Reise stays. */
+export const VACATION_LAYER_CATEGORIES = new Set([
+  'beach',
+  'breakfast',
+  'lunch',
+  'dinner',
+  'hotel',
+  'outing',
+  'activity',
+  'relaxation',
+  'shopping',
+  'practical',
+]);
+
 export const VACATION_PREFS_STORAGE_PREFIX = 'pastelly_vacation_prefs:';
 export const VACATION_PERIOD_STORAGE_PREFIX = 'pastelly_countdown_vacation:';
 export const VACATION_WARN_STORAGE_PREFIX = 'pastelly_vacation_warn:';
@@ -530,6 +544,10 @@ export function eventIsWorkdayLayer(event: VacationEventLike): boolean {
   return isWorkdayCategory(event.category);
 }
 
+export function eventIsVacationLayer(event: VacationEventLike): boolean {
+  return !!event.category && VACATION_LAYER_CATEGORIES.has(event.category);
+}
+
 /** Untimed event that is the trip itself (same title and dates as a vacation period). */
 export function eventMirrorsVacationPeriod(
   event: VacationEventLike,
@@ -570,11 +588,14 @@ export function filterEventsForVacationLayer<T extends VacationEventLike>(
     dateRange?: YmdRange | null;
   },
 ): T[] {
+  if (!opts.vacationActive) {
+    return events.filter((ev) => !eventIsVacationLayer(ev));
+  }
   let next = events;
-  if (opts.vacationActive && opts.dateRange) {
+  if (opts.dateRange) {
     next = next.filter((ev) => eventOverlapsYmdRange(ev, opts.dateRange!));
   }
-  if (!opts.vacationActive || opts.revealHidden || !opts.hideWorkdayEvents) return next;
+  if (opts.revealHidden || !opts.hideWorkdayEvents) return next;
   return next.filter((ev) => !eventIsWorkdayLayer(ev));
 }
 

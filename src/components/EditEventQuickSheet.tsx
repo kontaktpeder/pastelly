@@ -20,6 +20,9 @@ import { scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
 import { useLocale } from '@/hooks/useLocale';
 import { useVacationMode } from '@/hooks/useVacationMode';
 import type { MessageKey } from '@/lib/i18n';
+import EventPeriodFields from '@/components/EventPeriodFields';
+import EventAddressField from '@/components/EventAddressField';
+import { applyVacationCategoryTiming, isHotelCategory } from '@/lib/vacationSchedule';
 
 interface EditEventQuickSheetProps {
   event: Event;
@@ -112,8 +115,9 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
 
   const dayPartStart = DAY_PART_ORDER[selectedDayParts[0]];
   const dayPartEnd = DAY_PART_ORDER[selectedDayParts[1]];
+  const isHotel = isHotelCategory(category);
   const isMultiDay = !!endDate;
-  const useAllDay = isMultiDay ? !showTimedMultiDay : isAllDayPart(dayPartStart);
+  const useAllDay = isHotel ? false : isMultiDay ? !showTimedMultiDay : isAllDayPart(dayPartStart);
 
   const syncTimesFromDayPart = (startIdx: number, endIdx: number) => {
     const range = DAY_PART_TIME_RANGES[DAY_PART_ORDER[startIdx]];
@@ -211,22 +215,30 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
 
   const isDayPartSelected = (idx: number) => idx >= selectedDayParts[0] && idx <= selectedDayParts[1];
 
-  const handleAddDay = () => {
-    const becomingMulti = !endDate;
-    if (!endDate) setEndDate(addDays(startDate, 1));
-    else setEndDate(addDays(endDate, 1));
-    if (becomingMulti) applyAllDay();
+  const handleStayStartTime = (value: string) => {
+    if (isHotel) {
+      setStartTime(value);
+      if (endTime) {
+        const newRange = timeRangeToDayParts(value, endTime);
+        setSelectedDayParts(newRange);
+        setDayPartClickCount(newRange[0] === newRange[1] ? 1 : 2);
+      }
+      return;
+    }
+    handleStartTimeChange(value);
   };
 
-  const clearEndDate = () => {
-    const wasUntimedAllDay = isMultiDay && !showTimedMultiDay;
-    setEndDate(null);
-    setShowTimedMultiDay(false);
-    if (wasUntimedAllDay) {
-      setSelectedDayParts([AFTERNOON_INDEX, AFTERNOON_INDEX]);
-      setDayPartClickCount(1);
-      setStartTime('12:00');
-      setEndTime(null);
+  const applyCategoryTiming = (key: EventCategory) => {
+    const patch = applyVacationCategoryTiming(key, { startDate, endDate });
+    if (!patch) return;
+    setStartTime(patch.startTime);
+    setEndTime(patch.endTime);
+    setEndDate(patch.endDate);
+    setSelectedDayParts(patch.dayParts);
+    setDayPartClickCount(patch.dayParts[0] === patch.dayParts[1] ? 1 : 2);
+    if (patch.timedStay) {
+      setShowTimedMultiDay(true);
+      setShowDayParts(false);
     }
   };
 
@@ -243,7 +255,7 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
         patch: buildEventUpdatePatch({
           title,
           startDate,
-          endDate,
+          endDate: endDate ?? (isHotel ? addDays(startDate, 1) : null),
           dayPartStart: useAllDay ? 'all_day' : dayPartStart,
           dayPartEnd: useAllDay ? 'all_day' : dayPartEnd,
           startTime: useAllDay ? '' : startTime,
@@ -296,41 +308,31 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
             />
           </div>
 
-          {/* Dato */}
-          <div>
-            <SectionTitle>{t('event.date')}</SectionTitle>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                value={format(startDate, 'yyyy-MM-dd')}
-                onChange={(e) => {
-                  const d = new Date(e.target.value + 'T12:00:00');
-                  setStartDate(d);
-                  if (endDate && endDate <= d) setEndDate(null);
-                }}
-                className={`flex-1 ${FIELD}`}
-              />
-              <button type="button" onClick={handleAddDay} className={ADD_BTN}>
-                {t('event.addDay')}
-              </button>
-            </div>
-            {endDate && (
-              <div className="flex items-center gap-2 mt-2">
-                <input
-                  type="date"
-                  value={format(endDate, 'yyyy-MM-dd')}
-                  onChange={(e) => setEndDate(new Date(e.target.value + 'T12:00:00'))}
-                  min={format(addDays(startDate, 1), 'yyyy-MM-dd')}
-                  className={`flex-1 ${FIELD}`}
-                />
-                <button type="button" onClick={clearEndDate} className="p-2 rounded-full hover:bg-muted text-muted-foreground">
-                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                </button>
-              </div>
-            )}
-          </div>
+          <EventPeriodFields
+            isHotel={isHotel}
+            startDate={startDate}
+            endDate={endDate}
+            startTime={startTime}
+            endTime={endTime}
+            onStartDate={setStartDate}
+            onEndDate={setEndDate}
+            onStartTime={handleStayStartTime}
+            onEndTime={(value) => {
+              if (isHotel) {
+                setEndTime(value);
+                if (startTime) {
+                  const newRange = timeRangeToDayParts(startTime, value);
+                  setSelectedDayParts(newRange);
+                  setDayPartClickCount(newRange[0] === newRange[1] ? 1 : 2);
+                }
+                return;
+              }
+              handleEndTimeChange(value);
+            }}
+          />
 
           {/* Klokke / hele dagen */}
+          {!isHotel && (
           <div className="space-y-3">
             {isMultiDay && !showTimedMultiDay ? (
               <>
@@ -387,9 +389,10 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
               </>
             )}
           </div>
+          )}
 
           {/* Del av dagen — optional (hidden when multi-day all-day) */}
-          {!(isMultiDay && !showTimedMultiDay) && (
+          {!isHotel && !(isMultiDay && !showTimedMultiDay) && (
           <div>
             {!showDayParts ? (
               <button
@@ -432,19 +435,9 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
           </div>
           )}
 
-          {/* Sted & Notat */}
+          {/* Adresse & Notat */}
           <div className="space-y-3">
-            <div>
-              <SectionTitle>{t('event.place')}</SectionTitle>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder={t('common.optional')}
-                onFocus={scrollFocusIntoView}
-                className={`w-full ${FIELD}`}
-              />
-            </div>
+            <EventAddressField value={location} onChange={setLocation} />
             <div>
               <SectionTitle>{t('event.notes')}</SectionTitle>
               <textarea
@@ -471,6 +464,7 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
                   <button
                     key={key}
                     onClick={() => {
+                      if (key !== category) applyCategoryTiming(key);
                       setCategory(key);
                       if (key !== 'other') setOtherLabel('');
                     }}
