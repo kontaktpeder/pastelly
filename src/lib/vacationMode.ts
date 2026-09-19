@@ -101,6 +101,8 @@ export const VACATION_QUICK_CATEGORIES = [
   'practical',
 ] as const;
 
+export const VACATION_EMPTY_DAY_SUGGESTIONS = ['breakfast', 'beach', 'dinner'] as const;
+
 export const VACATION_CATEGORY_OPTIONS = [...VACATION_QUICK_CATEGORIES, 'other'] as const;
 
 export const VACATION_PREFS_STORAGE_PREFIX = 'pastelly_vacation_prefs:';
@@ -486,6 +488,8 @@ export type VacationEventLike = {
   sourceHouseholdKind?: string | null;
   event_date?: string;
   end_date?: string | null;
+  title?: string | null;
+  start_time?: string | null;
 };
 
 export type YmdRange = { start: string; end: string };
@@ -524,6 +528,36 @@ export function eventOverlapsYmdRange(
 export function eventIsWorkdayLayer(event: VacationEventLike): boolean {
   if (event.isOverlay && (event.sourceHouseholdKind || '').toLowerCase() === 'work') return true;
   return isWorkdayCategory(event.category);
+}
+
+/** Untimed event that is the trip itself (same title and dates as a vacation period). */
+export function eventMirrorsVacationPeriod(
+  event: VacationEventLike,
+  periods: VacationPeriod[],
+): boolean {
+  if (event.start_time) return false;
+  if (!event.event_date) return false;
+  const title = (event.title || '').trim().toLowerCase();
+  if (!title) return false;
+  const evEnd = event.end_date || event.event_date;
+  return periods.some((period) => {
+    const start = getZonedParts(period.startAt, period.timeZone).dateStr;
+    const end = getZonedParts(period.endAt, period.timeZone).dateStr;
+    return title === period.title.trim().toLowerCase() && event.event_date === start && evEnd === end;
+  });
+}
+
+export function vacationStayProgress(
+  period: VacationPeriod,
+  onDate: Date,
+): { day: number; of: number } | null {
+  const onStr = getZonedParts(onDate, period.timeZone).dateStr;
+  const startStr = getZonedParts(period.startAt, period.timeZone).dateStr;
+  const endStr = getZonedParts(period.endAt, period.timeZone).dateStr;
+  if (onStr < startStr || onStr > endStr) return null;
+  const of = calendarDaysBetweenZoned(period.startAt, period.endAt, period.timeZone) + 1;
+  if (of < 1) return null;
+  return { day: calendarDaysBetweenZoned(period.startAt, onDate, period.timeZone) + 1, of };
 }
 
 /** Filter calendar events for the vacation layer. Never deletes; only hides. */
@@ -586,6 +620,15 @@ export function formatVacationRange(
     return `${startDay}. ${startMonth}–${endDay}. ${endMonth}`;
   }
   return `${startDay} ${startMonth}–${endDay} ${endMonth}`;
+}
+
+export function formatVacationDay(date: Date, locale: string, timeZone?: string): string {
+  const day = intlDayNumber(date, locale, timeZone);
+  const month = intlMonthName(date, locale, timeZone, 'long');
+  if (locale.startsWith('nb') || locale.startsWith('nn') || locale.startsWith('no')) {
+    return `${day}. ${month}`;
+  }
+  return `${day} ${month}`;
 }
 
 export function itineraryLabels(titles: string[]): string {

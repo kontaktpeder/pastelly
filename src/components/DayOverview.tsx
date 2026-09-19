@@ -17,12 +17,14 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useCreateEvent } from '@/hooks/useEvents';
 import { useVacationMode } from '@/hooks/useVacationMode';
-import { eventIsWorkdayLayer, itineraryLabels } from '@/lib/vacationMode';
+import { eventIsWorkdayLayer, eventMirrorsVacationPeriod, itineraryLabels, VACATION_EMPTY_DAY_SUGGESTIONS } from '@/lib/vacationMode';
 import { resolveCategoryLabel } from '@/lib/categoryPresentation';
 import type { EventCategory } from '@/lib/eventCategories';
 import VacationQuickAdd from '@/components/VacationQuickAdd';
 import VacationModeToggle from '@/components/VacationModeToggle';
 import DayListItems from '@/components/DayListItems';
+import CenteredPopup from '@/components/CenteredPopup';
+import { tryOpenSheet } from '@/lib/sheetGate';
 
 export interface DayOverviewProps {
   date: Date;
@@ -64,15 +66,25 @@ const DayOverview = ({
   const vacation = useVacationMode();
   const createEvent = useCreateEvent();
   const [pendingCategory, setPendingCategory] = useState<string | null>(null);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const visibleEvents = vacation.filterEvents(events);
   const vacationOn = vacation.enabledForCalendar && vacation.snapshot.active;
   const isAgenda = layout === 'agenda';
+  const periodEvents = vacation.snapshot.activePeriods;
+  const programEvents = isAgenda
+    ? visibleEvents.filter((ev) => !eventMirrorsVacationPeriod(ev, periodEvents))
+    : visibleEvents;
+  const periodIds = new Set(periodEvents.map((p) => p.id));
+  const programCountdowns = isAgenda
+    ? countdowns.filter((cd) => !periodIds.has(cd.id))
+    : countdowns;
+  const programEmpty = programEvents.length === 0 && programCountdowns.length === 0;
 
   const actions = isAgenda ? (
     <button
       type="button"
-      onClick={() => onCreateForDate(date)}
-      className="w-full py-3 text-sm font-semibold text-[#0B4A5C]"
+      onClick={() => tryOpenSheet(() => setShowAddMenu(true))}
+      className="w-full py-3 text-sm font-normal text-[#0B4A5C]"
     >
       {t('event.addDiscreet')}
     </button>
@@ -111,7 +123,13 @@ const DayOverview = ({
     </>
   );
 
-  const handleQuickAdd = async (category: EventCategory) => {
+  const suggestionTitle = (key: (typeof VACATION_EMPTY_DAY_SUGGESTIONS)[number]) => {
+    if (key === 'breakfast') return t('vacation.suggestBreakfast');
+    if (key === 'beach') return t('vacation.suggestBeach');
+    return t('vacation.suggestDinner');
+  };
+
+  const handleQuickAdd = async (category: EventCategory, title?: string) => {
     if (!householdId) {
       onCreateForDate(date);
       return;
@@ -120,7 +138,7 @@ const DayOverview = ({
     try {
       await createEvent.mutateAsync({
         household_id: householdId,
-        title: resolveCategoryLabel(category, null, locale),
+        title: title ?? resolveCategoryLabel(category, null, locale),
         event_date: format(date, 'yyyy-MM-dd'),
         day_part: 'afternoon',
         day_part_start: 'afternoon',
@@ -130,6 +148,7 @@ const DayOverview = ({
         category,
       });
       toast.success(t('vacation.added'));
+      setShowAddMenu(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('common.error'));
     } finally {
@@ -138,7 +157,7 @@ const DayOverview = ({
   };
 
   const itinerary = itineraryLabels(
-    [...visibleEvents]
+    [...programEvents]
       .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
       .map((ev) => ev.title),
   );
@@ -184,22 +203,19 @@ const DayOverview = ({
           </div>
         )}
 
-        {countdowns.map((cd) => {
+        {programCountdowns.map((cd) => {
           if (isAgenda) {
             return (
               <button
                 key={cd.id}
                 type="button"
                 onClick={() => onPickCountdown?.(cd)}
-                className="flex w-full items-start gap-3 py-2.5 text-left"
+                className="flex w-full items-baseline gap-4 py-1.5 text-left"
               >
-                <span className="w-[4.75rem] shrink-0 pt-0.5 text-[13px] font-semibold text-muted-foreground">
-                  {t('countdown.onDay')}
-                </span>
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center text-base">
+                <span className="w-[3.5rem] shrink-0 text-sm text-muted-foreground">
                   {cd.emoji || '✨'}
                 </span>
-                <span className="min-w-0 flex-1 pt-0.5 text-sm font-semibold">{cd.title}</span>
+                <span className="min-w-0 flex-1 text-sm text-foreground">{cd.title}</span>
               </button>
             );
           }
@@ -230,7 +246,22 @@ const DayOverview = ({
           );
         })}
 
-        {visibleEvents.length === 0 && countdowns.length === 0 ? (
+        {programEmpty ? (
+          isAgenda && vacationOn && householdId ? (
+            <div className="py-2">
+              {VACATION_EMPTY_DAY_SUGGESTIONS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={pendingCategory === key}
+                  onClick={() => void handleQuickAdd(key, suggestionTitle(key))}
+                  className="w-full py-2 text-left text-sm font-normal text-foreground disabled:opacity-50"
+                >
+                  {suggestionTitle(key)}
+                </button>
+              ))}
+            </div>
+          ) : (
           <div className={`flex flex-col items-center justify-center px-2 text-center ${
             isAgenda ? 'min-h-[4.5rem] py-6' : 'h-full min-h-[8rem]'
           }`}>
@@ -245,8 +276,9 @@ const DayOverview = ({
                   : t('event.emptyDayHint')}
             </p>
           </div>
+          )
         ) : (
-          [...visibleEvents]
+          [...programEvents]
             .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
             .map((ev) => {
               const dim = vacationOn && vacation.revealHidden && eventIsWorkdayLayer(ev) ? 'opacity-40' : '';
@@ -263,34 +295,17 @@ const DayOverview = ({
               });
 
               if (isAgenda) {
-                const member = ev.isOverlay ? undefined : getMember(ev.owner_member_id);
-                const meta = EVENT_CATEGORY_META[(ev.category as keyof typeof EVENT_CATEGORY_META) || 'other'];
-                const visuals = ev.isOverlay
-                  ? { soft: OVERLAY_MARK.soft, ink: OVERLAY_MARK.ink, rail: OVERLAY_MARK.rail }
-                  : resolveCategoryVisuals(ev.category, getMemberColorMap(member));
-                const Icon = ev.isOverlay ? BriefcaseBusiness : meta?.Icon;
                 return (
                   <button
                     key={ev.id}
                     type="button"
                     onClick={() => onPickEvent(ev)}
-                    className={`flex w-full items-start gap-3 py-2.5 text-left ${dim}`}
+                    className={`flex w-full items-baseline gap-4 py-1.5 text-left ${dim}`}
                   >
-                    <span className="w-[4.75rem] shrink-0 pt-0.5 text-[13px] font-semibold tabular-nums text-muted-foreground">
+                    <span className="w-[3.5rem] shrink-0 text-sm tabular-nums text-muted-foreground">
                       {formatAgendaTime(ev)}
                     </span>
-                    <span
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                      style={{ backgroundColor: visuals.soft, color: visuals.ink }}
-                    >
-                      {Icon ? <Icon size={14} strokeWidth={2.3} /> : null}
-                    </span>
-                    <span className="min-w-0 flex-1 pt-0.5">
-                      <span className="block text-sm font-semibold leading-snug text-foreground">{ev.title}</span>
-                      {multiLabel && (
-                        <span className="mt-0.5 block text-xs text-muted-foreground">{multiLabel}</span>
-                      )}
-                    </span>
+                    <span className="min-w-0 flex-1 text-sm text-foreground">{ev.title}</span>
                   </button>
                 );
               }
@@ -374,13 +389,8 @@ const DayOverview = ({
             date={date}
             householdId={householdId}
             currentMemberId={_currentMemberId}
+            heading={isAgenda ? t('vacation.checklist') : undefined}
           />
-        )}
-
-        {vacationOn && householdId && (
-          <div className="pt-2">
-            <VacationQuickAdd onPick={(cat) => void handleQuickAdd(cat)} pendingCategory={pendingCategory} />
-          </div>
         )}
       </div>
 
@@ -392,6 +402,19 @@ const DayOverview = ({
         <div className="shrink-0 space-y-2 border-t border-border/60 bg-card/90 px-5 py-3">
           {actions}
         </div>
+      )}
+
+      {showAddMenu && (
+        <CenteredPopup
+          onClose={() => setShowAddMenu(false)}
+          onExit={() => setShowAddMenu(false)}
+          size="hug"
+          zClassName="z-[80]"
+        >
+          <div className="px-4 py-2">
+            <VacationQuickAdd onPick={(cat) => void handleQuickAdd(cat)} pendingCategory={pendingCategory} />
+          </div>
+        </CenteredPopup>
       )}
     </div>
   );

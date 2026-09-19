@@ -15,9 +15,10 @@ interface DayListItemsProps {
   date: Date;
   householdId: string;
   currentMemberId: string;
+  heading?: string;
 }
 
-const DayListItems = ({ date, householdId, currentMemberId }: DayListItemsProps) => {
+const DayListItems = ({ date, householdId, currentMemberId, heading }: DayListItemsProps) => {
   const { t } = useLocale();
   const dateStr = format(date, 'yyyy-MM-dd');
   const { data: listItems = [] } = useListItemsForDate(householdId, dateStr);
@@ -72,8 +73,8 @@ const DayListItems = ({ date, householdId, currentMemberId }: DayListItemsProps)
 
   return (
     <div className="pt-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-        {t('event.list')}
+      <p className={`mb-1 text-sm ${heading ? 'font-medium text-foreground' : 'text-[11px] font-semibold uppercase tracking-wide text-muted-foreground'}`}>
+        {heading || t('event.list')}
       </p>
       <div>
         {listItems.map((item) => {
@@ -152,7 +153,7 @@ const DayListItems = ({ date, householdId, currentMemberId }: DayListItemsProps)
           type="button"
           onClick={handleAddItem}
           disabled={!newItem.trim()}
-          className="text-sm font-semibold text-foreground disabled:opacity-30"
+          className="text-sm font-normal text-foreground disabled:opacity-30"
         >
           +
         </button>

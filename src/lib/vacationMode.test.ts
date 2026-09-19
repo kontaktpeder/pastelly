@@ -4,7 +4,9 @@ import {
   collectVacationPeriods,
   collectVacationPeriodsForMember,
   eventIsWorkdayLayer,
+  eventMirrorsVacationPeriod,
   filterEventsForVacationLayer,
+  formatVacationDay,
   formatVacationRange,
   itineraryLabels,
   mergeCountdownVacation,
@@ -16,6 +18,7 @@ import {
   pruneExpiredPrefs,
   resolveVacationMode,
   shouldMuteEventNotification,
+  vacationStayProgress,
   type VacationCountdownLike,
 } from './vacationMode';
 import { shouldMuteWorkdayPush } from '../../supabase/functions/_shared/personalVacation';
@@ -465,5 +468,57 @@ describe('presentation helpers', () => {
     expect(label).not.toMatch(/\d\.\./);
     expect(label).toMatch(/^14\.–20\. /);
     expect(label.toLowerCase()).toMatch(/sep/);
+  });
+
+  it('formats the week heading as a long date interval', () => {
+    expect(formatVacationRange(new Date(2026, 8, 14), new Date(2026, 8, 20), 'nb-NO')).toBe(
+      '14.–20. september',
+    );
+  });
+
+  it('formats a single Norwegian day', () => {
+    expect(formatVacationDay(new Date(2026, 8, 20), 'nb-NO')).toBe('20. september');
+  });
+});
+
+describe('vacation stay progress', () => {
+  const periods = collectVacationPeriods([mallorca], 'Europe/Oslo');
+
+  it('counts the selected civil day inside the trip', () => {
+    const period = periods[0]!;
+    expect(vacationStayProgress(period, new Date('2026-10-03T12:00:00.000Z'))).toEqual({ day: 1, of: 13 });
+    expect(vacationStayProgress(period, new Date('2026-10-07T12:00:00.000Z'))).toEqual({ day: 5, of: 13 });
+  });
+
+  it('is null before the trip', () => {
+    expect(vacationStayProgress(periods[0]!, new Date('2026-10-01T12:00:00.000Z'))).toBeNull();
+  });
+});
+
+describe('eventMirrorsVacationPeriod', () => {
+  const periods = collectVacationPeriods([mallorca], 'Europe/Oslo');
+
+  it('hides the untimed trip-sized event with the same title', () => {
+    expect(
+      eventMirrorsVacationPeriod(
+        { title: 'Mallorca', event_date: '2026-10-03', end_date: '2026-10-15' },
+        periods,
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps a timed flight or hotel with another title', () => {
+    expect(
+      eventMirrorsVacationPeriod(
+        { title: 'Innsjekking', event_date: '2026-10-03', end_date: '2026-10-10', start_time: '15:00' },
+        periods,
+      ),
+    ).toBe(false);
+    expect(
+      eventMirrorsVacationPeriod(
+        { title: 'Hotel Playa', event_date: '2026-10-03', end_date: '2026-10-15' },
+        periods,
+      ),
+    ).toBe(false);
   });
 });

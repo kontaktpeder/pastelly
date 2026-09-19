@@ -48,7 +48,7 @@ import { useVacationMode } from '@/hooks/useVacationMode';
 import DayOverview from '@/components/DayOverview';
 import { VacationWeekHeader, VacationWeekStrip } from '@/components/VacationWeekStrip';
 import VacationModeBanner from '@/components/VacationModeBanner';
-import { eventIsWorkdayLayer, formatVacationRange } from '@/lib/vacationMode';
+import { eventIsWorkdayLayer, formatVacationDay, formatVacationRange } from '@/lib/vacationMode';
 import { getIntlLocale } from '@/lib/i18n';
 
 interface CalendarViewProps {
@@ -200,7 +200,7 @@ function buildMonthDays(monthDate: Date): Date[] {
 }
 
 const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, selectedDate, onCurrentDateChange, onSelectDate, onCreateEvent, onCreateCountdown, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
-  const { dateLocale, locale, t } = useLocale();
+  const { dateLocale, locale } = useLocale();
   const vacation = useVacationMode();
   const weekMode = vacation.enabledForCalendar && vacation.snapshot.active;
   const weekdayLabels = useMemo(() => {
@@ -235,6 +235,9 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     setCurrentDate(next);
   }, [weekMode, visibleRangeStart, visibleRangeEnd, currentDate, setCurrentDate]);
   const [showYear, setShowYear] = useState(false);
+  useEffect(() => {
+    if (weekMode) setShowYear(false);
+  }, [weekMode]);
   const [daySheetDate, setDaySheetDate] = useState<Date | null>(null);
   const [detailEvent, setDetailEvent] = useState<Event | null>(null);
   const [overlayEvent, setOverlayEvent] = useState<DisplayEvent | null>(null);
@@ -694,17 +697,13 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     !weekMode ||
     !vacation.visibleDateRange ||
     weekOverlapsYmd(addWeeks(centerWeekStart, 1), vacation.visibleDateRange);
-  const weekCaption = t('vacation.weekLabel', {
-    week: getISOWeek(centerWeekStart),
-    range: formatVacationRange(
-      centerWeekStart,
-      addDays(centerWeekStart, 6),
-      getIntlLocale(locale),
-      undefined,
-      'short',
-    ),
-  });
-  const monthLabel = format(focusedDay, 'MMMM', { locale: dateLocale });
+  const weekRangeLabel = formatVacationRange(
+    centerWeekStart,
+    addDays(centerWeekStart, 6),
+    getIntlLocale(locale),
+  );
+  const weekdayName = format(focusedDay, 'EEEE', { locale: dateLocale });
+  const agendaHeading = `${weekdayName.charAt(0).toLocaleUpperCase(getIntlLocale(locale))}${weekdayName.slice(1)} ${formatVacationDay(focusedDay, getIntlLocale(locale))}`;
   const stepWeek = (dir: 1 | -1) => {
     if (pageWidth) flingToHops(dir);
     else setCurrentDate((d) => addWeeks(d, dir));
@@ -740,8 +739,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
             days={daysByOffset[i]}
             weekdayLabels={weekdayLabels}
             selectedDate={focusedDay}
-            eventsByDate={eventsByOffset[i]}
-            members={members}
             interactive={i === WINDOW}
             rangeStart={visibleRangeStart}
             rangeEnd={visibleRangeEnd}
@@ -762,20 +759,16 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         {weekMode ? (
           <>
             <VacationWeekHeader
-              monthLabel={monthLabel}
-              weekCaption={weekCaption}
+              rangeLabel={weekRangeLabel}
               onPrev={() => stepWeek(-1)}
               onNext={() => stepWeek(1)}
-              onTitleClick={openYearView}
               canPrev={canPrevWeek}
               canNext={canNextWeek}
-              showToday={!isOnCurrentMonth}
-              onToday={goToToday}
             />
-            <VacationModeBanner />
+            <VacationModeBanner selectedDate={focusedDay} />
             {weekStrip}
-            <h2 className="shrink-0 px-5 pt-3 pb-1 text-lg font-bold capitalize text-foreground">
-              {format(focusedDay, 'EEEE d. MMMM', { locale: dateLocale })}
+            <h2 className="shrink-0 px-5 pt-3 pb-1 text-sm font-medium text-foreground">
+              {agendaHeading}
             </h2>
             <div className="flex min-h-0 flex-1 flex-col">
               <DayOverview
@@ -833,7 +826,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           )}
         </div>
 
-        {vacation.enabledForCalendar && <VacationModeBanner />}
+        {vacation.enabledForCalendar && <VacationModeBanner selectedDate={focusedDay} />}
 
         <div className="bg-transparent relative">
           <div className="flex px-1 py-1">
