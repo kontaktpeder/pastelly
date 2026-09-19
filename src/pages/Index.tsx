@@ -560,7 +560,7 @@ function CalendarDateBridge({
   const vacation = useVacationMode();
   const weekMode = vacation.enabledForCalendar && vacation.snapshot.active;
   const currentDate = useMemo(
-    () => calendarStripAnchor(focusedDate, weekMode),
+    () => (weekMode ? focusedDate : calendarStripAnchor(focusedDate, false)),
     [focusedDate, weekMode],
   );
   const onCurrentDateChange = useCallback<Dispatch<SetStateAction<Date>>>(

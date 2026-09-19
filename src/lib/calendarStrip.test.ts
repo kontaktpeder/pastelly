@@ -1,10 +1,12 @@
-import { addMonths, addWeeks, startOfMonth, startOfWeek } from 'date-fns';
+import { addDays, addMonths, addWeeks, startOfMonth, startOfWeek } from 'date-fns';
 import { describe, expect, it } from 'vitest';
 import {
   applyCalendarStripChange,
   calendarStripAnchor,
+  clampDayToYmdRange,
   resolveVacationFocusDate,
   weekOverlapsYmd,
+  weeksOverlappingRange,
 } from './calendarStrip';
 
 const monday = { weekStartsOn: 1 as const };
@@ -51,7 +53,30 @@ describe('applyCalendarStripChange', () => {
     const jumped = new Date(2026, 8, 18);
     expect(applyCalendarStripChange(prev, jumped, true).getTime()).toBe(jumped.getTime());
   });
+
+  it('lets a vacation swipe move one calendar day', () => {
+    const prev = new Date(2026, 8, 18);
+    const next = applyCalendarStripChange(prev, (d) => addDays(d, 1), true);
+    expect(next.getFullYear()).toBe(2026);
+    expect(next.getMonth()).toBe(8);
+    expect(next.getDate()).toBe(19);
+  });
 });
+
+describe('clampDayToYmdRange', () => {
+  it('keeps a day inside the trip and clamps the edges', () => {
+    const range = { start: '2026-09-10', end: '2026-09-24' };
+    expect(formatYmdish(clampDayToYmdRange(new Date(2026, 8, 18), range))).toBe('2026-09-18');
+    expect(formatYmdish(clampDayToYmdRange(new Date(2026, 8, 1), range))).toBe('2026-09-10');
+    expect(formatYmdish(clampDayToYmdRange(new Date(2026, 8, 30), range))).toBe('2026-09-24');
+  });
+});
+
+function formatYmdish(date: Date) {
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${m}-${d}`;
+}
 
 describe('resolveVacationFocusDate', () => {
   const range = { start: '2026-09-10', end: '2026-09-24' };
@@ -86,5 +111,14 @@ describe('weekOverlapsYmd', () => {
     const weekStart = startOfWeek(new Date(2026, 8, 7), monday);
     expect(weekOverlapsYmd(weekStart, { start: '2026-09-10', end: '2026-09-24' })).toBe(true);
     expect(weekOverlapsYmd(weekStart, { start: '2026-09-20', end: '2026-09-24' })).toBe(false);
+  });
+});
+
+describe('weeksOverlappingRange', () => {
+  it('lists each week the trip touches', () => {
+    const weeks = weeksOverlappingRange({ start: '2026-09-10', end: '2026-09-24' });
+    expect(weeks).toHaveLength(3);
+    expect(weeks[0].getTime()).toBe(startOfWeek(new Date(2026, 8, 10), monday).getTime());
+    expect(weeks[2].getTime()).toBe(startOfWeek(new Date(2026, 8, 24), monday).getTime());
   });
 });
