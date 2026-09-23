@@ -1,0 +1,3 @@
+# Reads Work production days for a linked calendar.
+# Secrets: WORK_API_BASE_URL, WORK_API_KEY (scope schedule:read only)
+verify_jwt = true

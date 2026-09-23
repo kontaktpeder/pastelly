@@ -20,6 +20,9 @@ export type OverlayEventRow = {
 /** Display-shaped event for calendar UI; overlays are read-only. */
 export type DisplayEvent = Event & {
   isOverlay?: boolean;
+  /** Read-only production block from Work. Never a Pastelly event row. */
+  isWorkBlock?: boolean;
+  workUrl?: string | null;
   sourceHouseholdId?: string;
   sourceHouseholdName?: string;
   sourceHouseholdKind?: string;

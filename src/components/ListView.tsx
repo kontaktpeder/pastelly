@@ -3,6 +3,9 @@ import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { format, addDays, subDays, isToday } from 'date-fns';
 import { getMonthTheme } from '@/lib/monthTheme';
 import { useEventsForDate, type Event } from '@/hooks/useEvents';
+import { mergeWorkBlocks, useWorkScheduleBlocks } from '@/hooks/useWorkSchedule';
+import type { DisplayEvent } from '@/hooks/useOverlayEvents';
+import WorkBlockSheet from '@/components/WorkBlockSheet';
 import {
   useListItemsForDate,
   useCreateListItem,
@@ -56,13 +59,16 @@ const ListView = ({
   const [selectedDate, setSelectedDate] = useState(initialDate || new Date());
   const [newItem, setNewItem] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [workBlock, setWorkBlock] = useState<DisplayEvent | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
-  const { data: events = [] } = useEventsForDate(householdId, dateStr);
+  const { data: localEvents = [] } = useEventsForDate(householdId, dateStr);
+  const { data: workBlocks = [] } = useWorkScheduleBlocks(householdId, dateStr, dateStr);
+  const events = mergeWorkBlocks(localEvents, workBlocks);
   const { data: listItems = [] } = useListItemsForDate(householdId, dateStr);
   const createItem = useCreateListItem();
   const toggleItem = useToggleListItem();
@@ -198,7 +204,10 @@ const ListView = ({
                   currentMemberId={currentMemberId}
                   calendarKind={calendarKind}
                   highlight={highlight}
-                  onTap={(e) => setSelectedEvent(e)}
+                  onTap={(e) => {
+                    if ((e as DisplayEvent).isWorkBlock) setWorkBlock(e as DisplayEvent);
+                    else setSelectedEvent(e);
+                  }}
                   onLongPress={(e) => onEditEvent?.(e)}
                   getMemberForEvent={getMemberForEvent}
                 />
@@ -307,6 +316,10 @@ const ListView = ({
           {composer}
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {workBlock && <WorkBlockSheet event={workBlock} onClose={() => setWorkBlock(null)} />}
+      </AnimatePresence>
 
       <AnimatePresence>
         {selectedEvent && (

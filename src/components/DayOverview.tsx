@@ -6,6 +6,7 @@ import { translateDayPart } from '@/lib/i18n';
 import { useLocale } from '@/hooks/useLocale';
 import type { Event } from '@/hooks/useEvents';
 import { OVERLAY_MARK, type DisplayEvent } from '@/hooks/useOverlayEvents';
+import { WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import type { CountdownWithParticipants } from '@/hooks/useCountdowns';
 import { calendarDaysUntil } from '@/lib/countdownTime';
@@ -273,6 +274,37 @@ const DayOverview = ({
               });
 
               const timeLabel = formatEventTime(ev);
+
+              if (ev.isWorkBlock) {
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => onPickEvent(ev)}
+                    className="w-full rounded-xl p-3 text-left"
+                    style={{ backgroundColor: WORK_BLOCK_MARK.soft }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px]"
+                        style={{ backgroundColor: WORK_BLOCK_MARK.rail }}
+                      >
+                        <BriefcaseBusiness size={12} strokeWidth={2} style={{ color: WORK_BLOCK_MARK.ink }} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{ev.title}</span>
+                        {timeLabel && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">{timeLabel}</p>
+                        )}
+                        <p className="mt-1 text-[11px] text-muted-foreground">{t('event.workBlockHint')}</p>
+                      </span>
+                    </div>
+                    {ev.location && (
+                      <p className="mt-1 text-xs text-muted-foreground">{addressDisplayLabel(ev.location)}</p>
+                    )}
+                  </button>
+                );
+              }
 
               if (ev.isOverlay) {
                 const fromWork = (ev.sourceHouseholdKind || '').toLowerCase() === 'work';

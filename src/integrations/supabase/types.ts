@@ -675,6 +675,7 @@ export type Database = {
           name: string
           show_in_other_calendars: boolean
           updated_at: string
+          work_organization_id: string | null
         }
         Insert: {
           created_at?: string
@@ -685,6 +686,7 @@ export type Database = {
           name?: string
           show_in_other_calendars?: boolean
           updated_at?: string
+          work_organization_id?: string | null
         }
         Update: {
           created_at?: string
@@ -695,6 +697,7 @@ export type Database = {
           name?: string
           show_in_other_calendars?: boolean
           updated_at?: string
+          work_organization_id?: string | null
         }
         Relationships: []
       }

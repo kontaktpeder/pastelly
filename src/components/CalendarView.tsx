@@ -13,6 +13,7 @@ import {
   OVERLAY_MARK,
   type DisplayEvent,
 } from '@/hooks/useOverlayEvents';
+import { mergeWorkBlocks, useWorkScheduleBlocks, WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
 import { useActiveCountdowns, type CountdownWithParticipants } from '@/hooks/useCountdowns';
 import { resolveCategoryVisuals, getMemberColorMap, silverMarkRim, categoryMarkFill } from '@/lib/categoryPresentation';
 import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
@@ -33,6 +34,7 @@ import ViewHeader from '@/components/ViewHeader';
 import CalendarDaySheet from '@/components/CalendarDaySheet';
 import EventDetailSheet from '@/components/EventDetailSheet';
 import OverlayEventSheet from '@/components/OverlayEventSheet';
+import WorkBlockSheet from '@/components/WorkBlockSheet';
 import CountdownDetailSheet from '@/components/CountdownDetailSheet';
 import CenteredPopup from '@/components/CenteredPopup';
 import { useLongPress } from '@/hooks/useLongPress';
@@ -244,6 +246,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const [daySheetDate, setDaySheetDate] = useState<Date | null>(null);
   const [detailEvent, setDetailEvent] = useState<Event | null>(null);
   const [overlayEvent, setOverlayEvent] = useState<DisplayEvent | null>(null);
+  const [workBlock, setWorkBlock] = useState<DisplayEvent | null>(null);
   const [detailCountdown, setDetailCountdown] = useState<CountdownWithParticipants | null>(null);
   const [paging, setPaging] = useState(false);
   const { data: activeCountdowns = [] } = useActiveCountdowns(householdId);
@@ -365,6 +368,12 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const [marksVisible, setMarksVisible] = useState(false);
   const events = monthFetched || monthError ? (eventsRaw ?? []) : [];
   const overlayEvents = overlayFetched || overlayError ? (overlayRaw ?? []) : [];
+  const {
+    data: workRaw,
+    isFetched: workFetched,
+    isError: workError,
+  } = useWorkScheduleBlocks(householdId, overlayRange.start, overlayRange.end);
+  const workBlocks = workFetched || workError ? (workRaw ?? []) : [];
 
   useEffect(() => {
     setMarksVisible(false);
@@ -417,7 +426,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const mergedByOffset = useMemo(() => {
     if (weekMode) {
       const locals = uniqueEventsById([...eventsM2, ...eventsM1, ...events, ...eventsP1, ...eventsP2]);
-      const merged = mergeEventsWithOverlays(locals, overlayEvents);
+      const merged = mergeWorkBlocks(mergeEventsWithOverlays(locals, overlayEvents), workBlocks);
       return stripDates.map((day) => eventsForWeek(merged, startOfWeek(day, { weekStartsOn: 1 })));
     }
     const locals = [eventsM2, eventsM1, events, eventsP1, eventsP2];
@@ -425,9 +434,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
       const y = stripDates[i].getFullYear();
       const m = stripDates[i].getMonth();
       const monthOverlays = eventsForMonth(overlayEvents, y, m);
-      return mergeEventsWithOverlays(local, monthOverlays);
+      const monthWork = eventsForMonth(workBlocks, y, m);
+      return mergeWorkBlocks(mergeEventsWithOverlays(local, monthOverlays), monthWork);
     });
-  }, [eventsM2, eventsM1, events, eventsP1, eventsP2, overlayEvents, stripDates, weekMode]);
+  }, [eventsM2, eventsM1, events, eventsP1, eventsP2, overlayEvents, workBlocks, stripDates, weekMode]);
 
   const eventsByOffset = useMemo(
     () => mergedByOffset.map((list) => buildEventsByDate(vacation.filterEvents(list))),
@@ -686,7 +696,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     return [startOfWeek(focusedDay, { weekStartsOn: 1 })];
   }, [vacation.visibleDateRange, focusedDay]);
   const pickAgendaEvent = (ev: DisplayEvent) => {
-    if (ev.isOverlay) setOverlayEvent(ev);
+    if (ev.isWorkBlock) setWorkBlock(ev);
+    else if (ev.isOverlay) setOverlayEvent(ev);
     else setDetailEvent(ev);
   };
   const openWeekPicker = () => tryOpenSheet(() => setShowWeekPicker(true));
@@ -1001,6 +1012,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           onClose={() => setDaySheetDate(null)}
           onPickEvent={(ev) => {
             const display = ev as DisplayEvent;
+            if (display.isWorkBlock) {
+              setWorkBlock(display);
+              return;
+            }
             if (display.isOverlay) {
               setOverlayEvent(display);
               return;
@@ -1030,6 +1045,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           currentMemberId={currentMemberId}
           onClose={() => setDetailCountdown(null)}
         />
+      )}
+
+      {workBlock && (
+        <WorkBlockSheet event={workBlock} onClose={() => setWorkBlock(null)} />
       )}
 
       {overlayEvent && (
@@ -1333,6 +1352,22 @@ const DayCell = ({
     const evHighlighted = highlight && highlight.eventId === ev.id;
     const dim = dimWorkday && eventIsWorkdayLayer(ev);
 
+    if (ev.isWorkBlock) {
+      return (
+        <div
+          key={ev.id}
+          title={ev.title}
+          className={`${DAY_PILL} ${evHighlighted ? 'ring-1 ring-primary/40' : ''}`}
+          style={{
+            background: categoryMarkFill(WORK_BLOCK_MARK.soft, WORK_BLOCK_MARK.rail),
+            boxShadow: silverMarkRim(),
+          }}
+        >
+          <MarkGlyph Icon={BriefcaseBusiness} color={WORK_BLOCK_MARK.ink} />
+        </div>
+      );
+    }
+
     if (ev.isOverlay) {
       const fromWork = (ev.sourceHouseholdKind || '').toLowerCase() === 'work';
       return (
@@ -1427,11 +1462,14 @@ const DayCell = ({
               }
               const segEvent = seg.event as DisplayEvent;
               const isOverlay = !!segEvent.isOverlay;
-              const fromWork = isOverlay && (segEvent.sourceHouseholdKind || '').toLowerCase() === 'work';
-              const member = isOverlay ? undefined : getMemberForEvent(seg.event);
-              const visuals = isOverlay
-                ? OVERLAY_MARK
-                : resolveCategoryVisuals(seg.event.category, getMemberColorMap(member));
+              const isWorkBlock = !!segEvent.isWorkBlock;
+              const fromWork = isWorkBlock || (isOverlay && (segEvent.sourceHouseholdKind || '').toLowerCase() === 'work');
+              const member = isOverlay || isWorkBlock ? undefined : getMemberForEvent(seg.event);
+              const visuals = isWorkBlock
+                ? WORK_BLOCK_MARK
+                : isOverlay
+                  ? OVERLAY_MARK
+                  : resolveCategoryVisuals(seg.event.category, getMemberColorMap(member));
               const meta = EVENT_CATEGORY_META[(seg.event.category as keyof typeof EVENT_CATEGORY_META) || 'other'];
               const Icon = fromWork ? BriefcaseBusiness : isOverlay ? null : meta?.Icon;
               const evHighlighted = highlight && highlight.eventId === seg.event.id;

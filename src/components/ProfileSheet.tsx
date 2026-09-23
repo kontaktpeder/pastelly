@@ -109,6 +109,36 @@ const ProfileSheet = ({
   const queryClient = useQueryClient();
   const { data: activeCountdowns = [] } = useActiveCountdowns(household.id);
   const isHomeCalendar = resolveCalendarKind(household) === 'home';
+  const [workOrgId, setWorkOrgId] = useState(household.work_organization_id ?? '');
+  const [workOrgError, setWorkOrgError] = useState('');
+  const [workOrgSaved, setWorkOrgSaved] = useState(false);
+
+  const saveWorkOrg = useMutation({
+    mutationFn: async () => {
+      const trimmed = workOrgId.trim();
+      if (
+        trimmed &&
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trimmed)
+      ) {
+        throw new Error('invalid-work-org');
+      }
+      const { error } = await supabase
+        .from('households')
+        .update({ work_organization_id: trimmed || null })
+        .eq('id', household.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setWorkOrgError('');
+      setWorkOrgSaved(true);
+      void queryClient.invalidateQueries({ queryKey: ['work-org-link', household.id] });
+      void queryClient.invalidateQueries({ queryKey: ['work-schedule', household.id] });
+    },
+    onError: (err: Error) => {
+      setWorkOrgSaved(false);
+      setWorkOrgError(err.message === 'invalid-work-org' ? t('profile.workOrgInvalid') : err.message);
+    },
+  });
 
   const leaveHousehold = useMutation({
     mutationFn: async () => {
@@ -443,6 +473,43 @@ const ProfileSheet = ({
                     {t('vacation.mode')}
                   </p>
                   <VacationModeToggle />
+                </section>
+              )}
+
+              {!isHomeCalendar && (
+                <section className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
+                    {t('profile.workOrg')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{t('profile.workOrgHint')}</p>
+                  {isOwner ? (
+                    <div className="space-y-2">
+                      <input
+                        value={workOrgId}
+                        onChange={(e) => {
+                          setWorkOrgId(e.target.value);
+                          setWorkOrgSaved(false);
+                        }}
+                        placeholder="00000000-0000-4000-8000-000000000000"
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+                        spellCheck={false}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => saveWorkOrg.mutate()}
+                        disabled={saveWorkOrg.isPending}
+                        className="w-full rounded-xl bg-calendar-accent/60 py-2.5 text-sm font-medium transition-colors hover:bg-calendar-accent/80 disabled:opacity-50"
+                      >
+                        {saveWorkOrg.isPending ? t('common.loading') : t('common.save')}
+                      </button>
+                      {workOrgSaved && (
+                        <p className="text-xs text-muted-foreground text-center">{t('profile.workOrgSaved')}</p>
+                      )}
+                      {workOrgError && (
+                        <p className="text-destructive text-sm text-center">{workOrgError}</p>
+                      )}
+                    </div>
+                  ) : null}
                 </section>
               )}
 
