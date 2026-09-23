@@ -7,15 +7,18 @@ const SPLASH_BG = '#FFFFFF';
 const DOT_VARS = ['--member-blue', '--member-peach', '--member-mint', '--member-rose'];
 
 /**
- * Fast boots stay a clean cream veil; the brand only appears when boot takes
- * longer than this. Prevents the wordmark flashing in right before reveal.
+ * Fast boots stay a clean white veil + icon; the wordmark only appears when
+ * boot takes longer than this. Prevents the name flashing in right before reveal.
  */
 const BRAND_DELAY_MS = 550;
 
+/** Matches the native splash icon size (~160pt on a typical iPhone). */
+const ICON_CLASS = 'h-32 w-32 rounded-[22.37%]';
+
 /**
  * Cold-start veil shown between the native splash and the first painted UI.
- * Same cream base as the splash so the hand-off is seamless; the wordmark and
- * pastel atmosphere fade in on top so the light screen never feels blank.
+ * Same white base + Pastelly icon as the splash so the hand-off is seamless;
+ * the wordmark only fades in if boot takes longer than BRAND_DELAY_MS.
  */
 const BootVeil = ({ revealing }: { revealing: boolean }) => {
   const [showBrand, setShowBrand] = useState(false);
@@ -30,16 +33,15 @@ const BootVeil = ({ revealing }: { revealing: boolean }) => {
   }, []);
 
   return (
-  <motion.div
-    className="absolute inset-0 z-[80] pointer-events-none overflow-hidden"
-    style={{ backgroundColor: SPLASH_BG }}
-    initial={false}
-    animate={{ opacity: revealing ? 0 : 1 }}
-    transition={{ duration: 0.78, ease: [0.22, 1, 0.36, 1] }}
-    aria-hidden
-  >
-    {showBrand && (
-      <>
+    <motion.div
+      className="absolute inset-0 z-[80] pointer-events-none overflow-hidden"
+      style={{ backgroundColor: SPLASH_BG }}
+      initial={false}
+      animate={{ opacity: revealing ? 0 : 1 }}
+      transition={{ duration: 0.78, ease: [0.22, 1, 0.36, 1] }}
+      aria-hidden
+    >
+      {showBrand && (
         <motion.div
           className="absolute inset-0"
           style={{
@@ -53,39 +55,50 @@ const BootVeil = ({ revealing }: { revealing: boolean }) => {
           animate={{ opacity: 1 }}
           transition={{ duration: 1.1, ease: 'easeOut' }}
         />
+      )}
 
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <motion.p
-            className="font-display text-4xl font-extrabold tracking-tight"
-            style={{ color: 'hsl(0 5% 17%)' }}
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.45, ease: 'easeOut' }}
-          >
-            Pastelly
-          </motion.p>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative flex flex-col items-center">
+          <img
+            src="/brand/app-icon.png"
+            alt=""
+            className={ICON_CLASS}
+            draggable={false}
+          />
+          {showBrand && (
+            <div className="absolute top-full mt-5 flex flex-col items-center">
+              <motion.p
+                className="font-display text-4xl font-extrabold tracking-tight"
+                style={{ color: 'hsl(0 5% 17%)' }}
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.45, ease: 'easeOut' }}
+              >
+                Pastelly
+              </motion.p>
 
-          <div className="mt-5 flex gap-2">
-            {DOT_VARS.map((v, i) => (
-              <motion.span
-                key={v}
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: `hsl(var(${v}))` }}
-                initial={{ opacity: 0.3 }}
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{
-                  duration: 1.4,
-                  repeat: Infinity,
-                  delay: 0.2 + i * 0.18,
-                  ease: 'easeInOut',
-                }}
-              />
-            ))}
-          </div>
+              <div className="mt-5 flex gap-2">
+                {DOT_VARS.map((v, i) => (
+                  <motion.span
+                    key={v}
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: `hsl(var(${v}))` }}
+                    initial={{ opacity: 0.3 }}
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{
+                      duration: 1.4,
+                      repeat: Infinity,
+                      delay: 0.2 + i * 0.18,
+                      ease: 'easeInOut',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </>
-    )}
-  </motion.div>
+      </div>
+    </motion.div>
   );
 };
 
