@@ -338,7 +338,6 @@ const Index = () => {
     <VacationModeProvider
       member={currentMember}
       calendarKind={calendarKind}
-      countdowns={[]}
     >
     <CalendarShell calendarKind={calendarKind}>
       {showBootVeil && <BootVeil revealing={bootPhase === 'revealing'} />}

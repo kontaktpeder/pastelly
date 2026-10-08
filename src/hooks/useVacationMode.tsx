@@ -12,16 +12,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { HouseholdMember } from '@/hooks/useHousehold';
-import type { CountdownWithParticipants } from '@/hooks/useCountdowns';
 import { useLocale } from '@/hooks/useLocale';
 import {
-  collectVacationPeriodsForMember,
   DEFAULT_VACATION_PREFS,
   filterEventsForVacationLayer,
   loadLocalJson,
-  mergeCountdownVacation,
   mergeVacationPrefsFromSources,
-  parseStoredCountdownVacation,
   periodStorageKey,
   prefsAfterManualOff,
   prefsAfterManualOn,
@@ -35,7 +31,6 @@ import {
   warnStorageKey,
   type ManualVacationSource,
   type StoredCountdownVacation,
-  type VacationCountdownLike,
   type VacationEventLike,
   type VacationModePrefs,
   type VacationModeSnapshot,
@@ -55,21 +50,17 @@ export type VacationModeContextValue = {
   turnOn: (input: {
     until?: string | null;
     source: ManualVacationSource;
-    countdownId?: string | null;
   }) => void;
   turnOff: () => void;
   setMuteHiddenNotifications: (next: boolean) => void;
   filterEvents: <T extends VacationEventLike>(events: T[]) => T[];
-  mergedCountdowns: CountdownWithParticipants[];
   prefsSyncStatus: VacationPrefsSyncStatus;
   visibleDateRange: { start: string; end: string } | null;
 };
 
 const VacationModeContext = createContext<VacationModeContextValue | null>(null);
 
-function readLocalPeriod(countdownId: string): StoredCountdownVacation | null {
-  return parseStoredCountdownVacation(loadLocalJson(periodStorageKey(countdownId)));
-}
+const NO_COUNTDOWN_PERIODS: VacationPeriod[] = [];
 
 export function persistCountdownVacationLocal(
   countdownId: string,
@@ -99,12 +90,10 @@ function mergeMemberPrefs(member: HouseholdMember | null | undefined): {
 export function VacationModeProvider({
   member,
   calendarKind,
-  countdowns,
   children,
 }: {
   member: HouseholdMember | null | undefined;
   calendarKind: string;
-  countdowns: CountdownWithParticipants[];
   children: ReactNode;
 }) {
   const { t, locale } = useLocale();
@@ -142,19 +131,8 @@ export function VacationModeProvider({
     };
   }, []);
 
-  const mergedCountdowns = useMemo(() => {
-    return countdowns.map((cd) => mergeCountdownVacation(cd, readLocalPeriod(cd.id)));
-  }, [countdowns]);
-
-  const periods = useMemo(
-    () =>
-      collectVacationPeriodsForMember(
-        mergedCountdowns as VacationCountdownLike[],
-        memberId,
-        memberTz,
-      ),
-    [mergedCountdowns, memberId, memberTz],
-  );
+  // Vacation mode is manual only — countdown periods stay in storage, unused here.
+  const periods = NO_COUNTDOWN_PERIODS;
 
   const pruned = useMemo(() => pruneExpiredPrefs(prefs, now), [prefs, now]);
   const snapshot = useMemo(
@@ -206,12 +184,11 @@ export function VacationModeProvider({
   );
 
   const turnOn = useCallback(
-    (input: { until?: string | null; source: ManualVacationSource; countdownId?: string | null }) => {
+    (input: { until?: string | null; source: ManualVacationSource }) => {
       commitPrefs(
         prefsAfterManualOn(pruned, {
           until: input.until ?? null,
           source: input.source,
-          countdownId: input.countdownId,
         }),
       );
       setRevealHidden(false);
@@ -276,7 +253,6 @@ export function VacationModeProvider({
       turnOff,
       setMuteHiddenNotifications,
       filterEvents,
-      mergedCountdowns,
       prefsSyncStatus,
       visibleDateRange,
     }),
@@ -291,7 +267,6 @@ export function VacationModeProvider({
       turnOff,
       setMuteHiddenNotifications,
       filterEvents,
-      mergedCountdowns,
       prefsSyncStatus,
       visibleDateRange,
     ],
@@ -315,7 +290,6 @@ export function useVacationMode(): VacationModeContextValue {
       turnOff: () => undefined,
       setMuteHiddenNotifications: () => undefined,
       filterEvents: (events) => events,
-      mergedCountdowns: [],
       prefsSyncStatus: 'synced',
       visibleDateRange: null,
     };
