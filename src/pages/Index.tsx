@@ -21,7 +21,6 @@ import CalendarView from '@/components/CalendarView';
 import DesktopDayPanel from '@/components/DesktopDayPanel';
 import CalendarSwitcher from '@/components/CalendarSwitcher';
 import NewEventFlow from '@/components/NewEventFlow';
-import NewCountdownFlow from '@/components/NewCountdownFlow';
 import EditEventFlow from '@/components/EditEventFlow';
 import EditEventQuickSheet from '@/components/EditEventQuickSheet';
 import SeedWeekFlow from '@/components/SeedWeekFlow';
@@ -36,7 +35,6 @@ import { tryOpenSheet } from '@/lib/sheetGate';
 import { markAppReady } from '@/lib/native/appBoot';
 import BootVeil from '@/components/BootVeil';
 import { peekPendingOpenDay, subscribePendingOpenDay } from '@/lib/native/pendingOpenDay';
-import { useActiveCountdowns } from '@/hooks/useCountdowns';
 import { VacationModeProvider, useVacationMode } from '@/hooks/useVacationMode';
 import VacationModeBanner from '@/components/VacationModeBanner';
 
@@ -62,14 +60,11 @@ const Index = () => {
     invalidate,
   } = useCurrentHouseholdContext();
   const { data: members = [] } = useMembers(household?.id);
-  const { data: activeCountdowns = [] } = useActiveCountdowns(household?.id);
   const { data: hasEvents, isSuccess: hasEventsReady } = useHouseholdHasEvents(household?.id);
   const queryClient = useQueryClient();
   const [focusedDate, setFocusedDate] = useState<Date>(() => new Date());
   const [showNewEvent, setShowNewEvent] = useState(false);
   const [newEventDate, setNewEventDate] = useState<Date | undefined>();
-  const [showNewCountdown, setShowNewCountdown] = useState(false);
-  const [newCountdownDate, setNewCountdownDate] = useState<Date | undefined>();
   const [profileMode, setProfileMode] = useState<ProfileSheetMode | null>(null);
   const [editEvent, setEditEvent] = useState<Event | null>(null);
   const [quickEditEvent, setQuickEditEvent] = useState<Event | null>(null);
@@ -136,11 +131,11 @@ const Index = () => {
   const handleSwipeCalendarStack = useCallback(
     (direction: 1 | -1) => {
       if (!household) return;
-      if (showNewEvent || showNewCountdown || editEvent || quickEditEvent || profileMode || showSeedWeek) return;
+      if (showNewEvent || editEvent || quickEditEvent || profileMode || showSeedWeek) return;
       const nextId = adjacentCalendarId(memberships, household.id, direction);
       if (nextId) selectCalendar(nextId, direction);
     },
-    [household, memberships, selectCalendar, showNewEvent, showNewCountdown, editEvent, quickEditEvent, profileMode, showSeedWeek],
+    [household, memberships, selectCalendar, showNewEvent, editEvent, quickEditEvent, profileMode, showSeedWeek],
   );
 
   const calendarKind = household ? resolveCalendarKind(household) : 'home';
@@ -316,13 +311,6 @@ const Index = () => {
     });
   };
 
-  const handleCreateCountdown = (date: Date) => {
-    tryOpenSheet(() => {
-      setNewCountdownDate(date);
-      setShowNewCountdown(true);
-    });
-  };
-
   const handleEditEvent = (event: Event) => {
     tryOpenSheet(() => setEditEvent(event));
   };
@@ -350,7 +338,7 @@ const Index = () => {
     <VacationModeProvider
       member={currentMember}
       calendarKind={calendarKind}
-      countdowns={activeCountdowns}
+      countdowns={[]}
     >
     <CalendarShell calendarKind={calendarKind}>
       {showBootVeil && <BootVeil revealing={bootPhase === 'revealing'} />}
@@ -417,7 +405,6 @@ const Index = () => {
             calendarKind={calendarKind}
             onSelectDate={handleSelectDate}
             onCreateEvent={handleCreateEvent}
-            onCreateCountdown={calendarKind === 'home' ? handleCreateCountdown : undefined}
             onEditEvent={handleEditEvent}
             onQuickEditEvent={(ev) => tryOpenSheet(() => setQuickEditEvent(ev))}
             onSwitchCalendar={(id) => selectCalendar(id)}
@@ -441,7 +428,6 @@ const Index = () => {
             highlight={highlight}
             canSeedWeek={canSeedWeek}
             onCreateForDate={handleCreateEvent}
-            onCreateCountdown={calendarKind === 'home' ? handleCreateCountdown : undefined}
             onEditEvent={handleEditEvent}
             onQuickEditEvent={(ev) => tryOpenSheet(() => setQuickEditEvent(ev))}
             onSeedWeek={() => tryOpenSheet(() => setShowSeedWeek(true))}
@@ -488,16 +474,6 @@ const Index = () => {
           onCreated={(eventId, dateStr) => {
             flashHighlight(eventId, dateStr);
           }}
-        />
-      )}
-
-      {showNewCountdown && (
-        <NewCountdownFlow
-          householdId={household.id}
-          members={members}
-          currentMemberId={currentMember.id}
-          initialDate={newCountdownDate}
-          onClose={() => setShowNewCountdown(false)}
         />
       )}
 

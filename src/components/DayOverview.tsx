@@ -8,9 +8,6 @@ import type { Event } from '@/hooks/useEvents';
 import { OVERLAY_MARK, type DisplayEvent } from '@/hooks/useOverlayEvents';
 import { WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
 import type { HouseholdMember } from '@/hooks/useHousehold';
-import type { CountdownWithParticipants } from '@/hooks/useCountdowns';
-import { calendarDaysUntil } from '@/lib/countdownTime';
-import { getCountdownTheme } from '@/lib/countdownThemes';
 import PopupStickyFooter from '@/components/PopupStickyFooter';
 import { BriefcaseBusiness } from 'lucide-react';
 import { useState } from 'react';
@@ -26,13 +23,11 @@ import VacationQuickAdd from '@/components/VacationQuickAdd';
 import VacationModeToggle from '@/components/VacationModeToggle';
 import { addressDisplayLabel } from '@/lib/eventLocation';
 import CenteredPopup from '@/components/CenteredPopup';
-import DayListItems from '@/components/DayListItems';
 import { tryOpenSheet } from '@/lib/sheetGate';
 
 export interface DayOverviewProps {
   date: Date;
   events: DisplayEvent[];
-  countdowns?: CountdownWithParticipants[];
   members: HouseholdMember[];
   householdId?: string;
   currentMemberId?: string;
@@ -41,31 +36,23 @@ export interface DayOverviewProps {
   /** sheet = PopupStickyFooter; panel = bordered stack in desktop aside; agenda = inline week program */
   layout?: 'sheet' | 'panel' | 'agenda';
   onPickEvent: (event: DisplayEvent) => void;
-  onPickCountdown?: (countdown: CountdownWithParticipants) => void;
   onCreateForDate: (date: Date) => void;
-  onCreateCountdown?: (date: Date) => void;
   onSeedWeek?: () => void;
 }
 
 const DayOverview = ({
   date,
   events,
-  countdowns = [],
   members,
   householdId,
-  currentMemberId: _currentMemberId,
-  calendarKind = 'home',
   canSeedWeek = false,
   layout = 'panel',
   onPickEvent,
-  onPickCountdown,
   onCreateForDate,
-  onCreateCountdown,
   onSeedWeek,
 }: DayOverviewProps) => {
   const { t, locale, dateLocale } = useLocale();
   const getMember = (id: string) => members.find((m) => m.id === id);
-  const showCountdownCta = calendarKind === 'home' && !!onCreateCountdown;
   const vacation = useVacationMode();
   const createEvent = useCreateEvent();
   const [pendingCategory, setPendingCategory] = useState<string | null>(null);
@@ -77,11 +64,7 @@ const DayOverview = ({
   const programEvents = isAgenda
     ? visibleEvents.filter((ev) => !eventMirrorsVacationPeriod(ev, periodEvents))
     : visibleEvents;
-  const periodIds = new Set(periodEvents.map((p) => p.id));
-  const programCountdowns = isAgenda
-    ? countdowns.filter((cd) => !periodIds.has(cd.id))
-    : countdowns;
-  const programEmpty = programEvents.length === 0 && programCountdowns.length === 0;
+  const programEmpty = programEvents.length === 0;
 
   const actions = isAgenda ? (
     <button
@@ -100,15 +83,6 @@ const DayOverview = ({
           className="w-full rounded-2xl bg-primary py-3.5 font-semibold text-primary-foreground"
         >
           {t('event.fillWeek')}
-        </button>
-      )}
-      {showCountdownCta && (
-        <button
-          type="button"
-          onClick={() => onCreateCountdown?.(date)}
-          className="w-full rounded-2xl bg-pink-100 py-3.5 font-semibold text-pink-900"
-        >
-          {t('countdown.new')}
         </button>
       )}
       {vacation.enabledForCalendar && !vacationOn && <VacationModeToggle />}
@@ -196,34 +170,6 @@ const DayOverview = ({
             <p className="mt-0.5 text-sm font-bold text-cyan-950 break-words">{itinerary}</p>
           </div>
         )}
-
-        {programCountdowns.map((cd) => {
-          const theme = getCountdownTheme(cd.theme);
-          const daysFromNow = calendarDaysUntil(cd.target_at);
-          const label =
-            daysFromNow <= 0
-              ? t('countdown.itsTime')
-              : daysFromNow === 1
-                ? `1 ${t('countdown.dayLeft')}`
-                : `${daysFromNow} ${t('countdown.daysLeft')}`;
-          return (
-            <button
-              key={cd.id}
-              type="button"
-              onClick={() => onPickCountdown?.(cd)}
-              className="w-full rounded-xl p-3 text-left"
-              style={{ background: theme.gradient }}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{cd.emoji || '✨'}</span>
-                <span className="truncate text-sm font-semibold">{cd.title}</span>
-              </div>
-              <p className={`mt-0.5 text-xs font-medium ${theme.accentText}`}>
-                {t('countdown.onDay')} · {label}
-              </p>
-            </button>
-          );
-        })}
 
         {programEmpty ? (
           isAgenda && vacationOn && householdId ? (
@@ -384,14 +330,6 @@ const DayOverview = ({
             })
         )}
 
-        {householdId && _currentMemberId && (
-          <DayListItems
-            date={date}
-            householdId={householdId}
-            currentMemberId={_currentMemberId}
-            heading={isAgenda ? t('vacation.checklist') : undefined}
-          />
-        )}
       </div>
 
       {isAgenda ? (

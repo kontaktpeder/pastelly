@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { useVacationMode, endOfLocalDateIso } from '@/hooks/useVacationMode';
 import { useLocale } from '@/hooks/useLocale';
-import { formatVacationRange } from '@/lib/vacationMode';
 import { startOfNextWorkdayMs } from '@/lib/timeZone';
-import { getIntlLocale } from '@/lib/i18n';
 import CenteredPopup from '@/components/CenteredPopup';
 import PopupStickyFooter from '@/components/PopupStickyFooter';
 
@@ -16,19 +14,17 @@ interface VacationModeToggleProps {
 }
 
 const VacationModeToggle = ({ compact = false }: VacationModeToggleProps) => {
-  const { t, locale, dateLocale } = useLocale();
+  const { t, dateLocale } = useLocale();
   const vacation = useVacationMode();
   const [sheet, setSheet] = useState(false);
   const [untilDate, setUntilDate] = useState(() => new Date());
-  const [pickedCountdown, setPickedCountdown] = useState<string | null>(null);
 
   if (!vacation.enabledForCalendar) return null;
 
   const active = vacation.snapshot.active;
-  const holidayPeriods = vacation.periods;
 
-  const applyOn = (until: string | null, source: 'now' | 'until_date' | 'until_workday' | 'countdown', countdownId?: string) => {
-    vacation.turnOn({ until, source, countdownId });
+  const applyOn = (until: string | null, source: 'now' | 'until_date' | 'until_workday') => {
+    vacation.turnOn({ until, source });
     setSheet(false);
   };
 
@@ -113,39 +109,6 @@ const VacationModeToggle = ({ compact = false }: VacationModeToggleProps) => {
               >
                 <p className="font-semibold">{t('vacation.untilWorkday')}</p>
               </button>
-
-              <div className="rounded-2xl bg-muted p-4 space-y-2">
-                <p className="font-semibold">{t('vacation.useCountdown')}</p>
-                {holidayPeriods.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t('vacation.noCountdowns')}</p>
-                ) : (
-                  holidayPeriods.map((p) => {
-                    const range = formatVacationRange(
-                      p.startAt,
-                      p.endAt,
-                      getIntlLocale(locale),
-                      p.timeZone,
-                    );
-                    const selected = pickedCountdown === p.id;
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => {
-                          setPickedCountdown(p.id);
-                          applyOn(p.endAt.toISOString(), 'countdown', p.id);
-                        }}
-                        className={`w-full text-left rounded-xl px-3 py-2.5 ${
-                          selected ? 'bg-cyan-200 ring-2 ring-cyan-400' : 'bg-background'
-                        }`}
-                      >
-                        <p className="text-sm font-semibold">{p.title}</p>
-                        <p className="text-xs text-muted-foreground">{range}</p>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
             </div>
 
             <label className="mt-4 flex items-start gap-3 rounded-2xl bg-muted/70 p-4 cursor-pointer">

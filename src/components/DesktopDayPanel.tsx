@@ -9,13 +9,10 @@ import {
   type DisplayEvent,
 } from '@/hooks/useOverlayEvents';
 import { mergeWorkBlocks, useWorkScheduleBlocks } from '@/hooks/useWorkSchedule';
-import { useActiveCountdowns, type CountdownWithParticipants } from '@/hooks/useCountdowns';
-import { targetDateStr } from '@/lib/countdownTime';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import type { Highlight } from '@/pages/Index';
 import DayOverview from '@/components/DayOverview';
 import EventDetailSheet from '@/components/EventDetailSheet';
-import CountdownDetailSheet from '@/components/CountdownDetailSheet';
 import OverlayEventSheet from '@/components/OverlayEventSheet';
 import WorkBlockSheet from '@/components/WorkBlockSheet';
 
@@ -28,7 +25,6 @@ interface DesktopDayPanelProps {
   highlight?: Highlight;
   canSeedWeek?: boolean;
   onCreateForDate: (date: Date) => void;
-  onCreateCountdown?: (date: Date) => void;
   onEditEvent?: (event: Event) => void;
   onQuickEditEvent?: (event: Event) => void;
   onSeedWeek?: () => void;
@@ -45,7 +41,6 @@ const DesktopDayPanel = ({
   highlight,
   canSeedWeek = false,
   onCreateForDate,
-  onCreateCountdown,
   onEditEvent,
   onQuickEditEvent,
   onSeedWeek,
@@ -54,7 +49,6 @@ const DesktopDayPanel = ({
 }: DesktopDayPanelProps) => {
   const { t, dateLocale } = useLocale();
   const [detailEvent, setDetailEvent] = useState<Event | null>(null);
-  const [detailCountdown, setDetailCountdown] = useState<CountdownWithParticipants | null>(null);
   const [overlayEvent, setOverlayEvent] = useState<DisplayEvent | null>(null);
   const [workBlock, setWorkBlock] = useState<DisplayEvent | null>(null);
 
@@ -62,16 +56,10 @@ const DesktopDayPanel = ({
   const { data: localEvents = [] } = useEventsForDate(householdId, dateStr);
   const { data: overlays = [] } = useOverlayEventsForRange(householdId, dateStr, dateStr);
   const { data: workBlocks = [] } = useWorkScheduleBlocks(householdId, dateStr, dateStr);
-  const { data: activeCountdowns = [] } = useActiveCountdowns(householdId);
 
   const events = useMemo(
     () => mergeWorkBlocks(mergeEventsWithOverlays(localEvents, overlays), workBlocks),
     [localEvents, overlays, workBlocks],
-  );
-
-  const countdowns = useMemo(
-    () => activeCountdowns.filter((cd) => targetDateStr(cd.target_at) === dateStr),
-    [activeCountdowns, dateStr],
   );
 
   return (
@@ -89,7 +77,6 @@ const DesktopDayPanel = ({
         <DayOverview
           date={date}
           events={events}
-          countdowns={countdowns}
           members={members}
           householdId={householdId}
           currentMemberId={currentMemberId}
@@ -100,25 +87,10 @@ const DesktopDayPanel = ({
             else if (ev.isOverlay) setOverlayEvent(ev);
             else setDetailEvent(ev);
           }}
-          onPickCountdown={setDetailCountdown}
           onCreateForDate={onCreateForDate}
-          onCreateCountdown={onCreateCountdown}
           onSeedWeek={onSeedWeek}
         />
       </div>
-
-      <AnimatePresence>
-        {detailCountdown && (
-          <CountdownDetailSheet
-            countdown={
-              activeCountdowns.find((c) => c.id === detailCountdown.id) ?? detailCountdown
-            }
-            members={members}
-            currentMemberId={currentMemberId}
-            onClose={() => setDetailCountdown(null)}
-          />
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {workBlock && <WorkBlockSheet event={workBlock} onClose={() => setWorkBlock(null)} />}
@@ -146,7 +118,6 @@ const DesktopDayPanel = ({
             currentMemberId={currentMemberId}
             calendarKind={calendarKind}
             showInOtherCalendars={showInOtherCalendars}
-            listDate={date}
             onClose={() => setDetailEvent(null)}
             onEdit={
               onEditEvent

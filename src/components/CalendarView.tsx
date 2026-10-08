@@ -14,7 +14,6 @@ import {
   type DisplayEvent,
 } from '@/hooks/useOverlayEvents';
 import { mergeWorkBlocks, useWorkScheduleBlocks, WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
-import { useActiveCountdowns, type CountdownWithParticipants } from '@/hooks/useCountdowns';
 import { resolveCategoryVisuals, getMemberColorMap, silverMarkRim, categoryMarkFill } from '@/lib/categoryPresentation';
 import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
 import { getMonthTheme, PASTEL } from '@/lib/monthTheme';
@@ -25,7 +24,6 @@ import {
   MAX_SPAN_LANES,
   type SpanSegment,
 } from '@/lib/multiDaySpans';
-import { targetDateStr } from '@/lib/countdownTime';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import type { Highlight } from '@/pages/Index';
 import { useLocale } from '@/hooks/useLocale';
@@ -35,18 +33,12 @@ import CalendarDaySheet from '@/components/CalendarDaySheet';
 import EventDetailSheet from '@/components/EventDetailSheet';
 import OverlayEventSheet from '@/components/OverlayEventSheet';
 import WorkBlockSheet from '@/components/WorkBlockSheet';
-import CountdownDetailSheet from '@/components/CountdownDetailSheet';
 import CenteredPopup from '@/components/CenteredPopup';
 import { useLongPress } from '@/hooks/useLongPress';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { fadeQuick } from '@/lib/motion';
 import { tryOpenSheet } from '@/lib/sheetGate';
 import { consumePendingOpenDay, peekPendingOpenDay, subscribePendingOpenDay } from '@/lib/native/pendingOpenDay';
-import {
-  consumePendingOpenCountdown,
-  peekPendingOpenCountdown,
-  subscribePendingOpenCountdown,
-} from '@/lib/native/pendingOpenCountdown';
 import { BriefcaseBusiness, ChevronDown, type LucideIcon } from 'lucide-react';
 import { useVacationMode } from '@/hooks/useVacationMode';
 import DayOverview from '@/components/DayOverview';
@@ -64,7 +56,6 @@ interface CalendarViewProps {
   onCurrentDateChange?: Dispatch<SetStateAction<Date>>;
   onSelectDate: (date: Date) => void;
   onCreateEvent: (date: Date) => void;
-  onCreateCountdown?: (date: Date) => void;
   onEditEvent?: (event: Event) => void;
   onQuickEditEvent?: (event: Event) => void;
   onSwitchCalendar?: (householdId: string) => void;
@@ -202,7 +193,7 @@ function buildMonthDays(monthDate: Date): Date[] {
   return eachDayOfInterval({ start: calStart, end: calEnd });
 }
 
-const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, selectedDate, onCurrentDateChange, onSelectDate, onCreateEvent, onCreateCountdown, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
+const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, selectedDate, onCurrentDateChange, onSelectDate, onCreateEvent, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
   const { dateLocale, locale, t } = useLocale();
   const vacation = useVacationMode();
   const weekMode = vacation.enabledForCalendar && vacation.snapshot.active;
@@ -247,26 +238,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const [detailEvent, setDetailEvent] = useState<Event | null>(null);
   const [overlayEvent, setOverlayEvent] = useState<DisplayEvent | null>(null);
   const [workBlock, setWorkBlock] = useState<DisplayEvent | null>(null);
-  const [detailCountdown, setDetailCountdown] = useState<CountdownWithParticipants | null>(null);
   const [paging, setPaging] = useState(false);
-  const { data: activeCountdowns = [] } = useActiveCountdowns(householdId);
-
-  const countdownsByDate = useMemo(() => {
-    const map: Record<string, CountdownWithParticipants[]> = {};
-    for (const cd of activeCountdowns) {
-      const key = targetDateStr(cd.target_at);
-      (map[key] ??= []).push(cd);
-    }
-    return map;
-  }, [activeCountdowns]);
-
-  const countdownEmojiByDate = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const [key, list] of Object.entries(countdownsByDate)) {
-      map[key] = list[0]?.emoji || '✨';
-    }
-    return map;
-  }, [countdownsByDate]);
 
   const openDayFromPush = useCallback(
     (dateStr: string) => {
@@ -291,26 +263,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     tryOpen();
     return subscribePendingOpenDay(() => tryOpen());
   }, [openDayFromPush, householdId]);
-
-  const openCountdownFromPush = useCallback(
-    (countdownId: string) => {
-      const cd = activeCountdowns.find((c) => c.id === countdownId);
-      if (!cd) return false;
-      consumePendingOpenCountdown();
-      openDayFromPush(targetDateStr(cd.target_at));
-      setDetailCountdown(cd);
-      return true;
-    },
-    [activeCountdowns, openDayFromPush],
-  );
-
-  useEffect(() => {
-    const pending = peekPendingOpenCountdown();
-    if (pending) openCountdownFromPush(pending);
-    return subscribePendingOpenCountdown((id) => {
-      openCountdownFromPush(id);
-    });
-  }, [openCountdownFromPush]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -813,7 +765,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                           <DayOverview
                             date={date}
                             events={eventsByOffset[i][dateStr] || []}
-                            countdowns={countdownsByDate[dateStr] || []}
                             members={members}
                             householdId={householdId}
                             currentMemberId={currentMemberId}
@@ -821,9 +772,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                             canSeedWeek={canSeedWeek}
                             layout="agenda"
                             onPickEvent={pickAgendaEvent}
-                            onPickCountdown={(cd) => setDetailCountdown(cd)}
                             onCreateForDate={onCreateEvent}
-                            onCreateCountdown={onCreateCountdown}
                             onSeedWeek={onSeedWeek}
                           />
                         </div>
@@ -929,7 +878,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                   onPressLock={lockStripForPress}
                   onPressUnlock={unlockStripForPress}
                   getMemberForEvent={getMemberForEvent}
-                  countdownEmojiByDate={countdownEmojiByDate}
                   marksVisible={marksVisible}
                   vacationActive={vacation.snapshot.active}
                   revealHidden={vacation.revealHidden}
@@ -1005,7 +953,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         <CalendarDaySheet
           date={daySheetDate}
           events={daySheetEvents}
-          countdowns={countdownsByDate[format(daySheetDate, 'yyyy-MM-dd')] || []}
           members={members}
           householdId={householdId}
           currentMemberId={currentMemberId}
@@ -1022,28 +969,15 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
             }
             setDetailEvent(ev);
           }}
-          onPickCountdown={(cd) => setDetailCountdown(cd)}
           onCreateForDate={(d) => {
             onCreateEvent(d);
           }}
-          onCreateCountdown={onCreateCountdown}
           calendarKind={calendarKind}
           canSeedWeek={canSeedWeek}
           onSeedWeek={() => {
             setDaySheetDate(null);
             onSeedWeek?.();
           }}
-        />
-      )}
-
-      {detailCountdown && (
-        <CountdownDetailSheet
-          countdown={
-            activeCountdowns.find((c) => c.id === detailCountdown.id) ?? detailCountdown
-          }
-          members={members}
-          currentMemberId={currentMemberId}
-          onClose={() => setDetailCountdown(null)}
         />
       )}
 
@@ -1071,7 +1005,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           currentMemberId={currentMemberId}
           calendarKind={calendarKind}
           showInOtherCalendars={showInOtherCalendars}
-          listDate={daySheetDate ?? focusedDay}
           onClose={() => setDetailEvent(null)}
           onEdit={onEditEvent ? (ev) => { onEditEvent(ev); } : undefined}
           onQuickEdit={onQuickEditEvent ? (ev) => { onQuickEditEvent(ev); } : undefined}
@@ -1132,7 +1065,6 @@ interface MonthPanelProps {
   onPressLock: () => void;
   onPressUnlock: () => void;
   getMemberForEvent: (event: Event) => HouseholdMember | undefined;
-  countdownEmojiByDate?: Record<string, string>;
   marksVisible?: boolean;
   vacationActive?: boolean;
   revealHidden?: boolean;
@@ -1153,7 +1085,6 @@ const MonthPanel = ({
   onPressLock,
   onPressUnlock,
   getMemberForEvent,
-  countdownEmojiByDate,
   marksVisible = true,
   vacationActive = false,
   revealHidden = false,
@@ -1218,7 +1149,6 @@ const MonthPanel = ({
                     onPressLock={onPressLock}
                     onPressUnlock={onPressUnlock}
                     getMemberForEvent={getMemberForEvent}
-                    countdownEmoji={countdownEmojiByDate?.[dateStr]}
                     marksVisible={marksVisible}
                     dimWorkday={vacationActive && revealHidden}
                   />
@@ -1251,7 +1181,6 @@ interface DayCellProps {
   onPressLock: () => void;
   onPressUnlock: () => void;
   getMemberForEvent: (event: Event) => HouseholdMember | undefined;
-  countdownEmoji?: string;
   marksVisible?: boolean;
   dimWorkday?: boolean;
 }
@@ -1326,7 +1255,6 @@ const DayCell = ({
   onPressLock,
   onPressUnlock,
   getMemberForEvent,
-  countdownEmoji,
   marksVisible = true,
   dimWorkday = false,
 }: DayCellProps) => {
@@ -1437,18 +1365,6 @@ const DayCell = ({
       >
         {format(day, 'd')}
       </span>
-
-      {/* Countdown — show the emoji the user picked */}
-      {countdownEmoji && (
-        <span
-          className="absolute top-0 right-0 pointer-events-none z-[2] transition-opacity duration-500 ease-out flex h-4 w-4 items-center justify-center text-[11px] leading-none"
-          style={{ opacity: marksVisible ? 1 : 0 }}
-          aria-hidden
-          title={countdownEmoji}
-        >
-          {countdownEmoji}
-        </span>
-      )}
 
       {(laneCount > 0 || rows.length > 0) && (
         <div

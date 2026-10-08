@@ -29,14 +29,9 @@ import CategoryColorSettings from '@/components/CategoryColorSettings';
 import DailyDigestSettings from '@/components/DailyDigestSettings';
 import { AppLocaleSettings, CalendarLocaleSettings } from '@/components/LocaleSettings';
 import CenteredPopup from '@/components/CenteredPopup';
-import { CountdownDigits } from '@/components/CountdownDigits';
-import CountdownDetailSheet from '@/components/CountdownDetailSheet';
-import NewCountdownFlow from '@/components/NewCountdownFlow';
-import { useActiveCountdowns, type CountdownWithParticipants } from '@/hooks/useCountdowns';
 import { useLocale } from '@/hooks/useLocale';
 import { defaultLocaleForKind } from '@/lib/i18n/types';
 import VacationModeToggle from '@/components/VacationModeToggle';
-import { loadLocalJson, mergeCountdownVacation, parseStoredCountdownVacation, periodStorageKey } from '@/lib/vacationMode';
 
 export type ProfileSheetMode = 'calendar' | 'account';
 
@@ -103,11 +98,8 @@ const ProfileSheet = ({
   const [leaveError, setLeaveError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const [showNewCountdown, setShowNewCountdown] = useState(false);
-  const [selectedCountdown, setSelectedCountdown] = useState<CountdownWithParticipants | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const { data: activeCountdowns = [] } = useActiveCountdowns(household.id);
   const isHomeCalendar = resolveCalendarKind(household) === 'home';
   const [workOrgId, setWorkOrgId] = useState(household.work_organization_id ?? '');
   const [workOrgError, setWorkOrgError] = useState('');
@@ -376,52 +368,6 @@ const ProfileSheet = ({
 
   const isOwner = currentMember.role === 'owner';
 
-  const countdownSection = isHomeCalendar ? (
-    <section className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
-        {t('countdown.profileSection')}
-      </p>
-      {activeCountdowns.length === 0 ? (
-        <p className="text-sm text-muted-foreground px-0.5">
-          {t('countdown.profileEmpty')}
-        </p>
-      ) : (
-        activeCountdowns.map((cd) => {
-          const merged = mergeCountdownVacation(
-            cd,
-            parseStoredCountdownVacation(loadLocalJson(periodStorageKey(cd.id))),
-          );
-          return (
-          <button
-            key={cd.id}
-            type="button"
-            onClick={() => setSelectedCountdown(cd)}
-            className="w-full text-left"
-          >
-            <CountdownDigits
-              targetAt={merged.target_at}
-              themeId={cd.theme}
-              emoji={cd.emoji}
-              title={cd.title}
-              compact
-              endsAt={merged.ends_at}
-              useVacationMode={!!merged.use_vacation_mode}
-              timeZone={merged.timezone}
-            />
-          </button>
-          );
-        })
-      )}
-      <button
-        type="button"
-        onClick={() => setShowNewCountdown(true)}
-        className="w-full rounded-2xl bg-pink-100 text-pink-900 py-3.5 text-sm font-semibold"
-      >
-        {t('countdown.new')}
-      </button>
-    </section>
-  ) : null;
-
   return (
     <>
     <CenteredPopup
@@ -464,8 +410,6 @@ const ProfileSheet = ({
                   </div>
                 ))}
               </section>
-
-              {countdownSection}
 
               {isHomeCalendar && (
                 <section className="space-y-3">
@@ -666,8 +610,6 @@ const ProfileSheet = ({
                 </p>
               </section>
 
-              {countdownSection}
-
               <section className="space-y-3 rounded-2xl bg-muted/40 px-4 py-4">
                 <p className="text-xs text-muted-foreground px-0.5 -mt-1">
                   {t('profile.accountHint')}
@@ -862,30 +804,6 @@ const ProfileSheet = ({
         )}
       </AnimatePresence>
     </CenteredPopup>
-
-    <AnimatePresence>
-      {showNewCountdown && (
-        <NewCountdownFlow
-          householdId={household.id}
-          members={members}
-          currentMemberId={currentMember.id}
-          onClose={() => setShowNewCountdown(false)}
-        />
-      )}
-    </AnimatePresence>
-
-    <AnimatePresence>
-      {selectedCountdown && (
-        <CountdownDetailSheet
-          countdown={
-            activeCountdowns.find((c) => c.id === selectedCountdown.id) ?? selectedCountdown
-          }
-          members={members}
-          currentMemberId={currentMember.id}
-          onClose={() => setSelectedCountdown(null)}
-        />
-      )}
-    </AnimatePresence>
     </>
   );
 };
