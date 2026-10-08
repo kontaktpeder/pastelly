@@ -10,6 +10,7 @@ import { formatMultiDayLabel } from '@/lib/multiDaySpans';
 import { formatEventStayLabel } from '@/lib/eventStay';
 import { isHotelCategory } from '@/lib/vacationSchedule';
 import EventAddressLink from '@/components/EventAddressLink';
+import DayListItems from '@/components/DayListItems';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import CenteredPopup from '@/components/CenteredPopup';
 import PopupStickyFooter from '@/components/PopupStickyFooter';
@@ -25,6 +26,8 @@ interface EventDetailSheetProps {
   currentMemberId: string;
   calendarKind?: CalendarKind | string;
   showInOtherCalendars?: boolean;
+  /** Day whose huskeliste to show (the opened calendar day). */
+  listDate?: Date;
   onClose: () => void;
   onEdit?: (event: Event) => void;
   onQuickEdit?: (event: Event) => void;
@@ -36,6 +39,7 @@ const EventDetailSheet = ({
   currentMemberId,
   calendarKind = 'home',
   showInOtherCalendars = false,
+  listDate,
   onClose,
   onEdit,
   onQuickEdit,
@@ -177,6 +181,16 @@ const EventDetailSheet = ({
             );
           })()}
         </div>
+
+        {event.household_id && currentMemberId && (
+          <div className="mb-4">
+            <DayListItems
+              date={listDate ?? new Date(event.event_date + 'T12:00:00')}
+              householdId={event.household_id}
+              currentMemberId={currentMemberId}
+            />
+          </div>
+        )}
 
         {canOptInLeak && (
           <label className="mb-4 flex items-start gap-3 rounded-xl bg-muted/50 p-3 cursor-pointer">

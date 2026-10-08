@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { isNativePlatform } from '@/lib/native/platform';
 
 /** Matches the native splash background (capacitor.config.ts). */
 const SPLASH_BG = '#FFFFFF';
@@ -18,11 +19,14 @@ const BRAND_DELAY_MS = 550;
  * pastel atmosphere fade in on top so the light screen never feels blank.
  */
 const BootVeil = ({ revealing }: { revealing: boolean }) => {
-  const [showBrand, setShowBrand] = useState(false);
+  // Native launch already shows the Pastelly splash — keep the wordmark up so
+  // the Capacitor/TestFlight mark never reappears between splash and UI.
+  const [showBrand, setShowBrand] = useState(() => isNativePlatform());
   const revealingRef = useRef(revealing);
   revealingRef.current = revealing;
 
   useEffect(() => {
+    if (isNativePlatform()) return;
     const t = window.setTimeout(() => {
       if (!revealingRef.current) setShowBrand(true);
     }, BRAND_DELAY_MS);

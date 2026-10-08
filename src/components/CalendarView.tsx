@@ -1071,6 +1071,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           currentMemberId={currentMemberId}
           calendarKind={calendarKind}
           showInOtherCalendars={showInOtherCalendars}
+          listDate={daySheetDate ?? focusedDay}
           onClose={() => setDetailEvent(null)}
           onEdit={onEditEvent ? (ev) => { onEditEvent(ev); } : undefined}
           onQuickEdit={onQuickEditEvent ? (ev) => { onQuickEditEvent(ev); } : undefined}

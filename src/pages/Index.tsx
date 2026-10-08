@@ -225,6 +225,14 @@ const Index = () => {
     }
   }, [authLoading, ctxLoading, user, ctxError, household, currentMember, beginWelcomeReveal]);
 
+  // Keep native splash from lingering on the Capacitor mark while session loads.
+  // Hand off quickly to BootVeil so loading always looks like Pastelly.
+  useEffect(() => {
+    if (!(authLoading || ctxLoading)) return;
+    const t = window.setTimeout(() => markAppReady(), 48);
+    return () => window.clearTimeout(t);
+  }, [authLoading, ctxLoading]);
+
   const handleCalendarReady = useCallback(() => {
     beginWelcomeReveal();
   }, [beginWelcomeReveal]);
@@ -234,15 +242,16 @@ const Index = () => {
   }
 
   if (authLoading || ctxLoading) {
-    // Quiet boot — native splash stays up; web shows splash-matching surface (no spinner).
     return (
       <LocaleProvider>
         <div
-          className="min-h-[100dvh] bg-background"
+          className="relative min-h-[100dvh] overflow-hidden bg-background"
           style={{ backgroundColor: PASTEL.paper }}
           aria-busy="true"
           aria-label="Laster"
-        />
+        >
+          <BootVeil revealing={false} />
+        </div>
       </LocaleProvider>
     );
   }

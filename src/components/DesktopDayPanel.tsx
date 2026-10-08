@@ -146,6 +146,7 @@ const DesktopDayPanel = ({
             currentMemberId={currentMemberId}
             calendarKind={calendarKind}
             showInOtherCalendars={showInOtherCalendars}
+            listDate={date}
             onClose={() => setDetailEvent(null)}
             onEdit={
               onEditEvent
