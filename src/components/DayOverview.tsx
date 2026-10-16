@@ -10,7 +10,7 @@ import { WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import SheetActionDock from '@/components/SheetActionDock';
 import { hapticLight } from '@/lib/native/haptics';
-import { BriefcaseBusiness, Plus } from 'lucide-react';
+import { BriefcaseBusiness, ImageIcon, Plus } from 'lucide-react';
 import { formatEventStayLabel } from '@/lib/eventStay';
 import { addressDisplayLabel } from '@/lib/eventLocation';
 
@@ -26,6 +26,7 @@ export interface DayOverviewProps {
   layout?: 'sheet' | 'panel' | 'agenda';
   onPickEvent: (event: DisplayEvent) => void;
   onCreateForDate: (date: Date) => void;
+  onImportForDate?: (date: Date) => void;
   onSeedWeek?: () => void;
 }
 
@@ -37,6 +38,7 @@ const DayOverview = ({
   layout = 'panel',
   onPickEvent,
   onCreateForDate,
+  onImportForDate,
   onSeedWeek,
 }: DayOverviewProps) => {
   const { t, locale, dateLocale } = useLocale();
@@ -59,6 +61,17 @@ const DayOverview = ({
     </button>
   );
 
+  const importButton = onImportForDate ? (
+    <button
+      type="button"
+      onClick={() => onImportForDate(date)}
+      aria-label={t('import.fromImage')}
+      className="flex h-12 w-12 items-center justify-center rounded-full border border-foreground/30 bg-transparent text-foreground active:bg-muted"
+    >
+      <ImageIcon size={22} strokeWidth={2.2} />
+    </button>
+  ) : null;
+
   const actions = (
     <>
       {canSeedWeek && events.length === 0 && onSeedWeek && (
@@ -70,7 +83,10 @@ const DayOverview = ({
           {t('event.fillWeek')}
         </button>
       )}
-      <div className="flex justify-center">{addButton}</div>
+      <div className="flex items-center justify-center gap-3">
+        {addButton}
+        {importButton}
+      </div>
     </>
   );
 

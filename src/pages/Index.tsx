@@ -21,7 +21,6 @@ import CalendarView from '@/components/CalendarView';
 import DesktopDayPanel from '@/components/DesktopDayPanel';
 import CalendarSwitcher from '@/components/CalendarSwitcher';
 import NewEventFlow from '@/components/NewEventFlow';
-import AddActivityMenu from '@/components/AddActivityMenu';
 import ImageImportFlow from '@/components/ImageImportFlow';
 import EditEventFlow from '@/components/EditEventFlow';
 import EditEventQuickSheet from '@/components/EditEventQuickSheet';
@@ -66,7 +65,6 @@ const Index = () => {
   const queryClient = useQueryClient();
   const [focusedDate, setFocusedDate] = useState<Date>(() => new Date());
   const [showNewEvent, setShowNewEvent] = useState(false);
-  const [showAddMenu, setShowAddMenu] = useState(false);
   const [showImageImport, setShowImageImport] = useState(false);
   const [newEventDate, setNewEventDate] = useState<Date | undefined>();
   const [profileMode, setProfileMode] = useState<ProfileSheetMode | null>(null);
@@ -135,11 +133,11 @@ const Index = () => {
   const handleSwipeCalendarStack = useCallback(
     (direction: 1 | -1) => {
       if (!household) return;
-      if (showNewEvent || showAddMenu || showImageImport || editEvent || quickEditEvent || profileMode || showSeedWeek) return;
+      if (showNewEvent || showImageImport || editEvent || quickEditEvent || profileMode || showSeedWeek) return;
       const nextId = adjacentCalendarId(memberships, household.id, direction);
       if (nextId) selectCalendar(nextId, direction);
     },
-    [household, memberships, selectCalendar, showNewEvent, showAddMenu, showImageImport, editEvent, quickEditEvent, profileMode, showSeedWeek],
+    [household, memberships, selectCalendar, showNewEvent, showImageImport, editEvent, quickEditEvent, profileMode, showSeedWeek],
   );
 
   const calendarKind = household ? resolveCalendarKind(household) : 'home';
@@ -311,7 +309,14 @@ const Index = () => {
   const handleCreateEvent = (date: Date) => {
     tryOpenSheet(() => {
       setNewEventDate(date);
-      setShowAddMenu(true);
+      setShowNewEvent(true);
+    });
+  };
+
+  const handleImportForDate = (date: Date) => {
+    tryOpenSheet(() => {
+      setNewEventDate(date);
+      setShowImageImport(true);
     });
   };
 
@@ -397,6 +402,7 @@ const Index = () => {
             calendarKind={calendarKind}
             onSelectDate={handleSelectDate}
             onCreateEvent={handleCreateEvent}
+            onImportForDate={handleImportForDate}
             onEditEvent={handleEditEvent}
             onQuickEditEvent={(ev) => tryOpenSheet(() => setQuickEditEvent(ev))}
             onSwitchCalendar={(id) => selectCalendar(id)}
@@ -420,6 +426,7 @@ const Index = () => {
             highlight={highlight}
             canSeedWeek={canSeedWeek}
             onCreateForDate={handleCreateEvent}
+            onImportForDate={handleImportForDate}
             onEditEvent={handleEditEvent}
             onQuickEditEvent={(ev) => tryOpenSheet(() => setQuickEditEvent(ev))}
             onSeedWeek={() => tryOpenSheet(() => setShowSeedWeek(true))}
@@ -453,20 +460,6 @@ const Index = () => {
           />
         )}
       </AnimatePresence>
-
-      {showAddMenu && (
-        <AddActivityMenu
-          onClose={() => setShowAddMenu(false)}
-          onNew={() => {
-            setShowAddMenu(false);
-            window.setTimeout(() => tryOpenSheet(() => setShowNewEvent(true)), 260);
-          }}
-          onFromImage={() => {
-            setShowAddMenu(false);
-            window.setTimeout(() => tryOpenSheet(() => setShowImageImport(true)), 260);
-          }}
-        />
-      )}
 
       {showImageImport && (
         <ImageImportFlow
