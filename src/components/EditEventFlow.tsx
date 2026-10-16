@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SunMedium } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { useUpdateEvent, useEventVisibleMembers, syncEventVisibleMembers, type Event } from '@/hooks/useEvents';
@@ -24,6 +25,7 @@ import { useLocale } from '@/hooks/useLocale';
 import type { MessageKey } from '@/lib/i18n';
 import EventPeriodFields from '@/components/EventPeriodFields';
 import EventAddressField from '@/components/EventAddressField';
+import ClockRangeFields from '@/components/ClockRangeFields';
 import { applyVacationCategoryTiming, isHotelCategory } from '@/lib/vacationSchedule';
 
 interface EditEventFlowProps {
@@ -41,8 +43,6 @@ const STEPS = 4;
 
 const FIELD =
   'min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary';
-const ADD_BTN =
-  'shrink-0 rounded-xl bg-muted active:bg-muted/70 px-3 py-3 text-sm font-medium whitespace-nowrap min-w-[4.75rem] transition-colors';
 
 const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarKind = 'home', showInOtherCalendars = false, onClose, onSaved }: EditEventFlowProps) => {
   const { t, dateLocale } = useLocale();
@@ -365,27 +365,14 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                   </>
                 ) : (
                   <>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">{t('event.clock')}</label>
-                      <div className="flex gap-2">
-                        <input type="time" value={startTime} onChange={(e) => handleStartTimeChange(e.target.value)}
-                          className={`flex-1 ${FIELD}`} />
-                        <button type="button" onClick={handleAddHour} className={ADD_BTN}>{t('event.addHour')}</button>
-                      </div>
-                    </div>
-
-                    {endTime && (
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 min-w-0">
-                          <label className="text-sm font-medium mb-2 block">{t('event.endTime')}</label>
-                          <input type="time" value={endTime} onChange={(e) => handleEndTimeChange(e.target.value)}
-                            className={`w-full ${FIELD}`} />
-                        </div>
-                        <button type="button" onClick={() => setEndTime(null)} className="mt-7 p-2 rounded-full hover:bg-muted text-muted-foreground">
-                          <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                        </button>
-                      </div>
-                    )}
+                    <ClockRangeFields
+                      startTime={startTime}
+                      endTime={endTime}
+                      onStartTime={handleStartTimeChange}
+                      onEndTime={handleEndTimeChange}
+                      onClearEnd={() => setEndTime(null)}
+                      onAddHour={handleAddHour}
+                    />
 
                     {isMultiDay && (
                       <button type="button" onClick={applyAllDay} className="text-sm text-muted-foreground underline underline-offset-2">
@@ -394,7 +381,12 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                     )}
 
                     {!showDayParts ? (
-                      <button type="button" onClick={() => setShowDayParts(true)} className="text-sm text-muted-foreground underline underline-offset-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDayParts(true)}
+                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary/15 px-4 text-sm font-semibold text-foreground active:bg-primary/25"
+                      >
+                        <SunMedium size={16} strokeWidth={2.2} />
                         {t('event.pickDayPart')}
                       </button>
                     ) : (

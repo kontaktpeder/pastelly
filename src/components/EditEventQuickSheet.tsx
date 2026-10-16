@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { SunMedium } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { useUpdateEvent, useEventVisibleMembers, syncEventVisibleMembers, type Event } from '@/hooks/useEvents';
@@ -21,6 +22,7 @@ import { useLocale } from '@/hooks/useLocale';
 import type { MessageKey } from '@/lib/i18n';
 import EventPeriodFields from '@/components/EventPeriodFields';
 import EventAddressField from '@/components/EventAddressField';
+import ClockRangeFields from '@/components/ClockRangeFields';
 import { applyVacationCategoryTiming, isHotelCategory } from '@/lib/vacationSchedule';
 
 interface EditEventQuickSheetProps {
@@ -37,8 +39,6 @@ interface EditEventQuickSheetProps {
 
 const FIELD =
   'min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary';
-const ADD_BTN =
-  'shrink-0 rounded-xl bg-muted active:bg-muted/70 px-3 py-3 text-sm font-medium whitespace-nowrap min-w-[4.75rem] transition-colors';
 
 const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKind = 'home', showInOtherCalendars = false, onClose, onSaved, onOpenFullEdit }: EditEventQuickSheetProps) => {
   const { t } = useLocale();
@@ -348,31 +348,14 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
               </>
             ) : (
               <>
-                <SectionTitle>{t('event.clock')}</SectionTitle>
-                <div className="flex gap-2">
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => handleStartTimeChange(e.target.value)}
-                    className={`flex-1 ${FIELD}`}
-                  />
-                  <button type="button" onClick={handleAddHour} className={ADD_BTN}>
-                    {t('event.addHour')}
-                  </button>
-                </div>
-                {endTime && (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => handleEndTimeChange(e.target.value)}
-                      className={`flex-1 ${FIELD}`}
-                    />
-                    <button type="button" onClick={() => setEndTime(null)} className="p-2 rounded-full hover:bg-muted text-muted-foreground">
-                      <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                    </button>
-                  </div>
-                )}
+                <ClockRangeFields
+                  startTime={startTime}
+                  endTime={endTime}
+                  onStartTime={handleStartTimeChange}
+                  onEndTime={handleEndTimeChange}
+                  onClearEnd={() => setEndTime(null)}
+                  onAddHour={handleAddHour}
+                />
                 {isMultiDay && (
                   <button
                     type="button"
@@ -394,8 +377,9 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
               <button
                 type="button"
                 onClick={() => setShowDayParts(true)}
-                className="text-sm text-muted-foreground underline underline-offset-2"
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary/15 px-4 text-sm font-semibold text-foreground active:bg-primary/25"
               >
+                <SunMedium size={16} strokeWidth={2.2} />
                 {t('event.pickDayPart')}
               </button>
             ) : (
