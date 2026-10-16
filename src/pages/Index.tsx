@@ -21,12 +21,16 @@ import CalendarView from '@/components/CalendarView';
 import DesktopDayPanel from '@/components/DesktopDayPanel';
 import CalendarSwitcher from '@/components/CalendarSwitcher';
 import NewEventFlow from '@/components/NewEventFlow';
+import AddActivityMenu from '@/components/AddActivityMenu';
+import ImageImportFlow from '@/components/ImageImportFlow';
 import EditEventFlow from '@/components/EditEventFlow';
 import EditEventQuickSheet from '@/components/EditEventQuickSheet';
 import SeedWeekFlow from '@/components/SeedWeekFlow';
 import WelcomeDialog from '@/components/WelcomeDialog';
 import ProfileSheet, { type ProfileSheetMode } from '@/components/ProfileSheet';
 import { toast } from 'sonner';
+import { t as translate } from '@/lib/i18n';
+import { resolveAppLocale } from '@/lib/i18n/types';
 import { peekWelcomeIntent, consumeWelcomeIntent, type WelcomeIntent } from '@/lib/welcomeIntent';
 import { peekPendingInviteCode } from '@/lib/inviteLink';
 import { peekSessionNotice } from '@/lib/auth/sessionNotice';
@@ -62,6 +66,8 @@ const Index = () => {
   const queryClient = useQueryClient();
   const [focusedDate, setFocusedDate] = useState<Date>(() => new Date());
   const [showNewEvent, setShowNewEvent] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showImageImport, setShowImageImport] = useState(false);
   const [newEventDate, setNewEventDate] = useState<Date | undefined>();
   const [profileMode, setProfileMode] = useState<ProfileSheetMode | null>(null);
   const [editEvent, setEditEvent] = useState<Event | null>(null);
@@ -129,11 +135,11 @@ const Index = () => {
   const handleSwipeCalendarStack = useCallback(
     (direction: 1 | -1) => {
       if (!household) return;
-      if (showNewEvent || editEvent || quickEditEvent || profileMode || showSeedWeek) return;
+      if (showNewEvent || showAddMenu || showImageImport || editEvent || quickEditEvent || profileMode || showSeedWeek) return;
       const nextId = adjacentCalendarId(memberships, household.id, direction);
       if (nextId) selectCalendar(nextId, direction);
     },
-    [household, memberships, selectCalendar, showNewEvent, editEvent, quickEditEvent, profileMode, showSeedWeek],
+    [household, memberships, selectCalendar, showNewEvent, showAddMenu, showImageImport, editEvent, quickEditEvent, profileMode, showSeedWeek],
   );
 
   const calendarKind = household ? resolveCalendarKind(household) : 'home';
@@ -305,7 +311,7 @@ const Index = () => {
   const handleCreateEvent = (date: Date) => {
     tryOpenSheet(() => {
       setNewEventDate(date);
-      setShowNewEvent(true);
+      setShowAddMenu(true);
     });
   };
 
@@ -447,6 +453,45 @@ const Index = () => {
           />
         )}
       </AnimatePresence>
+
+      {showAddMenu && (
+        <AddActivityMenu
+          onClose={() => setShowAddMenu(false)}
+          onNew={() => {
+            setShowAddMenu(false);
+            window.setTimeout(() => tryOpenSheet(() => setShowNewEvent(true)), 260);
+          }}
+          onFromImage={() => {
+            setShowAddMenu(false);
+            window.setTimeout(() => tryOpenSheet(() => setShowImageImport(true)), 260);
+          }}
+        />
+      )}
+
+      {showImageImport && (
+        <ImageImportFlow
+          memberships={orderedMemberships}
+          currentHouseholdId={household.id}
+          currentMemberId={currentMember.id}
+          suggestedYear={(newEventDate ?? focusedDate).getFullYear()}
+          showInOtherCalendars={!!currentMember.show_in_other_calendars}
+          onSwitchCalendar={(id) => selectCalendar(id)}
+          onCreated={(eventId, dateStr) => flashHighlight(eventId, dateStr)}
+          onClose={(summary) => {
+            setShowImageImport(false);
+            if (!summary || (summary.added === 0 && summary.skipped === 0)) return;
+            const loc = resolveAppLocale((household as { locale?: string }).locale);
+            toast.success(
+              summary.skipped > 0
+                ? translate(loc, 'import.cancelSummary', {
+                    added: summary.added,
+                    skipped: summary.skipped,
+                  })
+                : translate(loc, 'import.doneAdded', { count: summary.added }),
+            );
+          }}
+        />
+      )}
 
       {showNewEvent && (
         <NewEventFlow

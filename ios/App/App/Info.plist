@@ -40,7 +40,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Pastelly uses the camera so you can take a profile photo.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Pastelly uses your photo library so you can choose a profile photo.</string>
+	<string>Pastelly uses your photo library so you can choose a profile photo and add shifts from a screenshot.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Pastelly bruker ikke posisjonen din. Denne teksten kreves fordi push-varslingsbiblioteket kan referere til posisjons-API-er som appen ikke bruker.</string>
 	<key>UIBackgroundModes</key>
