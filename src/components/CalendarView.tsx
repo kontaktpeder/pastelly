@@ -1088,7 +1088,7 @@ const DayCell = ({
       }`}
     >
       <span
-        className={`w-6 h-6 shrink-0 flex items-center justify-center rounded-full text-[11px] font-semibold tabular-nums leading-none ${
+        className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-base font-semibold tabular-nums leading-none ${
           today
             ? 'border-[1.5px] border-primary text-primary font-bold'
             : !inMonth
