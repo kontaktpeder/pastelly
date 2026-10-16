@@ -209,6 +209,15 @@ body {
   animation: highlight-once 1.1s ease-in-out 1;
 }
 
+/* Boot dots pulse opacity only — size stays fixed so the splash doesn't jump. */
+@keyframes boot-dot {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+.boot-dot {
+  animation: boot-dot 1.6s ease-in-out infinite;
+}
+
 
 /* Calendar month strip: JS owns both axes (month ↔ + calendar stack ↕).
    pan-x alone breaks vertical stack swipe on Android Chrome. */

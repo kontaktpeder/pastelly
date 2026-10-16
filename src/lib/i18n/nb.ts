@@ -158,6 +158,7 @@ export const nb = {
   'event.what': 'Hva?',
   'event.who': 'Hvem kan se?',
   'event.category': 'Kategori',
+  'event.chooseIcon': 'Velg ikon',
   'event.date': 'Dato',
   'event.endDate': 'Siste dag',
   'event.firstDay': 'Første dag',

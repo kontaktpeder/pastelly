@@ -60,7 +60,6 @@ const CountdownDetailSheet = ({
     : null;
   const [editEndDate, setEditEndDate] = useState<Date | null>(endWall?.date ?? null);
   const [editEndTime, setEditEndTime] = useState(endWall?.timeHm ?? '23:59');
-  const [editVacation, setEditVacation] = useState(!!merged.use_vacation_mode);
   const [editTz, setEditTz] = useState(destTz);
 
   const mine = myParticipant(countdown, currentMemberId);
@@ -126,7 +125,7 @@ const CountdownDetailSheet = ({
         target_at: targetAt,
         ends_at: endsAt,
         clear_ends_at: !endsAt,
-        use_vacation_mode: editVacation,
+        use_vacation_mode: false,
         timezone: editTz,
       });
       setEditingDates(false);
@@ -190,9 +189,6 @@ const CountdownDetailSheet = ({
           themeId={countdown.theme}
           emoji={countdown.emoji}
           title={countdown.title}
-          endsAt={merged.ends_at}
-          useVacationMode={!!merged.use_vacation_mode}
-          timeZone={merged.timezone}
         />
 
         <p id="countdown-detail-title" className="sr-only">
@@ -274,15 +270,6 @@ const CountdownDetailSheet = ({
                       </option>
                     ))}
                   </select>
-                </label>
-                <label className="flex items-start gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 accent-cyan-700"
-                    checked={editVacation}
-                    onChange={(e) => setEditVacation(e.target.checked)}
-                  />
-                  <span>{t('countdown.useVacationMode')}</span>
                 </label>
                 <button
                   type="button"

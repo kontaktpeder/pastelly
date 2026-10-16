@@ -1,95 +1,52 @@
-import { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { isNativePlatform } from '@/lib/native/platform';
-
 /** Matches the native splash background (capacitor.config.ts). */
-const SPLASH_BG = '#FFFFFF';
+const SPLASH_BG = '#FFF4F6';
 
-const DOT_VARS = ['--member-blue', '--member-peach', '--member-mint', '--member-rose'];
-
-/**
- * Fast boots stay a clean cream veil; the brand only appears when boot takes
- * longer than this. Prevents the wordmark flashing in right before reveal.
- */
-const BRAND_DELAY_MS = 550;
+const DOT_VARS = ['--member-rose', '--member-peach', '--member-lavender', '--member-blue'];
 
 /**
- * Cold-start veil shown between the native splash and the first painted UI.
- * Same cream base as the splash so the hand-off is seamless; the wordmark and
- * pastel atmosphere fade in on top so the light screen never feels blank.
+ * Cold-start veil between the native splash and the first painted UI.
+ * Fixed pastel frame — no scale, no gradient fade, no wordmark resize —
+ * so Capacitor doesn't hitch or jump size while the calendar loads.
  */
 const BootVeil = ({ revealing }: { revealing: boolean }) => {
-  // Native launch already shows the Pastelly splash — keep the wordmark up so
-  // the Capacitor/TestFlight mark never reappears between splash and UI.
-  const [showBrand, setShowBrand] = useState(() => isNativePlatform());
-  const revealingRef = useRef(revealing);
-  revealingRef.current = revealing;
-
-  useEffect(() => {
-    if (isNativePlatform()) return;
-    const t = window.setTimeout(() => {
-      if (!revealingRef.current) setShowBrand(true);
-    }, BRAND_DELAY_MS);
-    return () => window.clearTimeout(t);
-  }, []);
-
   return (
-  <motion.div
-    className="absolute inset-0 z-[80] pointer-events-none overflow-hidden"
-    style={{ backgroundColor: SPLASH_BG }}
-    initial={false}
-    animate={{ opacity: revealing ? 0 : 1 }}
-    transition={{ duration: 0.78, ease: [0.22, 1, 0.36, 1] }}
-    aria-hidden
-  >
-    {showBrand && (
-      <>
-        <motion.div
-          className="absolute inset-0"
+    <div
+      className="pointer-events-none absolute inset-0 z-[80] overflow-hidden"
+      style={{
+        backgroundColor: SPLASH_BG,
+        backgroundImage:
+          'radial-gradient(55% 42% at 16% 10%, hsl(340 62% 86% / 0.7), transparent 68%),' +
+          'radial-gradient(48% 36% at 88% 16%, hsl(20 80% 86% / 0.62), transparent 70%),' +
+          'radial-gradient(58% 46% at 82% 94%, hsl(220 60% 86% / 0.55), transparent 70%),' +
+          'radial-gradient(52% 42% at 10% 92%, hsl(270 48% 88% / 0.55), transparent 70%)',
+        opacity: revealing ? 0 : 1,
+        transition: revealing ? 'opacity 280ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+      }}
+      aria-hidden
+    >
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <p
+          className="font-extrabold tracking-tight"
           style={{
-            background:
-              'radial-gradient(55% 40% at 18% 12%, hsl(340 55% 85% / 0.45), transparent 70%),' +
-              'radial-gradient(50% 38% at 85% 20%, hsl(20 75% 85% / 0.4), transparent 70%),' +
-              'radial-gradient(60% 50% at 80% 92%, hsl(220 55% 85% / 0.45), transparent 70%),' +
-              'radial-gradient(55% 45% at 12% 92%, hsl(270 45% 85% / 0.45), transparent 70%)',
+            color: 'hsl(340 18% 22%)',
+            fontFamily: 'ui-rounded, Nunito, system-ui, sans-serif',
+            fontSize: '2.25rem',
+            lineHeight: 1,
           }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1.1, ease: 'easeOut' }}
-        />
-
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <motion.p
-            className="font-display text-4xl font-extrabold tracking-tight"
-            style={{ color: 'hsl(0 5% 17%)' }}
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.45, ease: 'easeOut' }}
-          >
-            Pastelly
-          </motion.p>
-
-          <div className="mt-5 flex gap-2">
-            {DOT_VARS.map((v, i) => (
-              <motion.span
-                key={v}
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: `hsl(var(${v}))` }}
-                initial={{ opacity: 0.3 }}
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{
-                  duration: 1.4,
-                  repeat: Infinity,
-                  delay: 0.2 + i * 0.18,
-                  ease: 'easeInOut',
-                }}
-              />
-            ))}
-          </div>
+        >
+          Pastelly
+        </p>
+        <div className="mt-5 flex gap-2">
+          {DOT_VARS.map((v) => (
+            <span
+              key={v}
+              className="boot-dot h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: `hsl(var(${v}))` }}
+            />
+          ))}
         </div>
-      </>
-    )}
-  </motion.div>
+      </div>
+    </div>
   );
 };
 

@@ -18,7 +18,6 @@ import CenteredPopup from '@/components/CenteredPopup';
 import PopupStickyFooter from '@/components/PopupStickyFooter';
 import { scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
 import { useLocale } from '@/hooks/useLocale';
-import { useVacationMode } from '@/hooks/useVacationMode';
 import type { MessageKey } from '@/lib/i18n';
 import EventPeriodFields from '@/components/EventPeriodFields';
 import EventAddressField from '@/components/EventAddressField';
@@ -43,7 +42,6 @@ const ADD_BTN =
 
 const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKind = 'home', showInOtherCalendars = false, onClose, onSaved, onOpenFullEdit }: EditEventQuickSheetProps) => {
   const { t } = useLocale();
-  const vacation = useVacationMode();
   const updateEvent = useUpdateEvent();
   const memberColorMap = getMemberColorMap(members.find((m) => m.id === currentMemberId));
   const dayPartLabel = (key: string) => {
@@ -88,9 +86,7 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
   });
   const [category, setCategory] = useState<EventCategory>((event.category as EventCategory) || 'other');
   const categoryOptions = (() => {
-    const base = getCategoryOptionsForKind(calendarKind, {
-      vacationMode: vacation.enabledForCalendar && vacation.snapshot.active,
-    });
+    const base = getCategoryOptionsForKind(calendarKind);
     if (category && !base.includes(category) && EVENT_CATEGORY_META[category]) {
       return [category, ...base.filter((c) => c !== category)];
     }

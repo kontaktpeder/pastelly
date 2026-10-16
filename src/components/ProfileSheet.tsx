@@ -31,7 +31,6 @@ import { AppLocaleSettings, CalendarLocaleSettings } from '@/components/LocaleSe
 import CenteredPopup from '@/components/CenteredPopup';
 import { useLocale } from '@/hooks/useLocale';
 import { defaultLocaleForKind } from '@/lib/i18n/types';
-import VacationModeToggle from '@/components/VacationModeToggle';
 
 export type ProfileSheetMode = 'calendar' | 'account';
 
@@ -100,7 +99,7 @@ const ProfileSheet = ({
   const [deleteError, setDeleteError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const isHomeCalendar = resolveCalendarKind(household) === 'home';
+  const isWorkCalendar = resolveCalendarKind(household) === 'work';
   const [workOrgId, setWorkOrgId] = useState(household.work_organization_id ?? '');
   const [workOrgError, setWorkOrgError] = useState('');
   const [workOrgSaved, setWorkOrgSaved] = useState(false);
@@ -411,16 +410,7 @@ const ProfileSheet = ({
                 ))}
               </section>
 
-              {isHomeCalendar && (
-                <section className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
-                    {t('vacation.mode')}
-                  </p>
-                  <VacationModeToggle />
-                </section>
-              )}
-
-              {!isHomeCalendar && (
+              {isWorkCalendar && (
                 <section className="space-y-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
                     {t('profile.workOrg')}

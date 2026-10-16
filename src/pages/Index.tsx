@@ -35,8 +35,6 @@ import { tryOpenSheet } from '@/lib/sheetGate';
 import { markAppReady } from '@/lib/native/appBoot';
 import BootVeil from '@/components/BootVeil';
 import { peekPendingOpenDay, subscribePendingOpenDay } from '@/lib/native/pendingOpenDay';
-import { VacationModeProvider, useVacationMode } from '@/hooks/useVacationMode';
-import VacationModeBanner from '@/components/VacationModeBanner';
 
 export type Highlight = { eventId: string; dateStr: string; ts: number } | null;
 
@@ -202,7 +200,7 @@ const Index = () => {
   // Unmount veil only after fade has fully settled — no AnimatePresence exit (double-fade glitch).
   useEffect(() => {
     if (bootPhase !== 'revealing') return;
-    const t = window.setTimeout(() => setBootPhase('done'), 900);
+    const t = window.setTimeout(() => setBootPhase('done'), 340);
     return () => window.clearTimeout(t);
   }, [bootPhase]);
 
@@ -330,24 +328,14 @@ const Index = () => {
 
   const canSwipeStack = orderedMemberships.length > 1;
 
-  const welcomeEase = [0.22, 1, 0.36, 1] as [number, number, number, number];
   const showBootVeil = bootPhase === 'covering' || bootPhase === 'revealing';
 
   return (
     <LocaleProvider calendarLocale={(household as any).locale}>
-    <VacationModeProvider
-      member={currentMember}
-      calendarKind={calendarKind}
-    >
     <CalendarShell calendarKind={calendarKind}>
       {showBootVeil && <BootVeil revealing={bootPhase === 'revealing'} />}
 
-      <motion.div
-        className="relative z-10 flex min-h-0 flex-1 flex-col bg-background"
-        initial={false}
-        animate={bootPhase === 'covering' ? { y: 12 } : { y: 0 }}
-        transition={{ duration: 0.85, ease: welcomeEase }}
-      >
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col bg-background">
       <header className="flex items-center justify-between gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-0.5 z-10">
         <CalendarSwitcher
           household={household}
@@ -363,7 +351,6 @@ const Index = () => {
           }}
         />
         <div className="flex items-center gap-2 shrink-0">
-          <VacationModeBanner variant="header" selectedDate={focusedDate} />
           <button
           onClick={() => {
             window.requestAnimationFrame(() => {
@@ -386,7 +373,7 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 overflow-hidden relative bg-background md:grid md:grid-cols-[minmax(0,1fr)_22rem] lg:grid-cols-[minmax(0,1fr)_24rem] group-data-[vacation-mode=on]:md:grid-cols-1 group-data-[vacation-mode=on]:lg:grid-cols-1">
+      <main className="flex-1 min-h-0 overflow-hidden relative bg-background md:grid md:grid-cols-[minmax(0,1fr)_22rem] lg:grid-cols-[minmax(0,1fr)_24rem]">
         {/* Single instance — no exit/enter overlap (avoids layered calendars) */}
         <motion.div
           key={household.id}
@@ -417,7 +404,7 @@ const Index = () => {
           />
         </motion.div>
 
-        <aside className="hidden min-h-0 flex-col border-l border-border/70 bg-card/70 md:flex group-data-[vacation-mode=on]:hidden">
+        <aside className="hidden min-h-0 flex-col border-l border-border/70 bg-card/70 md:flex">
           <DesktopDayPanel
             date={focusedDate}
             householdId={household.id}
@@ -435,7 +422,7 @@ const Index = () => {
           />
         </aside>
       </main>
-      </motion.div>
+      </div>
 
       {showSeedWeek && (
         <SeedWeekFlow
@@ -528,7 +515,6 @@ const Index = () => {
         />
       )}
     </CalendarShell>
-    </VacationModeProvider>
     </LocaleProvider>
   );
 };
@@ -541,17 +527,15 @@ function CalendarDateBridge({
   focusedDate: Date;
   onFocusedDateChange: Dispatch<SetStateAction<Date>>;
 } & Omit<ComponentProps<typeof CalendarView>, 'currentDate' | 'selectedDate' | 'onCurrentDateChange'>) {
-  const vacation = useVacationMode();
-  const weekMode = vacation.enabledForCalendar && vacation.snapshot.active;
   const currentDate = useMemo(
-    () => (weekMode ? focusedDate : calendarStripAnchor(focusedDate, false)),
-    [focusedDate, weekMode],
+    () => calendarStripAnchor(focusedDate, false),
+    [focusedDate],
   );
   const onCurrentDateChange = useCallback<Dispatch<SetStateAction<Date>>>(
     (update) => {
-      onFocusedDateChange((prev) => applyCalendarStripChange(prev, update, weekMode));
+      onFocusedDateChange((prev) => applyCalendarStripChange(prev, update, false));
     },
-    [onFocusedDateChange, weekMode],
+    [onFocusedDateChange],
   );
   return (
     <CalendarView
@@ -570,11 +554,9 @@ const CalendarShell = ({
   calendarKind: string;
   children: ReactNode;
 }) => {
-  const vacation = useVacationMode();
   return (
     <div
       data-calendar-kind={calendarKind}
-      data-vacation-mode={vacation.snapshot.active ? 'on' : 'off'}
       className="group h-[100dvh] w-full bg-background flex flex-col max-w-6xl mx-auto relative overflow-hidden"
       style={{ backgroundColor: PASTEL.paper }}
     >

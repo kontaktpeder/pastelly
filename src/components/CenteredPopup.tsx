@@ -88,9 +88,31 @@ function normalizeDetents(detents: SheetDetent[]): SheetDetent[] {
   return ordered.length ? ordered : ['full'];
 }
 
-function writeSheetY(el: HTMLElement | null, y: number) {
+function writeSheetBox(el: HTMLElement | null, y: number, height: number | null) {
   if (!el) return;
   el.style.transform = `translate3d(0, ${y}px, 0)`;
+  if (height != null) el.style.height = `${height}px`;
+}
+
+/**
+ * Keep the sheet bottom on the viewport bottom while open (half and full).
+ * During dismiss, freeze the height and slide the whole card down.
+ */
+function sheetBox(
+  y: number,
+  frameH: number,
+  flying: boolean,
+  dismissAnchor: number,
+): { y: number; height: number } {
+  if (flying) {
+    const base = Math.max(0, dismissAnchor);
+    return {
+      y: base + (y - dismissAnchor),
+      height: Math.max(0, frameH - base),
+    };
+  }
+  const pin = Math.max(0, y);
+  return { y, height: Math.max(0, frameH - pin) };
 }
 
 /** iOS-style rubber band for overscroll past an edge (overshoot in px). */
@@ -151,6 +173,8 @@ const CenteredPopup = ({
   const yRef = useRef(
     typeof window !== 'undefined' ? window.innerHeight : 640,
   );
+  /** Y captured when dismiss starts so the sheet slides away at a fixed height. */
+  const dismissAnchorRef = useRef(0);
   const settleDragRef = useRef<(vy: number) => void>(() => {});
   const cancelSpringRef = useRef<(() => void) | null>(null);
   const animatingRef = useRef(false);
@@ -251,7 +275,9 @@ const CenteredPopup = ({
 
   const setY = (y: number) => {
     yRef.current = y;
-    writeSheetY(sheetLayerRef.current, y);
+    const frame = frameHRef.current;
+    const box = sheetBox(y, frame, flyingOutRef.current, dismissAnchorRef.current);
+    writeSheetBox(sheetLayerRef.current, box.y, size === 'sheet' ? box.height : null);
   };
 
   const stopSpring = () => {
@@ -389,6 +415,7 @@ const CenteredPopup = ({
   const flyOutThenDismiss = (_velocity = 0) => {
     if (flyingOutRef.current) return;
     flyingOutRef.current = true;
+    dismissAnchorRef.current = yRef.current;
     setFlyingOut(true);
     setBackdropOpen(false);
     gestureRef.current = null;
@@ -605,7 +632,12 @@ const CenteredPopup = ({
   }, []);
 
   const useSheetLayout = size === 'sheet';
-  const initialY = yRef.current;
+  const sheetFrame = sheetBox(
+    yRef.current,
+    frameH,
+    flyingOut,
+    dismissAnchorRef.current,
+  );
 
   const recessTransform = isRecessed
     ? `translate3d(0, ${NEST_RECESS_Y_PX}px, 0) scale(${NEST_RECESS_SCALE})`
@@ -637,7 +669,7 @@ const CenteredPopup = ({
         ref={frameRef}
         className={cn(
           'absolute inset-0 flex justify-center pointer-events-none overflow-hidden',
-          useSheetLayout ? 'items-stretch' : 'items-end',
+          useSheetLayout ? 'items-start' : 'items-end',
         )}
         style={framePad}
       >
@@ -647,10 +679,17 @@ const CenteredPopup = ({
             'relative z-10 flex w-full max-w-md min-h-0',
             !isRecessed && 'pointer-events-auto',
             useSheetLayout
-              ? 'h-full max-h-full self-stretch md:max-w-xl'
+              ? 'self-start md:max-w-xl'
               : 'h-auto max-h-[min(92dvh,100%)]',
           )}
-          style={{ transform: `translate3d(0, ${initialY}px, 0)` }}
+          style={
+            useSheetLayout
+              ? {
+                  transform: `translate3d(0, ${sheetFrame.y}px, 0)`,
+                  height: `${sheetFrame.height}px`,
+                }
+              : { transform: `translate3d(0, ${yRef.current}px, 0)` }
+          }
           onClick={(e) => e.stopPropagation()}
         >
           <div
