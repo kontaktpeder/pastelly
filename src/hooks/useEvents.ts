@@ -231,6 +231,21 @@ export function useEventVisibleMembers(eventId: string | undefined) {
  * Replace the set of members that can see this event.
  * Pass an empty array to clear (e.g. when switching to all_members or private).
  */
+export async function fetchEventsForDateRange(
+  householdId: string,
+  start: string,
+  end: string,
+): Promise<Pick<Event, 'id' | 'title' | 'event_date' | 'start_time' | 'end_time'>[]> {
+  const { data, error } = await supabase
+    .from('events')
+    .select('id, title, event_date, start_time, end_time')
+    .eq('household_id', householdId)
+    .lte('event_date', end)
+    .or(`end_date.gte.${start},end_date.is.null`);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function syncEventVisibleMembers(
   eventId: string,
   memberIds: string[],
