@@ -37,7 +37,7 @@ const SheetActionDock = ({ children }: { children: ReactNode }) => {
       }}
     >
       <div
-        className={`pointer-events-auto flex w-full max-w-md flex-col items-center gap-2 bg-background px-5 md:max-w-xl ${
+        className={`pointer-events-auto flex w-full max-w-md flex-col items-center gap-2 bg-background px-5 pt-3 md:max-w-xl ${
           keyboardOpen ? 'pb-3' : 'pb-[max(0.75rem,env(safe-area-inset-bottom))]'
         }`}
       >

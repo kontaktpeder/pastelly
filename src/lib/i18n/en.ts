@@ -11,6 +11,7 @@ export const en: Record<MessageKey, string> = {
   'common.owner': 'Owner',
   'common.member': 'Member',
   'common.optional': 'Optional',
+  'common.required': 'Required',
   'common.back': 'Back',
   'common.undo': 'Undo',
 

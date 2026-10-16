@@ -55,7 +55,6 @@ const EventDetailSheet = ({
   const setLeak = useSetMemberEventLeak();
 
   const owner = members.find((m) => m.id === event.owner_member_id);
-  const ownerColor = owner ? getMemberColor(owner.color_token) : getMemberColor('pastel-blue');
   const editable = canEditEvent(event, currentMemberId, calendarKind);
 
   const dayPartLabel = (key: string | null | undefined) => {
@@ -131,57 +130,63 @@ const EventDetailSheet = ({
       backdrop="none"
     >
       <div
-        className={`flex-1 overflow-y-auto overscroll-contain scroll-touch px-5 pt-2 min-h-0 ${
-          editable ? 'pb-44' : 'pb-28'
-        }`}
+        className="flex-1 overflow-y-auto overscroll-contain scroll-touch px-5 pt-2 min-h-0 pb-4"
         data-sheet-scroll
       >
-        <div className={`rounded-2xl p-5 mb-4 ${ownerColor.bg}`}>
-          <h2 className="text-xl font-bold mb-1">{event.title}</h2>
-          <p className="text-sm text-muted-foreground">
-            {owner?.display_name} · {format(new Date(event.event_date + 'T12:00:00'), 'd. MMMM yyyy', { locale: dateLocale })}
-          </p>
-          {multiLabel && (
-            <p className="text-sm font-medium mt-0.5">{multiLabel}</p>
-          )}
-          {!isHotelCategory(event.category) && (
-          <p className="text-sm text-muted-foreground">
-            {(() => {
-              const dps = (event as any).day_part_start as string | null;
-              const dpe = (event as any).day_part_end as string | null;
-              if (dps && dpe && dps !== dpe) {
-                return `${dayPartLabel(dps)} – ${dayPartLabel(dpe)}`;
-              }
-              if (dps === 'full_diem') return dayPartLabel('full_diem');
-              if (dps === 'all_day') return dayPartLabel('all_day');
-              return dayPartLabel(event.day_part) || event.day_part;
-            })()}
-            {event.start_time && ` · ${event.start_time.slice(0, 5)}`}
-            {event.end_time && `–${event.end_time.slice(0, 5)}`}
-          </p>
-          )}
-          {event.location && (
-            <div className="mt-2">
-              <EventAddressLink location={event.location} className="text-sm" />
-            </div>
-          )}
-          {event.notes && <p className="text-sm mt-2 text-muted-foreground">{event.notes}</p>}
-          {(() => {
-            const meta = EVENT_CATEGORY_META[(event.category as keyof typeof EVENT_CATEGORY_META) || 'other'];
-            const visuals = resolveCategoryVisuals(event.category, getMemberColorMap(owner));
-            const label = resolveCategoryLabel(event.category, (event as any).category_label_override);
-            const Icon = meta?.Icon;
-            return (
-              <div
-                className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-medium"
-                style={{ backgroundColor: visuals.soft, color: visuals.ink }}
-              >
-                {Icon && <Icon size={12} style={{ color: visuals.ink }} />}
-                {label}
+        {(() => {
+          const meta = EVENT_CATEGORY_META[(event.category as keyof typeof EVENT_CATEGORY_META) || 'other'];
+          const visuals = resolveCategoryVisuals(event.category, getMemberColorMap(owner));
+          const label = resolveCategoryLabel(event.category, (event as any).category_label_override);
+          const Icon = meta?.Icon;
+          const whenLine = [
+            format(new Date(event.event_date + 'T12:00:00'), 'd. MMMM yyyy', { locale: dateLocale }),
+            multiLabel || null,
+          ].filter(Boolean).join(' · ');
+          const partLine = !isHotelCategory(event.category)
+            ? (() => {
+                const dps = (event as any).day_part_start as string | null;
+                const dpe = (event as any).day_part_end as string | null;
+                let part = '';
+                if (dps && dpe && dps !== dpe) part = `${dayPartLabel(dps)} – ${dayPartLabel(dpe)}`;
+                else if (dps === 'full_diem') part = dayPartLabel('full_diem');
+                else if (dps === 'all_day') part = dayPartLabel('all_day');
+                else part = dayPartLabel(event.day_part) || event.day_part;
+                const clock = [
+                  event.start_time ? event.start_time.slice(0, 5) : null,
+                  event.end_time ? event.end_time.slice(0, 5) : null,
+                ].filter(Boolean).join('–');
+                return [part, clock].filter(Boolean).join(' · ');
+              })()
+            : null;
+          return (
+            <div className="mb-4 rounded-2xl p-4" style={{ backgroundColor: visuals.soft }}>
+              <div className="flex items-start gap-3">
+                {Icon && (
+                  <span
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                    style={{ backgroundColor: visuals.rail }}
+                  >
+                    <Icon size={20} strokeWidth={2.4} style={{ color: visuals.ink }} />
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold leading-tight">{event.title}</h2>
+                  <p className="mt-1 text-sm">{whenLine}</p>
+                  {partLine && <p className="text-sm text-muted-foreground">{partLine}</p>}
+                  <p className="mt-1 text-sm font-medium" style={{ color: visuals.ink }}>
+                    {owner?.display_name ? `${owner.display_name} · ` : ''}{label}
+                  </p>
+                </div>
               </div>
-            );
-          })()}
-        </div>
+              {event.location && (
+                <div className="mt-3">
+                  <EventAddressLink location={event.location} className="text-sm" />
+                </div>
+              )}
+              {event.notes && <p className="mt-2 text-sm text-muted-foreground">{event.notes}</p>}
+            </div>
+          );
+        })()}
 
         {canOptInLeak && (
           <label className="mb-4 flex items-start gap-3 rounded-xl bg-muted/50 p-3 cursor-pointer">

@@ -10,6 +10,7 @@ export const nb = {
   'common.owner': 'Eier',
   'common.member': 'Medlem',
   'common.optional': 'Valgfritt',
+  'common.required': 'Obligatorisk',
   'common.back': 'Tilbake',
   'common.undo': 'Angre',
 
