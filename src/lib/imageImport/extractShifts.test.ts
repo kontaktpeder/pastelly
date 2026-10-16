@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyConfirmedYear, extractShiftsFromWords, needsYearConfirmation } from './extractShifts';
 import { mergeCertainImageDuplicates, findPossibleCalendarDuplicate } from './dedupe';
+import { resolveOcrWords, wordsFromPlainText } from './ocrWords';
 import type { OcrWord } from './types';
 
 function w(text: string, x: number, y: number, width = Math.max(24, text.length * 7), height = 16): OcrWord {
@@ -188,6 +189,102 @@ describe('overview template', () => {
       '2026-10-19',
       '2026-10-22',
     ]);
+  });
+});
+
+describe('messy OCR', () => {
+  it('reads a day number on one line and the weekday on the next', () => {
+    const { proposals } = extractShiftsFromWords([
+      w('October', 80, 20),
+      w('2026', 160, 20),
+      w('18', 20, 130),
+      w('Sunday', 20, 152),
+      w('6:00', 80, 174),
+      w('PM', 118, 174),
+      w('-', 140, 174, 10),
+      w('11:00', 155, 174),
+      w('PM', 198, 174),
+      w('Servitør,', 80, 196),
+      w('Basso', 150, 196),
+    ]);
+    expect(proposals.map((p) => `${p.eventDate} ${p.startTime}-${p.endTime}`)).toEqual([
+      '2026-10-18 18:00-23:00',
+    ]);
+  });
+
+  it('rebuilds shifts from plain OCR text when boxes are missing', () => {
+    const words = wordsFromPlainText(
+      ['October 2026', '18 Sunday', '6:00 PM - 11:00 PM', 'Servitør, Basso Social Oslo AS'].join('\n'),
+    );
+    const { proposals } = extractShiftsFromWords(words);
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]?.eventDate).toBe('2026-10-18');
+    expect(proposals[0]?.startTime).toBe('18:00');
+    expect(proposals[0]?.endTime).toBe('23:00');
+  });
+
+  it('still reads the Your-shifts grid if the label is garbled', () => {
+    const garbled = gridWords.map((word) => (word.text === 'shifts' ? { ...word, text: 'shifis' } : word));
+    const { proposals } = extractShiftsFromWords(garbled);
+    expect(proposals.map((p) => p.day)).toEqual([19, 22, 24, 25]);
+  });
+
+  it('falls back to the list when the scored layout finds nothing', () => {
+    const mixed: OcrWord[] = [
+      w('Your', 8, 10),
+      w('shifts', 48, 10),
+      w('October', 80, 40),
+      w('2026', 160, 40),
+      w('18', 20, 80),
+      w('Sunday', 50, 80),
+      w('6:00', 80, 102),
+      w('PM', 118, 102),
+      w('-', 140, 102, 10),
+      w('11:00', 155, 102),
+      w('PM', 198, 102),
+      w('Servitør,', 80, 124),
+      w('Basso', 150, 124),
+    ];
+    const { layout, proposals } = extractShiftsFromWords(mixed);
+    expect(layout).toBe('list');
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]?.eventDate).toBe('2026-10-18');
+  });
+});
+
+describe('ocr word flatten', () => {
+  it('uses nested block words when the page has no top-level words', () => {
+    const words = resolveOcrWords({
+      words: undefined,
+      blocks: [
+        {
+          paragraphs: [
+            {
+              lines: [
+                {
+                  words: [
+                    { text: 'October', bbox: { x0: 80, y0: 20, x1: 140, y1: 36 } },
+                    { text: '2026', bbox: { x0: 150, y0: 20, x1: 190, y1: 36 } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      text: 'October 2026',
+    });
+    expect(words.map((w) => w.text)).toEqual(['October', '2026']);
+    expect(words[0]?.x).toBe(80);
+  });
+
+  it('falls back to running text when blocks are empty', () => {
+    const words = resolveOcrWords({
+      words: undefined,
+      blocks: null,
+      text: '18 Sunday\n6:00 PM - 11:00 PM',
+    });
+    expect(words.map((w) => w.text)).toEqual(['18', 'Sunday', '6:00', 'PM', '-', '11:00', 'PM']);
   });
 });
 

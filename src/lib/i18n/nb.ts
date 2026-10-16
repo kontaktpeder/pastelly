@@ -411,6 +411,7 @@ export const nb = {
   'import.readingHint': 'Finner dato, klokkeslett og sted.',
   'import.readFailed': 'Kunne ikke lese bildet. Prøv et tydeligere skjermbilde.',
   'import.noShifts': 'Fant ingen vakter i bildet.',
+  'import.noShiftsHint': 'Fant ingen vakter. Lest: {snippet}',
   'import.yearMissing': 'Bildet mangler årstall',
   'import.yearHint': 'Kalenderens år er et forslag. Bekreft før vi fortsetter.',
   'import.year': 'År',

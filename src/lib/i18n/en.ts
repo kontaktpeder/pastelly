@@ -401,6 +401,7 @@ export const en: Record<MessageKey, string> = {
   'import.readingHint': 'Finding dates, times and places.',
   'import.readFailed': 'Could not read the photo. Try a clearer screenshot.',
   'import.noShifts': 'No shifts found in the photo.',
+  'import.noShiftsHint': 'No shifts found. Read: {snippet}',
   'import.yearMissing': 'The photo has no year',
   'import.yearHint': 'The calendar year is a suggestion. Confirm it before we continue.',
   'import.year': 'Year',

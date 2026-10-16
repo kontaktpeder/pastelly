@@ -131,10 +131,16 @@ const ImageImportFlow = ({
       const urls = await readFilesAsDataUrls(files);
       setImages(urls);
       const pages = await recognizeImagePages(urls);
-      const extracted = pages.flatMap((words, i) => extractShiftsFromWords(words, i).proposals);
+      const extracted = pages.flatMap((page, i) => extractShiftsFromWords(page.words, i).proposals);
       const merged = mergeCertainImageDuplicates(extracted);
       if (merged.length === 0) {
-        setError(t('import.noShifts'));
+        const snippet = pages
+          .map((page) => page.text)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 140);
+        setError(snippet ? t('import.noShiftsHint', { snippet }) : t('import.noShifts'));
         setStep('pick');
         return;
       }
@@ -257,7 +263,7 @@ const ImageImportFlow = ({
           <div className="space-y-4">
             <h2 className="text-2xl font-bold text-center">{t('import.fromImage')}</h2>
             <p className="text-sm text-muted-foreground text-center">{t('import.pickHint')}</p>
-            {error && <p className="text-sm text-destructive text-center">{error}</p>}
+            {error && <p className="text-sm text-destructive text-center break-words">{error}</p>}
           </div>
         )}
 

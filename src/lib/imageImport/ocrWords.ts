@@ -9,6 +9,88 @@ export type OcrLine = {
   height: number;
 };
 
+type BBoxLike = { x0: number; y0: number; x1: number; y1: number };
+type WordLike = { text?: string | null; bbox?: BBoxLike | null };
+type LineLike = { words?: WordLike[] | null };
+type ParaLike = { lines?: LineLike[] | null };
+type BlockLike = {
+  paragraphs?: ParaLike[] | null;
+  lines?: LineLike[] | null;
+  words?: WordLike[] | null;
+};
+
+export type OcrPageData = {
+  words?: WordLike[] | null;
+  blocks?: BlockLike[] | null;
+  text?: string | null;
+};
+
+function wordFromBBox(text: string, bbox: BBoxLike): OcrWord | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  return {
+    text: trimmed,
+    x: bbox.x0,
+    y: bbox.y0,
+    width: Math.max(1, bbox.x1 - bbox.x0),
+    height: Math.max(1, bbox.y1 - bbox.y0),
+  };
+}
+
+function collectWords(list: WordLike[] | null | undefined, into: OcrWord[]) {
+  for (const word of list ?? []) {
+    if (!word?.text || !word.bbox) continue;
+    const mapped = wordFromBBox(word.text, word.bbox);
+    if (mapped) into.push(mapped);
+  }
+}
+
+export function wordsFromBlocks(blocks: BlockLike[] | null | undefined): OcrWord[] {
+  const out: OcrWord[] = [];
+  for (const block of blocks ?? []) {
+    collectWords(block.words, out);
+    for (const line of block.lines ?? []) {
+      collectWords(line?.words, out);
+    }
+    for (const para of block.paragraphs ?? []) {
+      for (const line of para?.lines ?? []) {
+        collectWords(line?.words, out);
+      }
+    }
+  }
+  return out;
+}
+
+/** Synthetic boxes so line clustering still works when Tesseract only returns text. */
+export function wordsFromPlainText(text: string): OcrWord[] {
+  const words: OcrWord[] = [];
+  const rows = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  rows.forEach((line, row) => {
+    let x = 8;
+    for (const token of line.split(/\s+/).filter(Boolean)) {
+      const width = Math.max(16, token.length * 8);
+      words.push({
+        text: token,
+        x,
+        y: 12 + row * 22,
+        width,
+        height: 16,
+      });
+      x += width + 8;
+    }
+  });
+  return words;
+}
+
+export function resolveOcrWords(data: OcrPageData): OcrWord[] {
+  const top: OcrWord[] = [];
+  collectWords(data.words, top);
+  if (top.length) return top;
+  const nested = wordsFromBlocks(data.blocks);
+  if (nested.length) return nested;
+  return wordsFromPlainText(data.text ?? '');
+}
+
 export function wordCenterX(word: OcrWord): number {
   return word.x + word.width / 2;
 }
