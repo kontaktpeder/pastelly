@@ -289,7 +289,7 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
   };
 
   const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{children}</h3>
+    <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{children}</h3>
   );
 
   return (
@@ -340,15 +340,15 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
             {isMultiDay && !showTimedMultiDay ? (
               <>
                 <div className="rounded-xl bg-muted/70 px-4 py-3">
-                  <p className="text-sm font-medium">{t('event.allDayMulti')}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-base font-medium">{t('event.allDayMulti')}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">
                     {t('event.allDayMultiHint')}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={enableTimedMultiDay}
-                  className="text-sm text-muted-foreground underline underline-offset-2"
+                  className="text-base text-muted-foreground underline underline-offset-2"
                 >
                   {t('event.hasTimes')}
                 </button>
@@ -368,7 +368,7 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
                   <button
                     type="button"
                     onClick={applyAllDay}
-                    className="text-sm text-muted-foreground underline underline-offset-2"
+                    className="text-base text-muted-foreground underline underline-offset-2"
                   >
                     {t('event.useAllDay')}
                   </button>
@@ -396,7 +396,7 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
                   <button
                     type="button"
                     onClick={() => setShowDayParts(false)}
-                    className="text-xs text-muted-foreground underline underline-offset-2 mb-2"
+                    className="text-sm text-muted-foreground underline underline-offset-2 mb-2"
                   >
                     {t('event.hideDayPart')}
                   </button>
@@ -455,7 +455,7 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
                       setCategory(key);
                       if (key !== 'other') setOtherLabel('');
                     }}
-                    className={`rounded-xl py-2.5 px-3 text-sm font-medium transition-all flex items-center justify-between ${
+                    className={`rounded-xl py-2.5 px-3 text-base font-medium transition-all flex items-center justify-between ${
                       selected ? 'ring-2 ring-current' : 'bg-muted hover:bg-muted/80'
                     }`}
                     style={selected ? { backgroundColor: visuals.soft, color: visuals.ink } : undefined}
@@ -489,7 +489,7 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
                 <button
                   key={opt.value}
                   onClick={() => setVisibility(opt.value)}
-                  className={`rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${
+                  className={`rounded-xl py-2.5 px-3 text-base font-medium transition-all ${
                     visibility === opt.value ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted hover:bg-muted/80'
                   }`}
                 >
@@ -506,8 +506,8 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
                   onChange={(e) => setHideFromOtherCalendars(e.target.checked)}
                 />
                 <span>
-                  <span className="block font-semibold text-sm">{t('event.hideFromOther')}</span>
-                  <span className="block text-xs text-muted-foreground mt-0.5">
+                  <span className="block font-semibold text-base">{t('event.hideFromOther')}</span>
+                  <span className="block text-sm text-muted-foreground mt-0.5">
                     {t('event.hideFromOtherHint')}
                   </span>
                 </span>
@@ -525,11 +525,11 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
                         onClick={() => setSelectedMemberIds((prev) => checked ? prev.filter((id) => id !== m.id) : [...prev, m.id])}
                         className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all ${checked ? 'bg-primary/20 ring-2 ring-primary' : 'bg-background hover:bg-muted'}`}
                       >
-                        <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+                        <span className="w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold"
                           style={{ backgroundColor: `hsl(var(--member-${m.color_token.replace('pastel-', '')}))` }}>
                           {m.display_name.charAt(0)}
                         </span>
-                        <span className="flex-1 text-sm font-medium">{m.display_name}</span>
+                        <span className="flex-1 text-base font-medium">{m.display_name}</span>
                         <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${checked ? 'bg-primary border-primary' : 'border-border'}`}>
                           {checked && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </span>
@@ -537,11 +537,11 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
                     );
                   })}
                   {members.filter((m) => m.id !== currentMemberId).length === 0 && (
-                    <p className="text-xs text-muted-foreground">{t('event.noMembers')}</p>
+                    <p className="text-sm text-muted-foreground">{t('event.noMembers')}</p>
                   )}
                 </div>
                 {selectedMemberIds.length === 0 && (
-                  <p className="text-xs text-destructive mt-2">{t('event.pickOne')}</p>
+                  <p className="text-sm text-destructive mt-2">{t('event.pickOne')}</p>
                 )}
               </div>
             )}

@@ -77,14 +77,14 @@ const DailyDigestSettings = ({ member }: DailyDigestSettingsProps) => {
   return (
     <div className="space-y-3">
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground mb-1">Daglig oversikt</h3>
-        <p className="text-xs text-muted-foreground">
+        <h3 className="text-base font-semibold text-muted-foreground mb-1">Daglig oversikt</h3>
+        <p className="text-sm text-muted-foreground">
           Få dagens aktiviteter på låseskjermen. Trykk på varselet for å åpne dagen i appen.
         </p>
       </div>
 
       <label className="flex items-center justify-between gap-3 rounded-xl bg-muted p-3">
-        <span className="text-sm font-medium">Send hver morgen</span>
+        <span className="text-base font-medium">Send hver morgen</span>
         <input
           type="checkbox"
           checked={enabled}
@@ -94,12 +94,12 @@ const DailyDigestSettings = ({ member }: DailyDigestSettingsProps) => {
       </label>
 
       <label className="block space-y-1.5">
-        <span className="text-xs font-medium text-muted-foreground">Klokkeslett</span>
+        <span className="text-sm font-medium text-muted-foreground">Klokkeslett</span>
         <select
           value={time}
           disabled={!enabled}
           onChange={(e) => handleTime(e.target.value)}
-          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm disabled:opacity-50"
+          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base disabled:opacity-50"
         >
           {TIME_OPTIONS.map((opt) => (
             <option key={opt} value={opt}>
@@ -116,7 +116,7 @@ const DailyDigestSettings = ({ member }: DailyDigestSettingsProps) => {
         type="button"
         onClick={() => void sendTest()}
         disabled={testStatus === 'sending'}
-        className="w-full rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+        className="w-full rounded-xl border border-border py-3 text-base font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
       >
         {testStatus === 'sending'
           ? 'Sender...'
@@ -124,9 +124,9 @@ const DailyDigestSettings = ({ member }: DailyDigestSettingsProps) => {
             ? 'Sendt ✓'
             : 'Send dagens oversikt nå'}
       </button>
-      {testError && <p className="text-destructive text-xs text-center">{testError}</p>}
+      {testError && <p className="text-destructive text-sm text-center">{testError}</p>}
       {save.isError && (
-        <p className="text-destructive text-xs text-center">Kunne ikke lagre innstilling</p>
+        <p className="text-destructive text-sm text-center">Kunne ikke lagre innstilling</p>
       )}
     </div>
   );

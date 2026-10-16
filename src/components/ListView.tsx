@@ -192,7 +192,7 @@ const ListView = ({
           <div className="space-y-2">
             {sortedEvents.length === 0 ? (
               <div className="py-2 flex items-center justify-center">
-                <span className="text-xs text-muted-foreground/50">Ingen aktiviteter</span>
+                <span className="text-sm text-muted-foreground/50">Ingen aktiviteter</span>
               </div>
             ) : (
               sortedEvents.map((ev) => (
@@ -388,9 +388,9 @@ const EventRow = ({ event, currentMemberId, calendarKind, highlight, onTap, onLo
         {Icon && <Icon size={12} strokeWidth={2} style={{ color: visuals.ink }} />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="font-semibold text-sm block truncate">{event.title}</span>
+        <span className="font-semibold text-base block truncate">{event.title}</span>
         {multiLabel && (
-          <span className="text-xs text-muted-foreground block mt-0.5">{multiLabel}</span>
+          <span className="text-sm text-muted-foreground block mt-0.5">{multiLabel}</span>
         )}
       </span>
     </button>

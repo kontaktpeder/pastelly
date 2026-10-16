@@ -391,9 +391,9 @@ const CenteredPopup = ({
     try {
       const top = scroll.getBoundingClientRect().top - card.getBoundingClientRect().top;
       const style = getComputedStyle(scroll);
-      // Leave out the dock clearance. That padding only lets the last row
-      // scroll free; counting it opens a blank band under the buttons.
-      let content = parseFloat(style.paddingTop) || 0;
+      // marginBottom is the button zone. Count it so a short sheet opens
+      // with the rows above the buttons, not underneath them.
+      let content = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.marginBottom) || 0);
       for (const kid of Array.from(scroll.children)) {
         if (!(kid instanceof HTMLElement)) continue;
         const kidStyle = getComputedStyle(kid);
@@ -479,8 +479,8 @@ const CenteredPopup = ({
 
   const bottomCoverRef = useRef(SCROLL_END_GAP);
 
-  // Pad every scroll area by the real footer/dock height so the last buttons
-  // clear Neste and the action dock, including while the keyboard is open.
+  // End the scroll above the buttons. Content stays in the page, and the
+  // buttons sit on the sheet itself instead of covering the last rows.
   useLayoutEffect(() => {
     const card = cardRef.current;
     const frame = frameRef.current;
@@ -496,9 +496,9 @@ const CenteredPopup = ({
       const keyboardLift = keyboardOpen ? keyboardInset : 0;
       const cover = footerH + dockH + keyboardLift + SCROLL_END_GAP;
       bottomCoverRef.current = cover;
-      const pad = `${cover}px`;
       card.querySelectorAll<HTMLElement>('[data-sheet-scroll]').forEach((el) => {
-        el.style.paddingBottom = pad;
+        el.style.paddingBottom = '0px';
+        el.style.marginBottom = `${cover}px`;
       });
       refitSheetContentRef.current();
     };

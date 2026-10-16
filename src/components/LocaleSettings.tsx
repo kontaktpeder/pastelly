@@ -21,7 +21,7 @@ function LocalePicker({
           disabled={disabled}
           onClick={() => onChange(opt.value)}
           className={cn(
-            'rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left',
+            'rounded-xl px-3 py-2.5 text-base font-medium transition-all text-left',
             value === opt.value
               ? 'bg-primary/20 ring-2 ring-primary'
               : 'bg-background hover:bg-muted',
@@ -44,8 +44,8 @@ export function AppLocaleSettings() {
   return (
     <div className="space-y-2">
       <div>
-        <p className="text-sm font-medium">{t('locale.app')}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{t('locale.appHint')}</p>
+        <p className="text-base font-medium">{t('locale.app')}</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('locale.appHint')}</p>
       </div>
       <LocalePicker
         value={appLocale}
@@ -53,7 +53,7 @@ export function AppLocaleSettings() {
         onChange={(next) => mutation.mutate(next)}
       />
       {mutation.isError && (
-        <p className="text-xs text-destructive">{(mutation.error as Error)?.message}</p>
+        <p className="text-sm text-destructive">{(mutation.error as Error)?.message}</p>
       )}
     </div>
   );
@@ -83,8 +83,8 @@ export function CalendarLocaleSettings({
   if (!canEdit) {
     return (
       <div className="rounded-xl bg-background p-3">
-        <p className="text-sm font-medium">{t('locale.calendar')}</p>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-base font-medium">{t('locale.calendar')}</p>
+        <p className="text-sm text-muted-foreground mt-1">
           {value === 'en' ? t('locale.en') : t('locale.nb')}
         </p>
       </div>
@@ -94,8 +94,8 @@ export function CalendarLocaleSettings({
   return (
     <div className="space-y-2">
       <div>
-        <p className="text-sm font-medium">{t('locale.calendar')}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{t('locale.calendarHint')}</p>
+        <p className="text-base font-medium">{t('locale.calendar')}</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('locale.calendarHint')}</p>
       </div>
       <LocalePicker
         value={value}
@@ -103,7 +103,7 @@ export function CalendarLocaleSettings({
         onChange={(next) => mutation.mutate(next)}
       />
       {mutation.isError && (
-        <p className="text-xs text-destructive">{(mutation.error as Error)?.message}</p>
+        <p className="text-sm text-destructive">{(mutation.error as Error)?.message}</p>
       )}
     </div>
   );

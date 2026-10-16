@@ -854,7 +854,7 @@ const MonthPanel = ({
             }`}
           >
             <div className="w-8 shrink-0 flex items-start justify-center pt-2">
-              <span className="text-base font-medium tabular-nums leading-none select-none text-muted-foreground/55">
+              <span className="text-sm font-medium tabular-nums leading-none select-none text-muted-foreground/55">
                 {weekNum}
               </span>
             </div>
@@ -1088,7 +1088,7 @@ const DayCell = ({
       }`}
     >
       <span
-        className={`w-9 h-9 shrink-0 flex items-center justify-center rounded-full text-lg font-semibold tabular-nums leading-none ${
+        className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-base font-semibold tabular-nums leading-none ${
           today
             ? 'border-[1.5px] border-primary text-primary font-bold'
             : !inMonth
@@ -1162,7 +1162,7 @@ const DayCell = ({
             </div>
           ))}
           {overflow > 0 && (
-            <div className="text-base text-muted-foreground text-center font-semibold leading-none shrink-0">
+            <div className="text-sm text-muted-foreground text-center font-semibold leading-none shrink-0">
               +{overflow}
             </div>
           )}

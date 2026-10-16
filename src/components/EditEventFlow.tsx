@@ -361,12 +361,12 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                 {isMultiDay && !showTimedMultiDay ? (
                   <>
                     <div className="rounded-xl bg-muted/70 px-4 py-3">
-                      <p className="text-sm font-medium">{t('event.allDayMulti')}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-base font-medium">{t('event.allDayMulti')}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
                         {t('event.allDayMultiHint')}
                       </p>
                     </div>
-                    <button type="button" onClick={enableTimedMultiDay} className="text-sm text-muted-foreground underline underline-offset-2">
+                    <button type="button" onClick={enableTimedMultiDay} className="text-base text-muted-foreground underline underline-offset-2">
                       {t('event.hasTimes')}
                     </button>
                   </>
@@ -383,7 +383,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                     />
 
                     {isMultiDay && (
-                      <button type="button" onClick={applyAllDay} className="text-sm text-muted-foreground underline underline-offset-2">
+                      <button type="button" onClick={applyAllDay} className="text-base text-muted-foreground underline underline-offset-2">
                         {t('event.useAllDay')}
                       </button>
                     )}
@@ -399,8 +399,8 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                     ) : (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <label className="text-sm font-medium">{t('event.dayPart')}</label>
-                          <button type="button" onClick={() => setShowDayParts(false)} className="text-xs text-muted-foreground underline underline-offset-2">
+                          <label className="text-base font-medium">{t('event.dayPart')}</label>
+                          <button type="button" onClick={() => setShowDayParts(false)} className="text-sm text-muted-foreground underline underline-offset-2">
                             {t('event.hideDayPart')}
                           </button>
                         </div>
@@ -422,7 +422,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
               <div className="space-y-3">
                 <EventAddressField value={location} onChange={setLocation} />
                 <div>
-                  <label className="text-sm font-medium mb-1 block">{t('event.notes')}</label>
+                  <label className="text-base font-medium mb-1 block">{t('event.notes')}</label>
                   <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('common.optional')} rows={2}
                     onFocus={scrollFocusIntoView}
                     className={`w-full ${FIELD} resize-none`} />
@@ -447,7 +447,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                         setCategory(key);
                         if (key !== 'other') setOtherLabel('');
                       }}
-                      className={`rounded-xl py-3 px-4 text-sm font-medium transition-all flex items-center justify-between ${selected ? 'ring-2 ring-current' : 'bg-muted hover:bg-muted/80'}`}
+                      className={`rounded-xl py-3 px-4 text-base font-medium transition-all flex items-center justify-between ${selected ? 'ring-2 ring-current' : 'bg-muted hover:bg-muted/80'}`}
                       style={selected ? { backgroundColor: visuals.soft, color: visuals.ink } : undefined}
                     >
                       <span>{catLabel(key)}</span>
@@ -458,7 +458,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
               </div>
               {category === 'other' && (
                 <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} transition={stepSpring} className="overflow-hidden">
-                  <label className="text-sm font-medium mb-2 block">{t('event.otherTypeLabel')}</label>
+                  <label className="text-base font-medium mb-2 block">{t('event.otherTypeLabel')}</label>
                   <input
                     type="text"
                     value={otherLabel}
@@ -466,7 +466,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                     placeholder={t('event.otherTypePlaceholder')}
                     className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                  <p className="text-xs text-muted-foreground mt-2">{t('event.otherTypeHint')}</p>
+                  <p className="text-sm text-muted-foreground mt-2">{t('event.otherTypeHint')}</p>
                 </motion.div>
               )}
             </motion.div>
@@ -497,7 +497,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                   <button key={opt.value} onClick={() => setVisibility(opt.value)}
                     className={`w-full text-left rounded-2xl p-4 transition-all ${visibility === opt.value ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted hover:bg-muted/80'}`}>
                     <p className="font-semibold">{opt.label}</p>
-                    <p className="text-sm text-muted-foreground">{opt.desc}</p>
+                    <p className="text-base text-muted-foreground">{opt.desc}</p>
                   </button>
                 ))}
               </div>
@@ -511,8 +511,8 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                     onChange={(e) => setHideFromOtherCalendars(e.target.checked)}
                   />
                   <span>
-                    <span className="block font-semibold text-sm">{t('event.hideFromOther')}</span>
-                    <span className="block text-xs text-muted-foreground mt-0.5">
+                    <span className="block font-semibold text-base">{t('event.hideFromOther')}</span>
+                    <span className="block text-sm text-muted-foreground mt-0.5">
                       {t('event.hideFromOtherHint')}
                     </span>
                   </span>
@@ -521,7 +521,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
 
               {visibility === 'selected_members' && (
                 <div className="rounded-2xl bg-muted/50 p-4">
-                  <p className="text-sm font-semibold mb-3">{t('event.pickWho')}</p>
+                  <p className="text-base font-semibold mb-3">{t('event.pickWho')}</p>
                   <div className="flex flex-col gap-2">
                     {members.filter((m) => m.id !== currentMemberId).map((m) => {
                       const checked = selectedMemberIds.includes(m.id);
@@ -532,11 +532,11 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                           onClick={() => setSelectedMemberIds((prev) => checked ? prev.filter((id) => id !== m.id) : [...prev, m.id])}
                           className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${checked ? 'bg-primary/20 ring-2 ring-primary' : 'bg-background hover:bg-muted'}`}
                         >
-                          <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                          <span className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold"
                             style={{ backgroundColor: `hsl(var(--member-${m.color_token.replace('pastel-', '')}))` }}>
                             {m.display_name.charAt(0)}
                           </span>
-                          <span className="flex-1 text-sm font-medium">{m.display_name}</span>
+                          <span className="flex-1 text-base font-medium">{m.display_name}</span>
                           <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${checked ? 'bg-primary border-primary' : 'border-border'}`}>
                             {checked && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                           </span>
@@ -544,26 +544,26 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                       );
                     })}
                     {members.filter((m) => m.id !== currentMemberId).length === 0 && (
-                      <p className="text-sm text-muted-foreground">{t('event.noMembers')}</p>
+                      <p className="text-base text-muted-foreground">{t('event.noMembers')}</p>
                     )}
                   </div>
                   {selectedMemberIds.length === 0 && (
-                    <p className="text-xs text-destructive mt-2">{t('event.pickOne')}</p>
+                    <p className="text-sm text-destructive mt-2">{t('event.pickOne')}</p>
                   )}
                 </div>
               )}
 
 
               <div className="rounded-2xl bg-muted p-4 mt-4">
-                <p className="text-sm text-muted-foreground mb-1">{t('event.summary')}</p>
+                <p className="text-base text-muted-foreground mb-1">{t('event.summary')}</p>
                 <p className="font-semibold">{title}</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   {format(startDate, 'd. MMMM yyyy', { locale: dateLocale })}
                   {endDate && ` → ${format(endDate, 'd. MMMM yyyy', { locale: dateLocale })}`}
                   {' · '}{getDayPartRangeLabel()}
                   {!useAllDay && startTime && ` · ${startTime}`}{!useAllDay && endTime && `–${endTime}`}
                 </p>
-                {category && <p className="text-sm text-muted-foreground mt-1">{resolveCategoryLabel(category, otherLabel)}</p>}
+                {category && <p className="text-base text-muted-foreground mt-1">{resolveCategoryLabel(category, otherLabel)}</p>}
               </div>
             </motion.div>
           )}

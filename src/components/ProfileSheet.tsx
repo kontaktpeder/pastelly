@@ -46,7 +46,7 @@ interface ProfileSheetProps {
 }
 
 const MemberAvatar = ({ member, size = 'md' }: { member: HouseholdMember; size?: 'sm' | 'md' | 'lg' }) => {
-  const sizeClasses = { sm: 'w-10 h-10 text-sm', md: 'w-16 h-16 text-2xl', lg: 'w-20 h-20 text-3xl' };
+  const sizeClasses = { sm: 'w-10 h-10 text-base', md: 'w-16 h-16 text-2xl', lg: 'w-20 h-20 text-3xl' };
   const color = getMemberColor(member.color_token);
 
   if (member.avatar_url) {
@@ -385,24 +385,24 @@ const ProfileSheet = ({
             <div className="space-y-4 pt-2 pb-2">
               <header className="text-center pb-1">
                 <h2 className="text-xl font-bold tracking-tight">{household.name}</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
+                <p className="text-base text-muted-foreground mt-0.5">
                   {calendarKindLabelLocalized(household, t)}
                 </p>
-                <p className="text-xs text-muted-foreground/80 mt-1.5">
+                <p className="text-sm text-muted-foreground/80 mt-1.5">
                   {t('profile.thisCalendarHint', { name: household.name })}
                 </p>
               </header>
 
               <section className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
+                <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
                   {t('profile.members')}
                 </p>
                 {members.map((m) => (
                   <div key={m.id} className="flex items-center gap-3 rounded-xl bg-muted/40 p-3">
                     <MemberAvatar member={m} size="sm" />
                     <div>
-                      <p className="font-medium text-sm">{m.display_name}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="font-medium text-base">{m.display_name}</p>
+                      <p className="text-sm text-muted-foreground">
                         {m.role === 'owner' ? t('common.owner') : t('common.member')}
                       </p>
                     </div>
@@ -412,10 +412,10 @@ const ProfileSheet = ({
 
               {isWorkCalendar && (
                 <section className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
                     {t('profile.workOrg')}
                   </p>
-                  <p className="text-xs text-muted-foreground">{t('profile.workOrgHint')}</p>
+                  <p className="text-sm text-muted-foreground">{t('profile.workOrgHint')}</p>
                   {isOwner ? (
                     <div className="space-y-2">
                       <input
@@ -425,22 +425,22 @@ const ProfileSheet = ({
                           setWorkOrgSaved(false);
                         }}
                         placeholder="00000000-0000-4000-8000-000000000000"
-                        className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-base"
                         spellCheck={false}
                       />
                       <button
                         type="button"
                         onClick={() => saveWorkOrg.mutate()}
                         disabled={saveWorkOrg.isPending}
-                        className="w-full rounded-xl bg-calendar-accent/60 py-2.5 text-sm font-medium transition-colors hover:bg-calendar-accent/80 disabled:opacity-50"
+                        className="w-full rounded-xl bg-calendar-accent/60 py-2.5 text-base font-medium transition-colors hover:bg-calendar-accent/80 disabled:opacity-50"
                       >
                         {saveWorkOrg.isPending ? t('common.loading') : t('common.save')}
                       </button>
                       {workOrgSaved && (
-                        <p className="text-xs text-muted-foreground text-center">{t('profile.workOrgSaved')}</p>
+                        <p className="text-sm text-muted-foreground text-center">{t('profile.workOrgSaved')}</p>
                       )}
                       {workOrgError && (
-                        <p className="text-destructive text-sm text-center">{workOrgError}</p>
+                        <p className="text-destructive text-base text-center">{workOrgError}</p>
                       )}
                     </div>
                   ) : null}
@@ -457,8 +457,8 @@ const ProfileSheet = ({
                     onChange={(e) => toggleShowInOther.mutate(e.target.checked)}
                   />
                   <span>
-                    <span className="block text-sm font-medium">{t('profile.showInOther')}</span>
-                    <span className="block text-xs text-muted-foreground mt-0.5">
+                    <span className="block text-base font-medium">{t('profile.showInOther')}</span>
+                    <span className="block text-sm text-muted-foreground mt-0.5">
                       {t('profile.showInOtherHint', { name: household.name })}
                     </span>
                   </span>
@@ -476,39 +476,39 @@ const ProfileSheet = ({
                       <button
                         onClick={() => createInvite.mutate()}
                         disabled={createInvite.isPending}
-                        className="w-full rounded-xl bg-calendar-accent/60 py-3 text-sm font-medium transition-colors hover:bg-calendar-accent/80 disabled:opacity-50"
+                        className="w-full rounded-xl bg-calendar-accent/60 py-3 text-base font-medium transition-colors hover:bg-calendar-accent/80 disabled:opacity-50"
                       >
                         {createInvite.isPending ? t('onboarding.creating') : t('profile.invite')}
                       </button>
                     ) : (
                       <div className="rounded-xl bg-muted/40 p-4 space-y-3">
-                        <p className="text-sm font-medium text-center">{t('profile.inviteCode')}</p>
+                        <p className="text-base font-medium text-center">{t('profile.inviteCode')}</p>
                         <p className="text-2xl font-bold text-center tracking-widest select-all">{inviteCode}</p>
                         {inviteExpiry && (
-                          <p className="text-xs text-muted-foreground text-center">
+                          <p className="text-sm text-muted-foreground text-center">
                             {new Date(inviteExpiry).toLocaleDateString(intlLocale)}
                           </p>
                         )}
-                        <p className="text-[11px] text-muted-foreground text-center break-all">
+                        <p className="text-sm text-muted-foreground text-center break-all">
                           {buildInviteUrl(inviteCode)}
                         </p>
                         <button
                           onClick={() => void handleCopyCode()}
-                          className="w-full rounded-xl bg-calendar-accent/60 py-2.5 text-sm font-medium transition-colors hover:bg-calendar-accent/80"
+                          className="w-full rounded-xl bg-calendar-accent/60 py-2.5 text-base font-medium transition-colors hover:bg-calendar-accent/80"
                         >
                           {copied ? t('profile.copied') : t('welcome.copyCode')}
                         </button>
                         <button
                           type="button"
                           onClick={() => void handleShareCode()}
-                          className="w-full rounded-xl bg-muted py-2.5 text-sm font-medium transition-colors hover:bg-muted/80"
+                          className="w-full rounded-xl bg-muted py-2.5 text-base font-medium transition-colors hover:bg-muted/80"
                         >
                           {t('welcome.shareCode')}
                         </button>
                       </div>
                     )}
                     {createInvite.isError && (
-                      <p className="text-destructive text-sm text-center">
+                      <p className="text-destructive text-base text-center">
                         {(createInvite.error as any)?.message || t('common.error')}
                       </p>
                     )}
@@ -517,7 +517,7 @@ const ProfileSheet = ({
               </section>
 
               <section className="space-y-3 pt-1 border-t border-border/50">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
+                <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
                   {t('profile.settingsThis')}
                 </p>
                 <DailyDigestSettings member={currentMember} />
@@ -528,16 +528,16 @@ const ProfileSheet = ({
                 {!showLeaveConfirm ? (
                   <button
                     onClick={() => { setLeaveError(''); setShowLeaveConfirm(true); }}
-                    className="w-full rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    className="w-full rounded-xl border border-border py-3 text-base font-medium text-muted-foreground hover:bg-muted transition-colors"
                   >
                     {t('profile.leave')}
                   </button>
                 ) : (
                   <div className="rounded-xl bg-muted p-4 space-y-3">
-                    <p className="text-sm font-medium text-center">
+                    <p className="text-base font-medium text-center">
                       {t('profile.leaveConfirm', { name: household.name })}
                     </p>
-                    <p className="text-xs text-muted-foreground text-center">
+                    <p className="text-sm text-muted-foreground text-center">
                       {members.length <= 1
                         ? t('profile.leaveSole')
                         : currentMember.role === 'owner'
@@ -548,20 +548,20 @@ const ProfileSheet = ({
                       <button
                         onClick={() => { setShowLeaveConfirm(false); setLeaveError(''); }}
                         disabled={leaveHousehold.isPending}
-                        className="rounded-xl border border-border py-2.5 text-sm font-medium hover:bg-background transition-colors disabled:opacity-50"
+                        className="rounded-xl border border-border py-2.5 text-base font-medium hover:bg-background transition-colors disabled:opacity-50"
                       >
                         {t('common.cancel')}
                       </button>
                       <button
                         onClick={() => leaveHousehold.mutate()}
                         disabled={leaveHousehold.isPending}
-                        className="rounded-xl bg-destructive py-2.5 text-sm font-semibold text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                        className="rounded-xl bg-destructive py-2.5 text-base font-semibold text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
                       >
                         {leaveHousehold.isPending ? t('profile.leaving') : t('profile.leaveYes')}
                       </button>
                     </div>
                     {leaveError && (
-                      <p className="text-destructive text-sm text-center">{leaveError}</p>
+                      <p className="text-destructive text-base text-center">{leaveError}</p>
                     )}
                   </div>
                 )}
@@ -592,16 +592,16 @@ const ProfileSheet = ({
                   />
                 </div>
                 {uploadError && (
-                  <p className="text-destructive text-xs mb-2">{uploadError}</p>
+                  <p className="text-destructive text-sm mb-2">{uploadError}</p>
                 )}
                 <h2 className="text-2xl font-bold">{currentMember.display_name}</h2>
-                <p className="text-xs text-muted-foreground/80 mt-1.5">
+                <p className="text-sm text-muted-foreground/80 mt-1.5">
                   {t('profile.avatarHint')}
                 </p>
               </section>
 
               <section className="space-y-3 rounded-2xl bg-muted/40 px-4 py-4">
-                <p className="text-xs text-muted-foreground px-0.5 -mt-1">
+                <p className="text-sm text-muted-foreground px-0.5 -mt-1">
                   {t('profile.accountHint')}
                 </p>
 
@@ -617,7 +617,7 @@ const ProfileSheet = ({
                       setCreateKind('work');
                       setCreateName('Jobb');
                     }}
-                    className="w-full rounded-xl border border-border bg-background py-3 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    className="w-full rounded-xl border border-border bg-background py-3 text-base font-medium text-muted-foreground hover:bg-muted transition-colors"
                   >
                     {t('profile.createCalendar')}
                   </button>
@@ -632,7 +632,7 @@ const ProfileSheet = ({
                             setCreateKind(opt.value);
                             setCreateName(opt.defaultName);
                           }}
-                          className={`rounded-xl p-2.5 text-sm font-semibold ${
+                          className={`rounded-xl p-2.5 text-base font-semibold ${
                             createKind === opt.value ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
                           }`}
                         >
@@ -644,13 +644,13 @@ const ProfileSheet = ({
                       value={createName}
                       onChange={(e) => setCreateName(e.target.value)}
                       placeholder={t('profile.calendarName')}
-                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => { setShowCreate(false); setCreateError(''); }}
-                        className="rounded-xl border border-border py-2.5 text-sm font-medium hover:bg-muted transition-colors"
+                        className="rounded-xl border border-border py-2.5 text-base font-medium hover:bg-muted transition-colors"
                       >
                         {t('common.cancel')}
                       </button>
@@ -658,13 +658,13 @@ const ProfileSheet = ({
                         type="button"
                         onClick={() => createCalendar.mutate()}
                         disabled={createCalendar.isPending}
-                        className="rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                        className="rounded-xl bg-primary py-2.5 text-base font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
                       >
                         {createCalendar.isPending ? t('onboarding.creating') : t('profile.create')}
                       </button>
                     </div>
                     {createError && (
-                      <p className="text-destructive text-sm text-center">{createError}</p>
+                      <p className="text-destructive text-base text-center">{createError}</p>
                     )}
                   </div>
                 )}
@@ -673,7 +673,7 @@ const ProfileSheet = ({
                   <button
                     type="button"
                     onClick={() => { setShowJoin(true); setShowCreate(false); setJoinError(''); }}
-                    className="w-full rounded-xl border border-border bg-background py-3 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    className="w-full rounded-xl border border-border bg-background py-3 text-base font-medium text-muted-foreground hover:bg-muted transition-colors"
                   >
                     {t('profile.joinCalendar')}
                   </button>
@@ -684,14 +684,14 @@ const ProfileSheet = ({
                       onChange={(e) => setJoinCode(normalizeInviteCode(e.target.value))}
                       placeholder="AB12-CD34"
                       autoComplete="off"
-                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-primary"
                     />
-                    <p className="text-xs text-muted-foreground">{t('onboarding.inviteCodeHint')}</p>
+                    <p className="text-sm text-muted-foreground">{t('onboarding.inviteCodeHint')}</p>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => { setShowJoin(false); setJoinCode(''); setJoinError(''); }}
-                        className="rounded-xl border border-border py-2.5 text-sm font-medium hover:bg-muted transition-colors"
+                        className="rounded-xl border border-border py-2.5 text-base font-medium hover:bg-muted transition-colors"
                       >
                         {t('common.cancel')}
                       </button>
@@ -699,13 +699,13 @@ const ProfileSheet = ({
                         type="button"
                         onClick={() => { setJoinError(''); joinHousehold.mutate(); }}
                         disabled={joinHousehold.isPending}
-                        className="rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                        className="rounded-xl bg-primary py-2.5 text-base font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
                       >
                         {joinHousehold.isPending ? t('onboarding.joining') : t('onboarding.joinCta')}
                       </button>
                     </div>
                     {joinError && (
-                      <p className="text-destructive text-sm text-center">{joinError}</p>
+                      <p className="text-destructive text-base text-center">{joinError}</p>
                     )}
                   </div>
                 )}
@@ -714,12 +714,12 @@ const ProfileSheet = ({
                   <button
                     onClick={handleSignOutClick}
                     disabled={isSigningOut}
-                    className="w-full rounded-xl border border-border bg-background py-3 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-xl border border-border bg-background py-3 text-base font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSigningOut ? t('profile.signingOut') : t('profile.signOut')}
                   </button>
                   {signOutError && (
-                    <p className="text-destructive text-sm text-center">{signOutError}</p>
+                    <p className="text-destructive text-base text-center">{signOutError}</p>
                   )}
                 </div>
 
@@ -728,16 +728,16 @@ const ProfileSheet = ({
                     <button
                       type="button"
                       onClick={() => { setDeleteError(''); setShowDeleteConfirm(true); }}
-                      className="w-full rounded-xl py-2.5 text-sm font-medium text-destructive underline underline-offset-2"
+                      className="w-full rounded-xl py-2.5 text-base font-medium text-destructive underline underline-offset-2"
                     >
                       {t('profile.deleteAccount')}
                     </button>
                   ) : (
                     <div className="rounded-xl bg-muted p-4 space-y-3">
-                      <p className="text-sm font-medium text-center">
+                      <p className="text-base font-medium text-center">
                         {t('profile.deleteAccountConfirm')}
                       </p>
-                      <p className="text-xs text-muted-foreground text-center">
+                      <p className="text-sm text-muted-foreground text-center">
                         {t('profile.deleteAccountHint')}
                       </p>
                       <div className="grid grid-cols-2 gap-2">
@@ -745,7 +745,7 @@ const ProfileSheet = ({
                           type="button"
                           onClick={() => { setShowDeleteConfirm(false); setDeleteError(''); }}
                           disabled={deleteAccountMutation.isPending}
-                          className="rounded-xl border border-border py-2.5 text-sm font-medium hover:bg-background transition-colors disabled:opacity-50"
+                          className="rounded-xl border border-border py-2.5 text-base font-medium hover:bg-background transition-colors disabled:opacity-50"
                         >
                           {t('common.cancel')}
                         </button>
@@ -753,7 +753,7 @@ const ProfileSheet = ({
                           type="button"
                           onClick={() => deleteAccountMutation.mutate()}
                           disabled={deleteAccountMutation.isPending}
-                          className="rounded-xl bg-destructive py-2.5 text-sm font-semibold text-destructive-foreground hover:opacity-90 disabled:opacity-50"
+                          className="rounded-xl bg-destructive py-2.5 text-base font-semibold text-destructive-foreground hover:opacity-90 disabled:opacity-50"
                         >
                           {deleteAccountMutation.isPending
                             ? t('profile.deletingAccount')
@@ -761,13 +761,13 @@ const ProfileSheet = ({
                         </button>
                       </div>
                       {deleteError && (
-                        <p className="text-destructive text-sm text-center">{deleteError}</p>
+                        <p className="text-destructive text-base text-center">{deleteError}</p>
                       )}
                     </div>
                   )}
                 </div>
 
-                <div className="pt-1 space-y-3 text-center text-xs text-muted-foreground">
+                <div className="pt-1 space-y-3 text-center text-sm text-muted-foreground">
                   <a
                     href="https://pastelly.no/personvern"
                     target="_blank"

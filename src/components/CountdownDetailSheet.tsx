@@ -214,7 +214,7 @@ const CountdownDetailSheet = ({
               </button>
             ) : (
               <div className="space-y-2 rounded-2xl bg-muted/60 p-3 text-left">
-                <label className="block text-xs font-medium">{t('event.date')}
+                <label className="block text-sm font-medium">{t('event.date')}
                   <input
                     type="date"
                     className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
@@ -225,7 +225,7 @@ const CountdownDetailSheet = ({
                     }}
                   />
                 </label>
-                <label className="block text-xs font-medium">{t('event.clock')}
+                <label className="block text-sm font-medium">{t('event.clock')}
                   <input
                     type="time"
                     className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
@@ -233,7 +233,7 @@ const CountdownDetailSheet = ({
                     onChange={(e) => setEditTime(e.target.value)}
                   />
                 </label>
-                <label className="block text-xs font-medium">{t('countdown.endDate')}
+                <label className="block text-sm font-medium">{t('countdown.endDate')}
                   <input
                     type="date"
                     className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
@@ -249,7 +249,7 @@ const CountdownDetailSheet = ({
                   />
                 </label>
                 {editEndDate && (
-                  <label className="block text-xs font-medium">{t('countdown.endTime')}
+                  <label className="block text-sm font-medium">{t('countdown.endTime')}
                     <input
                       type="time"
                       className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
@@ -258,7 +258,7 @@ const CountdownDetailSheet = ({
                     />
                   </label>
                 )}
-                <label className="block text-xs font-medium">{t('countdown.timezone')}
+                <label className="block text-sm font-medium">{t('countdown.timezone')}
                   <select
                     className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
                     value={editTz}
@@ -285,7 +285,7 @@ const CountdownDetailSheet = ({
         )}
 
         <div className="mt-5 space-y-2 text-left">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground text-center mb-2">
+          <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground text-center mb-2">
             {t('countdown.participants')}
           </p>
           {countdown.countdown_participants
@@ -304,7 +304,7 @@ const CountdownDetailSheet = ({
                     )}
                   </span>
                   <span className="font-medium flex-1 text-sm">{m.display_name}</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-sm text-muted-foreground">
                     {p.status === 'joined'
                       ? t('countdown.statusJoined')
                       : t('countdown.statusInvited')}
