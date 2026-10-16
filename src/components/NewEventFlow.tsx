@@ -19,6 +19,7 @@ import { useLocale } from '@/hooks/useLocale';
 import CenteredPopup from '@/components/CenteredPopup';
 import PopupStickyFooter from '@/components/PopupStickyFooter';
 import { blurSheetField } from '@/lib/focusSheetField';
+import { hapticDoubleLight } from '@/lib/native/haptics';
 import { focusFieldSoftly, scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
 import { stepForward } from '@/lib/motion';
 import EventPeriodFields from '@/components/EventPeriodFields';
@@ -305,6 +306,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
           toast.error('Hendelsen ble opprettet, men delingen feilet.');
         }
       }
+      void hapticDoubleLight();
       onCreated?.(result.id, dateStr);
       onClose();
     } catch (err: any) {

@@ -17,6 +17,7 @@ import type { HouseholdMember } from '@/hooks/useHousehold';
 import CenteredPopup from '@/components/CenteredPopup';
 import PopupStickyFooter from '@/components/PopupStickyFooter';
 import { scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
+import { hapticDoubleLight } from '@/lib/native/haptics';
 import { useLocale } from '@/hooks/useLocale';
 import type { MessageKey } from '@/lib/i18n';
 import EventPeriodFields from '@/components/EventPeriodFields';
@@ -278,6 +279,7 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
         console.error('[EditEventQuickSheet] sync visible members failed', syncErr);
         toast.error(t('event.shareFailed'));
       }
+      void hapticDoubleLight();
       onSaved?.(event.id, format(startDate, 'yyyy-MM-dd'));
       onClose();
     } catch (err: any) {

@@ -26,9 +26,11 @@ import {
   NUDGE_VEL,
   SAME_DETENT_VEL_CAP,
   SETTLE_SPRING,
+  SHEET_HALF_VISIBLE,
   VEL_EMA,
   runSheetEaseOut,
   runSheetSpring,
+  sheetYToReveal,
   type SheetSpringOpts,
 } from '@/lib/sheetMotion';
 
@@ -52,6 +54,11 @@ interface CenteredPopupProps {
   detents?: SheetDetent[];
   /** Where the sheet opens. Defaults to the largest detent. */
   initialDetent?: SheetDetent;
+  /**
+   * Open tall enough to show the scroll content. Grows from the initial
+   * detent up to full; anything past full scrolls inside the sheet.
+   */
+  fitContent?: boolean;
   className?: string;
   zClassName?: string;
   backdrop?: 'solid' | 'none';
@@ -66,7 +73,7 @@ interface CenteredPopupProps {
 /** Visible fraction of the frame at each detent (full = flush to top inset). */
 const DETENT_VISIBLE: Record<SheetDetent, number> = {
   full: 1,
-  half: 0.55,
+  half: SHEET_HALF_VISIBLE,
 };
 
 function getScrollEl(root: HTMLElement | null): HTMLElement | null {
@@ -153,6 +160,7 @@ const CenteredPopup = ({
   size = 'sheet',
   detents: detentsProp,
   initialDetent,
+  fitContent = false,
   className,
   zClassName = 'z-50',
   backdrop = 'solid',
@@ -181,6 +189,14 @@ const CenteredPopup = ({
   const settleDragRef = useRef<(vy: number) => void>(() => {});
   const cancelSpringRef = useRef<(() => void) | null>(null);
   const animatingRef = useRef(false);
+  const fitContentRef = useRef(fitContent);
+  const fitYRef = useRef<number | null>(null);
+  const restYRef = useRef<number | null>(null);
+  const animTargetRef = useRef<number | null>(null);
+  const userAdjustedRef = useRef(false);
+  const dragOriginYRef = useRef<number | null>(null);
+  const isRecessedRef = useRef(false);
+  const refitSheetContentRef = useRef<() => void>(() => {});
 
   const nestDepth = useSyncExternalStore(subscribeNest, getNestDepth, () => 0);
 
@@ -236,6 +252,8 @@ const CenteredPopup = ({
   flyingOutRef.current = flyingOut;
   frameHRef.current = frameH;
   multiDetentRef.current = multiDetent;
+  fitContentRef.current = fitContent;
+  isRecessedRef.current = isRecessed;
 
   useEffect(() => {
     const id = window.requestAnimationFrame(() => {
@@ -345,7 +363,12 @@ const CenteredPopup = ({
     opts?: { velocity?: number; spring?: SheetSpringOpts; keepCompositor?: boolean },
   ) => {
     detentRef.current = detent;
+    if (fitContentRef.current) {
+      userAdjustedRef.current = true;
+      restYRef.current = null;
+    }
     const target = yForDetent(detent, frameHRef.current);
+    animTargetRef.current = target;
     animateTo(target, {
       velocity: opts?.velocity ?? 0,
       spring: opts?.spring ?? DETENT_SPRING,
@@ -353,19 +376,91 @@ const CenteredPopup = ({
     });
   };
 
+  /**
+   * Height of grabber + header + event rows + dock padding.
+   * Measured at full height so a still-closed sheet doesn't collapse the rows,
+   * then the box is put back before paint.
+   */
+  const measureSheetContent = (card: HTMLElement): number | null => {
+    const scroll = getScrollEl(card);
+    const layer = sheetLayerRef.current;
+    if (!scroll || !layer || size !== 'sheet') return null;
+    const frameHNow = frameHRef.current;
+    const prevY = yRef.current;
+    applySheetBox(layer, 0, frameHNow, false, dismissAnchorRef.current);
+    try {
+      const top = scroll.getBoundingClientRect().top - card.getBoundingClientRect().top;
+      const style = getComputedStyle(scroll);
+      let content = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+      for (const kid of Array.from(scroll.children)) {
+        if (!(kid instanceof HTMLElement)) continue;
+        const kidStyle = getComputedStyle(kid);
+        content +=
+          kid.offsetHeight +
+          (parseFloat(kidStyle.marginTop) || 0) +
+          (parseFloat(kidStyle.marginBottom) || 0);
+      }
+      if (content < 1) content = scroll.scrollHeight;
+      return Math.max(0, top + content);
+    } finally {
+      applySheetBox(layer, prevY, frameHNow, flyingOutRef.current, dismissAnchorRef.current);
+    }
+  };
+
+  const refitSheetContent = () => {
+    if (!fitContentRef.current || flyingOutRef.current || userAdjustedRef.current) return;
+    if (gestureRef.current?.dragging || isRecessedRef.current) return;
+    const card = cardRef.current;
+    if (!card || frameHRef.current <= 0) return;
+    const needed = measureSheetContent(card);
+    if (needed == null) return;
+    const next = sheetYToReveal(frameHRef.current, needed);
+    fitYRef.current = next;
+    restYRef.current = next;
+    detentRef.current = next <= 1 ? 'full' : 'half';
+    if (!enteredRef.current) return;
+    if (
+      animatingRef.current &&
+      animTargetRef.current != null &&
+      Math.abs(animTargetRef.current - next) < 8
+    ) {
+      return;
+    }
+    if (Math.abs(yRef.current - next) < 8) {
+      animTargetRef.current = next;
+      return;
+    }
+    animTargetRef.current = next;
+    animateTo(next, { spring: SETTLE_SPRING, keepCompositor: true });
+  };
+  refitSheetContentRef.current = refitSheetContent;
+
   // Enter + keep detent aligned when frame height changes
   useEffect(() => {
     if (flyingOut || frameH <= 0) return;
     if (!enteredRef.current) {
+      if (fitContentRef.current && fitYRef.current == null) {
+        refitSheetContentRef.current();
+      }
       enteredRef.current = true;
-      detentRef.current = startDetent;
-      animateTo(yForDetent(startDetent, frameH), {
+      const openY =
+        fitContentRef.current && fitYRef.current != null
+          ? fitYRef.current
+          : yForDetent(startDetent, frameH);
+      if (fitContentRef.current) restYRef.current = openY;
+      detentRef.current = openY <= 1 ? 'full' : startDetent;
+      animTargetRef.current = openY;
+      animateTo(openY, {
         spring: SETTLE_SPRING,
         keepCompositor: true,
       });
       return;
     }
     if (gestureRef.current?.dragging || animatingRef.current) return;
+    if (fitContentRef.current && !userAdjustedRef.current) {
+      refitSheetContentRef.current();
+      return;
+    }
     const target = yForDetent(detentRef.current, frameH);
     if (Math.abs(yRef.current - target) < 6) return;
     animateTo(target, { spring: SETTLE_SPRING });
@@ -403,6 +498,7 @@ const CenteredPopup = ({
       card.querySelectorAll<HTMLElement>('[data-sheet-scroll]').forEach((el) => {
         el.style.paddingBottom = pad;
       });
+      refitSheetContentRef.current();
     };
 
     const bind = () => {
@@ -430,6 +526,36 @@ const CenteredPopup = ({
       mo.disconnect();
     };
   }, [keyboardOpen, keyboardInset, dockRoot]);
+
+  // Event rows can arrive or wrap after the first measure. Watch the rows,
+  // not the scroll box — the box itself changes height while the sheet moves.
+  useLayoutEffect(() => {
+    if (!fitContent) return;
+    const scroll = getScrollEl(cardRef.current);
+    if (!scroll) return;
+    const ro = new ResizeObserver(() => {
+      refitSheetContentRef.current();
+    });
+    const watch = () => {
+      ro.disconnect();
+      Array.from(scroll.children).forEach((child) => {
+        if (child instanceof Element) ro.observe(child);
+      });
+    };
+    watch();
+    const mo = new MutationObserver(watch);
+    mo.observe(scroll, { childList: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [fitContent, dockRoot]);
+
+  // A nested sheet can hide a list change. Fit again when this sheet is back.
+  useLayoutEffect(() => {
+    if (!fitContent || isRecessed) return;
+    refitSheetContentRef.current();
+  }, [fitContent, isRecessed]);
 
   // Keep focused field visible above sticky footer + keyboard
   useEffect(() => {
@@ -506,6 +632,26 @@ const CenteredPopup = ({
     if (flyingOut) return;
     const y = yRef.current;
     const h = frameHRef.current;
+    const origin = dragOriginYRef.current;
+    if (
+      origin != null &&
+      Math.abs(y - origin) < NUDGE_DEADZONE_PX &&
+      Math.abs(vy) < NUDGE_VEL
+    ) {
+      userAdjustedRef.current = false;
+      restYRef.current = origin;
+      animTargetRef.current = origin;
+      animateTo(origin, {
+        velocity: 0,
+        spring: SETTLE_SPRING,
+        keepCompositor: true,
+      });
+      return;
+    }
+    if (fitContentRef.current) {
+      userAdjustedRef.current = true;
+      restYRef.current = null;
+    }
     const current = detentRef.current;
     const currentY = yForDetent(current, h);
     const deltaFromCurrent = y - currentY;
@@ -571,6 +717,11 @@ const CenteredPopup = ({
       state.lastY = clientY;
       state.lastAt = timeStamp;
       state.startDragY = yRef.current;
+      dragOriginYRef.current =
+        fitContentRef.current && !userAdjustedRef.current
+          ? (restYRef.current ?? yRef.current)
+          : null;
+      userAdjustedRef.current = true;
       stopSpring();
       setDragVisual(true);
       try {

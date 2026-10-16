@@ -18,6 +18,7 @@ import type { HouseholdMember } from '@/hooks/useHousehold';
 import CenteredPopup from '@/components/CenteredPopup';
 import PopupStickyFooter from '@/components/PopupStickyFooter';
 import { blurSheetField } from '@/lib/focusSheetField';
+import { hapticDoubleLight } from '@/lib/native/haptics';
 import { scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
 import { stepForward, stepSpring } from '@/lib/motion';
 import { useLocale } from '@/hooks/useLocale';
@@ -297,6 +298,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
         console.error('[EditEventFlow] sync visible members failed', syncErr);
         toast.error(t('event.shareFailed'));
       }
+      void hapticDoubleLight();
       onSaved?.(event.id, format(startDate, 'yyyy-MM-dd'));
       onClose();
     } catch (err: any) {

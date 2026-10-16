@@ -9,6 +9,7 @@ import { OVERLAY_MARK, type DisplayEvent } from '@/hooks/useOverlayEvents';
 import { WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import SheetActionDock from '@/components/SheetActionDock';
+import { hapticLight } from '@/lib/native/haptics';
 import { BriefcaseBusiness, Plus } from 'lucide-react';
 import { formatEventStayLabel } from '@/lib/eventStay';
 import { addressDisplayLabel } from '@/lib/eventLocation';
@@ -47,7 +48,10 @@ const DayOverview = ({
   const addButton = (
     <button
       type="button"
-      onClick={() => onCreateForDate(date)}
+      onClick={() => {
+        void hapticLight();
+        onCreateForDate(date);
+      }}
       aria-label={t('event.newActivity')}
       className="flex h-12 w-12 items-center justify-center rounded-full bg-green-200 text-green-900 active:bg-green-300"
     >
