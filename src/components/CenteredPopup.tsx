@@ -391,7 +391,9 @@ const CenteredPopup = ({
     try {
       const top = scroll.getBoundingClientRect().top - card.getBoundingClientRect().top;
       const style = getComputedStyle(scroll);
-      let content = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+      // Leave out the dock clearance. That padding only lets the last row
+      // scroll free; counting it opens a blank band under the buttons.
+      let content = parseFloat(style.paddingTop) || 0;
       for (const kid of Array.from(scroll.children)) {
         if (!(kid instanceof HTMLElement)) continue;
         const kidStyle = getComputedStyle(kid);
