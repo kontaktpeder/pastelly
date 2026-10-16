@@ -353,7 +353,10 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                 />
               </div>
 
-              <h2 className="text-2xl font-bold">{t('event.when')}</h2>
+              <h2 className="text-2xl font-bold">
+                {t('event.when')}
+                <span className="ml-1 text-lg text-primary" aria-label={t('common.required')}>*</span>
+              </h2>
 
               <EventPeriodFields
                 isHotel={isHotel}
@@ -534,7 +537,10 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
           {step === 2 && (
             <motion.div key="step2" {...stepForward} className="space-y-5">
               <div className="space-y-3">
-                <h2 className="text-2xl font-bold">{t('event.chooseIcon')}</h2>
+                <h2 className="text-2xl font-bold">
+                  {t('event.chooseIcon')}
+                  <span className="ml-1 text-lg text-primary" aria-label={t('common.required')}>*</span>
+                </h2>
                 <div className="flex flex-wrap gap-2.5">
                   {categoryOptions.map((key) => {
                     const meta = EVENT_CATEGORY_META[key];
@@ -652,23 +658,50 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
 
 
               {/* Summary */}
-              <div className="rounded-2xl bg-muted p-4">
-                <p className="mb-1 text-sm text-muted-foreground">{t('event.summary')}</p>
-                <p className="text-base font-semibold">{title}</p>
-                <p className="text-sm text-muted-foreground">
-                  {format(startDate, 'd. MMMM yyyy', { locale: dateLocale })}
-                  {endDate && ` → ${format(endDate, 'd. MMMM yyyy', { locale: dateLocale })}`}
-                  {' · '}
-                  {getDayPartRangeLabel()}
-                  {!useAllDay && startTime && ` · ${startTime}`}
-                  {!useAllDay && endTime ? `–${endTime}` : ''}
-                </p>
-                {category && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {resolveCategoryLabel(category, otherLabel, locale)}
-                  </p>
-                )}
-              </div>
+              {(() => {
+                const visuals = category ? resolveCategoryVisuals(category, memberColorMap) : null;
+                const SummaryIcon = category ? EVENT_CATEGORY_META[category]?.Icon : null;
+                const whenLine = [
+                  format(startDate, 'd. MMMM yyyy', { locale: dateLocale }),
+                  endDate ? format(endDate, 'd. MMMM yyyy', { locale: dateLocale }) : null,
+                ].filter(Boolean).join(' → ');
+                const timeLine = [
+                  getDayPartRangeLabel(),
+                  !useAllDay && startTime ? `${startTime}${endTime ? `–${endTime}` : ''}` : null,
+                ].filter(Boolean).join(' · ');
+                return (
+                  <div
+                    className="rounded-2xl p-4"
+                    style={{ backgroundColor: visuals?.soft ?? 'hsl(var(--muted))' }}
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t('event.summary')}
+                    </p>
+                    <div className="mt-3 flex items-start gap-3">
+                      {SummaryIcon && visuals && (
+                        <span
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                          style={{ backgroundColor: visuals.rail }}
+                        >
+                          <SummaryIcon size={20} strokeWidth={2.4} style={{ color: visuals.ink }} />
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-lg font-bold leading-tight">{title}</p>
+                        <p className="mt-1 text-sm">{whenLine}</p>
+                        {timeLine && (
+                          <p className="text-sm text-muted-foreground">{timeLine}</p>
+                        )}
+                        {category && (
+                          <p className="mt-1 text-sm font-medium" style={{ color: visuals?.ink }}>
+                            {resolveCategoryLabel(category, otherLabel, locale)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </motion.div>
           )}
         </AnimatePresence>

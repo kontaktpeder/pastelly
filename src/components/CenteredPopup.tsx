@@ -34,8 +34,8 @@ import {
 
 export type SheetDetent = 'half' | 'full';
 
-/** Extra scroll room so sticky footer + keyboard don't clip focused fields. */
-const KEYBOARD_SCROLL_FOOTER_RESERVE = 128;
+/** Air between the last row and whatever covers the bottom of the sheet. */
+const SCROLL_END_GAP = 16;
 
 interface CenteredPopupProps {
   onClose: () => void;
@@ -201,6 +201,7 @@ const CenteredPopup = ({
   const [backdropOpen, setBackdropOpen] = useState(false);
   const [padReady, setPadReady] = useState(false);
   const [flyingOut, setFlyingOut] = useState(false);
+  const [dockRoot, setDockRoot] = useState<HTMLDivElement | null>(null);
   const flyingOutRef = useRef(false);
   const enteredRef = useRef(false);
   const dismissLockedRef = useRef(false);
@@ -379,23 +380,62 @@ const CenteredPopup = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyboardOpen, flyingOut]);
 
-  // Lift scroll room inside the sheet — do NOT pad the outer frame (that crushed flex-1).
-  useEffect(() => {
+  const bottomCoverRef = useRef(SCROLL_END_GAP);
+
+  // Pad every scroll area by the real footer/dock height so the last buttons
+  // clear Neste and the action dock, including while the keyboard is open.
+  useLayoutEffect(() => {
     const card = cardRef.current;
+    const frame = frameRef.current;
     if (!card) return;
-    const pad = keyboardOpen
-      ? `${Math.min(keyboardInset, Math.round(window.innerHeight * 0.5)) + KEYBOARD_SCROLL_FOOTER_RESERVE}px`
-      : '';
-    card.querySelectorAll<HTMLElement>('[data-sheet-scroll]').forEach((el) => {
-      el.style.paddingBottom = pad;
-    });
-  }, [keyboardOpen, keyboardInset]);
+
+    let footerEl: Element | null = null;
+    let dockEl: Element | null = null;
+    const ro = new ResizeObserver(() => apply());
+
+    const apply = () => {
+      const footerH = footerEl instanceof HTMLElement ? footerEl.offsetHeight : 0;
+      const dockH = dockEl instanceof HTMLElement ? dockEl.offsetHeight : 0;
+      const keyboardLift = keyboardOpen ? keyboardInset : 0;
+      const cover = footerH + dockH + keyboardLift + SCROLL_END_GAP;
+      bottomCoverRef.current = cover;
+      const pad = `${cover}px`;
+      card.querySelectorAll<HTMLElement>('[data-sheet-scroll]').forEach((el) => {
+        el.style.paddingBottom = pad;
+      });
+    };
+
+    const bind = () => {
+      const nextFooter = card.querySelector('[data-sheet-footer]');
+      const nextDock = (frame ?? card).querySelector('[data-sheet-dock]');
+      if (nextFooter !== footerEl) {
+        if (footerEl) ro.unobserve(footerEl);
+        footerEl = nextFooter;
+        if (footerEl) ro.observe(footerEl);
+      }
+      if (nextDock !== dockEl) {
+        if (dockEl) ro.unobserve(dockEl);
+        dockEl = nextDock;
+        if (dockEl) ro.observe(dockEl);
+      }
+      apply();
+    };
+
+    bind();
+    const mo = new MutationObserver(bind);
+    mo.observe(card, { childList: true, subtree: true });
+    if (frame) mo.observe(frame, { childList: true, subtree: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [keyboardOpen, keyboardInset, dockRoot]);
 
   // Keep focused field visible above sticky footer + keyboard
   useEffect(() => {
     const card = cardRef.current;
     if (!card || !keyboardOpen) return;
-    const reserve = KEYBOARD_SCROLL_FOOTER_RESERVE;
+    const reserve = bottomCoverRef.current;
     const onFocusIn = (event: FocusEvent) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
@@ -642,7 +682,6 @@ const CenteredPopup = ({
   }, []);
 
   const useSheetLayout = size === 'sheet';
-  const [dockRoot, setDockRoot] = useState<HTMLDivElement | null>(null);
 
   // Own the sheet box outside React style so re-renders can't nudge the bottom.
   useLayoutEffect(() => {

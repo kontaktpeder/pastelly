@@ -95,11 +95,7 @@ const DayOverview = ({
     <div className="flex min-h-0 flex-1 flex-col">
       <div
         className={`min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain scroll-touch px-5 ${
-          layout === 'sheet'
-            ? canSeedWeek && events.length === 0
-              ? 'pb-40'
-              : 'pb-24'
-            : 'pb-3'
+          layout === 'sheet' ? 'pb-4' : 'pb-3'
         }`}
         style={isAgenda ? { touchAction: 'pan-y' } : undefined}
         data-sheet-scroll
