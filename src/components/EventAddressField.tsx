@@ -4,7 +4,7 @@ import { scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
 import type { Ref } from 'react';
 
 const FIELD =
-  'min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary';
+  'min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-primary';
 
 interface EventAddressFieldProps {
   value: string;
@@ -17,7 +17,7 @@ const EventAddressField = ({ value, onChange, inputRef, className }: EventAddres
   const { t } = useLocale();
   return (
     <div className={className}>
-      <label className="text-sm font-medium mb-1 block">{t('event.address')}</label>
+      <label className="text-base font-medium mb-1 block">{t('event.address')}</label>
       <input
         ref={inputRef}
         type="text"
@@ -29,11 +29,11 @@ const EventAddressField = ({ value, onChange, inputRef, className }: EventAddres
         className={`w-full ${FIELD}`}
       />
       <div className="mt-1 flex items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">{t('event.addressHint')}</p>
+        <p className="text-base text-muted-foreground">{t('event.addressHint')}</p>
         <button
           type="button"
           onClick={() => void openExternalUrl(googleMapsSearchUrl(value))}
-          className="shrink-0 text-xs text-muted-foreground underline underline-offset-2"
+          className="shrink-0 text-base text-muted-foreground underline underline-offset-2"
         >
           {t('event.findInGoogleMaps')}
         </button>

@@ -32,7 +32,7 @@ const ViewHeader = forwardRef<HTMLDivElement, ViewHeaderProps>(
             </svg>
           </button>
           <button type="button" onClick={onTitleClick} className="min-h-11 px-2 text-center" disabled={!onTitleClick}>
-            <h2 className={`text-xl font-extrabold capitalize ${textColor} tracking-wide`}>
+            <h2 className={`${isCalendar ? 'text-2xl' : 'text-xl'} font-bold capitalize ${textColor}`}>
               {children}
             </h2>
             {subtitle && (

@@ -557,7 +557,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         <div className={`flex flex-col h-full min-h-0 ${showYear ? 'invisible pointer-events-none' : ''}`}>
         {/* Month hint strip — soft wash, peeks with the day grid */}
         <div className="relative rounded-b-xl overflow-hidden shrink-0">
-          <div className="relative h-9 overflow-hidden">
+          <div className="relative h-12 overflow-hidden">
             <motion.div
               className="absolute top-0 bottom-0 flex will-change-transform"
               style={{
@@ -582,7 +582,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
             <button
               type="button"
               onClick={goToToday}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 min-h-7 px-2 rounded-full bg-white/80 active:bg-white text-[11px] font-semibold tracking-wide"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 min-h-9 px-3 rounded-full bg-white/80 active:bg-white text-base font-semibold"
               style={{ color: monthTheme.dark }}
             >
               I dag
@@ -592,10 +592,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
         <div className="bg-transparent relative">
           <div className="flex px-1 py-1">
-            <div className="w-3.5 shrink-0" aria-hidden />
+            <div className="w-8 shrink-0" aria-hidden />
             <div className="grid grid-cols-7 flex-1 min-w-0">
               {weekdayLabels.map((d, i) => (
-                <div key={`${d}-${i}`} className={`text-center text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                <div key={`${d}-${i}`} className={`text-center text-base font-semibold uppercase tracking-wide ${
                   i >= 5 ? 'text-primary/60' : 'text-foreground/55'
                 }`}>
                   {d}
@@ -773,10 +773,10 @@ const MonthHeaderPanel = ({
   >
     {onTitleClick ? (
       <button type="button" onClick={onTitleClick} className="relative text-center">
-        <h2 className="text-base font-extrabold capitalize text-current tracking-wide">{label}</h2>
+        <h2 className="text-2xl font-bold capitalize leading-tight text-current">{label}</h2>
       </button>
     ) : (
-      <h2 className="relative text-base font-extrabold capitalize text-current tracking-wide text-center">{label}</h2>
+      <h2 className="relative text-2xl font-bold capitalize leading-tight text-current text-center">{label}</h2>
     )}
   </div>
 );
@@ -853,8 +853,8 @@ const MonthPanel = ({
               weekIndex > 0 ? 'border-t border-border/15' : ''
             }`}
           >
-            <div className="w-3.5 shrink-0 flex items-start justify-center pt-1">
-              <span className="text-[8px] font-medium tabular-nums leading-none select-none text-muted-foreground/40">
+            <div className="w-8 shrink-0 flex items-start justify-center pt-2">
+              <span className="text-base font-medium tabular-nums leading-none select-none text-muted-foreground/55">
                 {weekNum}
               </span>
             </div>
@@ -1088,7 +1088,7 @@ const DayCell = ({
       }`}
     >
       <span
-        className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-base font-semibold tabular-nums leading-none ${
+        className={`w-9 h-9 shrink-0 flex items-center justify-center rounded-full text-lg font-semibold tabular-nums leading-none ${
           today
             ? 'border-[1.5px] border-primary text-primary font-bold'
             : !inMonth
@@ -1162,7 +1162,7 @@ const DayCell = ({
             </div>
           ))}
           {overflow > 0 && (
-            <div className="text-[8px] text-muted-foreground text-center font-medium leading-none shrink-0">
+            <div className="text-base text-muted-foreground text-center font-semibold leading-none shrink-0">
               +{overflow}
             </div>
           )}
@@ -1207,7 +1207,7 @@ const YearView = ({ year, onSelectMonth, onBack, onChangeYear }: { year: number;
                 ...(isCurrentMonth ? { ringColor: theme.dark, borderColor: theme.dark } : {}),
               }}
             >
-              <span className="text-sm font-extrabold capitalize" style={{ color: theme.textOnStrong }}>
+              <span className="text-lg font-bold capitalize" style={{ color: theme.textOnStrong }}>
                 {format(new Date(year, m, 1), 'MMM', { locale: dateLocale })}
               </span>
             </button>

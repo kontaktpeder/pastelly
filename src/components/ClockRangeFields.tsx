@@ -1,7 +1,7 @@
 import { useLocale } from '@/hooks/useLocale';
 
 const TIME_FIELD =
-  'h-12 min-w-0 w-full box-border appearance-none rounded-xl border border-border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-primary';
+  'h-12 min-w-0 w-full box-border appearance-none rounded-xl border border-border bg-background px-3 text-lg focus:outline-none focus:ring-2 focus:ring-primary';
 
 interface ClockRangeFieldsProps {
   startTime: string;
@@ -29,7 +29,7 @@ const ClockRangeFields = ({
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <label className="min-w-0">
-          <span className="mb-1.5 block text-sm font-medium">{t('event.clock')}</span>
+          <span className="mb-1.5 block text-base font-medium">{t('event.clock')}</span>
           <input
             type="time"
             value={startTime}
@@ -38,7 +38,7 @@ const ClockRangeFields = ({
           />
         </label>
         <label className="min-w-0">
-          <span className="mb-1.5 flex h-5 items-center justify-between text-sm font-medium">
+          <span className="mb-1.5 flex h-6 items-center justify-between text-base font-medium">
             <span>{t('event.endTime')}</span>
             {endTime && (
               <button
@@ -65,14 +65,14 @@ const ClockRangeFields = ({
         <button
           type="button"
           onClick={onSubtractHour}
-          className="h-8 rounded-xl border border-foreground/30 bg-transparent px-3 text-sm font-medium text-foreground active:bg-muted"
+          className="h-9 rounded-xl border border-foreground/30 bg-transparent px-3 text-base font-medium text-foreground active:bg-muted"
         >
           {t('event.subtractHour')}
         </button>
         <button
           type="button"
           onClick={onAddHour}
-          className="h-8 rounded-xl bg-green-200 px-3 text-sm font-semibold text-green-900 active:bg-green-300"
+          className="h-9 rounded-xl bg-green-200 px-3 text-base font-semibold text-green-900 active:bg-green-300"
         >
           {t('event.addHour')}
         </button>
