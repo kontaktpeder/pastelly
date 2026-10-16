@@ -31,7 +31,23 @@ describe('headers', () => {
   it('reads day + weekday and year', () => {
     expect(parseDayHeader('18 Sunday')).toBe(18);
     expect(parseDayHeader('19 Monday')).toBe(19);
+    expect(parseDayHeader('Sunday 18')).toBe(18);
+    expect(parseDayHeader('18')).toBe(18);
+    expect(parseDayHeader('Your schedule 18 Sunday')).toBe(18);
     expect(yearFromText('October 2026')).toBe(2026);
     expect(yearFromText('Oct 19-25')).toBeNull();
+  });
+});
+
+describe('messy clocks', () => {
+  it('reads times without a colon when am/pm is present', () => {
+    expect(parseTimeRange('6 00 PM - 11 00 PM')).toEqual({
+      startTime: '18:00',
+      endTime: '23:00',
+    });
+    expect(parseTimeRange('600pm-1100pm')).toEqual({
+      startTime: '18:00',
+      endTime: '23:00',
+    });
   });
 });

@@ -25,7 +25,7 @@ function newId(prefix: string, index: number): string {
 function headerContext(lines: OcrLine[]): { month: number | null; year: number | null } {
   let month: number | null = null;
   let year: number | null = null;
-  for (const line of lines.slice(0, 8)) {
+  for (const line of lines) {
     month = month ?? monthFromText(line.text);
     year = year ?? yearFromText(line.text);
     if (month && year) break;
@@ -38,12 +38,20 @@ function scoreLayout(text: string): ShiftLayout {
   const scores: Record<ShiftLayout, number> = { list: 0, grid: 0, overview: 0 };
   if (/\bpreference\b/.test(t) || /\bshift\s+overview\b/.test(t)) scores.list += 3;
   if (/\bavailable\b/.test(t)) scores.list += 1;
-  if (/\byour\s+shifts?\b/.test(t) || /\bdine\s+vakter\b/.test(t)) scores.grid += 3;
+  if (/\byour\s+sh\w{2,8}\b/.test(t) || /\bdine\s+vakter\b/.test(t)) scores.grid += 3;
   if (/\bopen\s*shifts?\b/.test(t)) scores.grid += 1;
-  if (/\byour\s+schedule\b/.test(t)) scores.overview += 3;
+  if (/\byour\s+schedule\b/.test(t) || /\bdin\s+timeplan\b/.test(t)) scores.overview += 3;
   if (/\bpunch\s*clock\b/.test(t) || /\boverview\b/.test(t)) scores.overview += 1;
   const winner = (Object.entries(scores) as [ShiftLayout, number][]).sort((a, b) => b[1] - a[1])[0];
   return winner[1] > 0 ? winner[0] : 'list';
+}
+
+function findDayLookingBack(lines: OcrLine[], index: number): number | null {
+  for (let i = index; i >= Math.max(0, index - 8); i--) {
+    const day = parseDayHeader(lines[i]!.text);
+    if (day != null) return day;
+  }
+  return null;
 }
 
 function toProposal(
@@ -143,6 +151,7 @@ function extractList(
       continue;
     }
     if (parseTimeRange(line.text)) {
+      currentDay = currentDay ?? findDayLookingBack(lines, i);
       pendingWords = line.words;
       const follow = lines.slice(i + 1, i + 3).filter((l) => !parseDayHeader(l.text) && !parseTimeRange(l.text));
       flushIfShift(follow);
@@ -164,16 +173,26 @@ function extractGrid(lines: OcrLine[], words: OcrWord[], sourceImageIndex: numbe
   const header = headerContext(lines);
   const month = header.month ?? 10;
   const year = header.year;
-  const yourLine = lines.find((l) => isYourShiftsLabel(l.text));
-  if (!yourLine) return [];
-  const nextSection = lines.find((l) => l.y > yourLine.y + 8 && (isOpenShiftsLabel(l.text) || parseDayHeader(l.text) === null && /chef|open|ledig/i.test(l.text)));
-  const rowTop = yourLine.y - 6;
-  const rowBottom = nextSection ? nextSection.y - 4 : yourLine.y + 90;
-
+  const labeled = lines.find((l) => isYourShiftsLabel(l.text));
   const dateLine = [...lines]
     .reverse()
-    .find((l) => l.y < yourLine.y && (l.text.match(/\b\d{1,2}\b/g) ?? []).length >= 5);
-  const dateWords = (dateLine?.words ?? words.filter((w) => w.y < yourLine.y && /^\d{1,2}$/.test(w.text)))
+    .find((l) => (!labeled || l.y < labeled.y) && (l.text.match(/\b\d{1,2}\b/g) ?? []).length >= 5);
+  const timeLine =
+    labeled ??
+    lines.find(
+      (l) =>
+        !!dateLine &&
+        l.y > dateLine.y + 4 &&
+        parseTimeRange(l.text) &&
+        !isOpenShiftsLabel(l.text) &&
+        !isIgnoreLine(l.text),
+    );
+  if (!timeLine) return [];
+  const nextSection = lines.find((l) => l.y > timeLine.y + 8 && (isOpenShiftsLabel(l.text) || parseDayHeader(l.text) === null && /chef|open|ledig/i.test(l.text)));
+  const rowTop = timeLine.y - 6;
+  const rowBottom = nextSection ? nextSection.y - 4 : timeLine.y + 90;
+
+  const dateWords = (dateLine?.words ?? words.filter((w) => w.y < timeLine.y && /^\d{1,2}$/.test(w.text)))
     .filter((w) => {
       const n = Number(w.text);
       return n >= 1 && n <= 31;
@@ -187,7 +206,7 @@ function extractGrid(lines: OcrLine[], words: OcrWord[], sourceImageIndex: numbe
     x: wordCenterX(w),
   }));
 
-  const rowWords = words.filter((w) => wordCenterX(w) && w.y >= rowTop && w.y <= rowBottom && !isYourShiftsLabel(w.text));
+  const rowWords = words.filter((w) => wordCenterX(w) && w.y >= rowTop && w.y <= rowBottom && !isYourShiftsLabel(w.text) && !isYourScheduleLabel(w.text));
   const byCol = new Map<number, OcrWord[]>();
   for (const word of rowWords) {
     let best = columns[0]!;
@@ -237,13 +256,20 @@ export function extractShiftsFromWords(
 ): ExtractedPage {
   const usable = words.filter((w) => w.text.trim().length > 0);
   const lines = clusterLines(usable);
-  const layout = scoreLayout(lines.map((l) => l.text).join('\n'));
-  const proposals =
-    layout === 'grid'
-      ? extractGrid(lines, usable, sourceImageIndex)
-      : layout === 'overview'
-        ? extractOverview(lines, usable, sourceImageIndex)
-        : extractList(lines, usable, sourceImageIndex);
+  const scored = scoreLayout(lines.map((l) => l.text).join('\n'));
+  const byLayout: Record<ShiftLayout, ShiftProposal[]> = {
+    list: extractList(lines, usable, sourceImageIndex),
+    grid: extractGrid(lines, usable, sourceImageIndex),
+    overview: extractOverview(lines, usable, sourceImageIndex),
+  };
+  let layout = scored;
+  let proposals = byLayout[scored];
+  for (const candidate of ['list', 'grid', 'overview'] as ShiftLayout[]) {
+    if (byLayout[candidate].length > proposals.length) {
+      layout = candidate;
+      proposals = byLayout[candidate];
+    }
+  }
   return { layout, proposals };
 }
 

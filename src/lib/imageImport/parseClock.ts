@@ -51,8 +51,15 @@ const MONTHS: Record<string, number> = {
   oktober: 10,
 };
 
-const CLOCK_RE = /(\d{1,2})[:.](\d{2})\s*([ap]m)?/gi;
+const CLOCK_RE = /(\d{1,2})[:.](\d{2})\s*([ap]\.?m\.?)?/gi;
+const AMPM_CLOCK_RE = /(\d{1,2})(?:[:.\s])?(\d{2})\s*([ap]\.?m\.?)/gi;
 const RANGE_SPLIT = /\s*(?:-|–|—|to|til)\s*/i;
+
+function clocksFrom(text: string, pattern: RegExp): string[] {
+  return [...text.matchAll(pattern)]
+    .map((m) => normalizeClockPart(Number(m[1]), Number(m[2]), m[3]))
+    .filter((c): c is string => !!c);
+}
 
 export function pad2(n: number): string {
   return String(n).padStart(2, '0');
@@ -71,7 +78,7 @@ export function addDaysYmd(date: string, days: number): string {
 export function normalizeClockPart(hour: number, minute: number, ampm?: string | null): string | null {
   if (hour > 24 || minute > 59) return null;
   let h = hour;
-  const mer = (ampm ?? '').toLowerCase();
+  const mer = (ampm ?? '').toLowerCase().replace(/\./g, '');
   if (mer === 'am') {
     if (h === 12) h = 0;
   } else if (mer === 'pm') {
@@ -90,16 +97,16 @@ export function parseClockToken(raw: string): string | null {
 
 export function parseTimeRange(text: string): { startTime: string; endTime: string } | null {
   const compact = text.replace(/\s+/g, ' ').trim();
-  const matches = [...compact.matchAll(CLOCK_RE)].map((m) =>
-    normalizeClockPart(Number(m[1]), Number(m[2]), m[3]),
-  );
-  const clocks = matches.filter((c): c is string => !!c);
+  const clocks = clocksFrom(compact, CLOCK_RE);
   if (clocks.length >= 2) return { startTime: clocks[0], endTime: clocks[1] };
+
+  const ampmClocks = clocksFrom(compact, AMPM_CLOCK_RE);
+  if (ampmClocks.length >= 2) return { startTime: ampmClocks[0], endTime: ampmClocks[1] };
 
   const parts = compact.split(RANGE_SPLIT);
   if (parts.length === 2) {
-    const start = parseClockToken(parts[0]);
-    const end = parseClockToken(parts[1]);
+    const start = parseClockToken(parts[0]) ?? clocksFrom(parts[0], AMPM_CLOCK_RE)[0] ?? null;
+    const end = parseClockToken(parts[1]) ?? clocksFrom(parts[1], AMPM_CLOCK_RE)[0] ?? null;
     if (start && end) return { startTime: start, endTime: end };
   }
   return null;
@@ -128,15 +135,20 @@ export function yearFromText(text: string): number | null {
 
 export function parseDayHeader(text: string): number | null {
   const cleaned = text.replace(/[,.]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return null;
   const weekday = WEEKDAYS.join('|');
-  const paired = new RegExp(`^(\\d{1,2})\\s+(?:${weekday})\\b`, 'i').exec(cleaned);
+  const paired = new RegExp(`(?:^|\\s)(\\d{1,2})\\s+(?:${weekday})\\b`, 'i').exec(cleaned);
   if (paired) {
     const day = Number(paired[1]);
     return day >= 1 && day <= 31 ? day : null;
   }
-  const swapped = new RegExp(`^(?:${weekday})\\s+(\\d{1,2})\\b`, 'i').exec(cleaned);
+  const swapped = new RegExp(`(?:^|\\s)(?:${weekday})\\s+(\\d{1,2})\\b`, 'i').exec(cleaned);
   if (swapped) {
     const day = Number(swapped[1]);
+    return day >= 1 && day <= 31 ? day : null;
+  }
+  if (/^\d{1,2}$/.test(cleaned)) {
+    const day = Number(cleaned);
     return day >= 1 && day <= 31 ? day : null;
   }
   return null;
@@ -155,7 +167,7 @@ export function isIgnoreLine(text: string): boolean {
 
 export function isYourShiftsLabel(text: string): boolean {
   const t = text.toLowerCase();
-  return /\byour\s+shifts?\b/.test(t) || /\bdine\s+vakter\b/.test(t);
+  return /\byour\s+sh\w{2,8}\b/.test(t) || /\bdine\s+vakter\b/.test(t);
 }
 
 export function isYourScheduleLabel(text: string): boolean {
