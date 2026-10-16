@@ -17,6 +17,8 @@ interface EventPeriodFieldsProps {
   onStartTime: (value: string) => void;
   onEndTime: (value: string) => void;
   compactEndDate?: boolean;
+  /** Shorter fields so the create sheet can show the whole step at once. */
+  dense?: boolean;
 }
 
 const EventPeriodFields = ({
@@ -30,9 +32,15 @@ const EventPeriodFields = ({
   onStartTime,
   onEndTime,
   compactEndDate = false,
+  dense = false,
 }: EventPeriodFieldsProps) => {
   const { t } = useLocale();
   const isMultiDay = !!endDate;
+  const field = dense
+    ? 'h-10 min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary'
+    : FIELD;
+  const label = dense ? 'mb-1 block text-xs font-medium text-muted-foreground' : 'text-sm font-medium mb-2 block';
+  const stack = dense ? 'space-y-2' : 'space-y-4';
 
   const setStart = (value: string) => {
     const next = new Date(value + 'T12:00:00');
@@ -47,40 +55,40 @@ const EventPeriodFields = ({
   if (isHotel) {
     const checkout = endDate ?? addDays(startDate, 1);
     return (
-      <div className="space-y-4">
+      <div className={stack}>
         <div>
-          <label className="text-sm font-medium mb-2 block">{t('event.checkIn')}</label>
+          <label className={label}>{t('event.checkIn')}</label>
           <div className="flex gap-2">
             <input
               type="date"
               value={format(startDate, 'yyyy-MM-dd')}
               onChange={(e) => setStart(e.target.value)}
-              className={`flex-1 ${FIELD}`}
+              className={`flex-1 ${field}`}
             />
             <input
               type="time"
               value={startTime}
               onChange={(e) => onStartTime(e.target.value)}
-              className={`w-[7.75rem] ${FIELD}`}
+              className={`w-[7.25rem] ${field}`}
             />
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">{t('event.hotelHint')}</p>
+          {!dense && <p className="mt-1 text-xs text-muted-foreground">{t('event.hotelHint')}</p>}
         </div>
         <div>
-          <label className="text-sm font-medium mb-2 block">{t('event.checkOut')}</label>
+          <label className={label}>{t('event.checkOut')}</label>
           <div className="flex gap-2">
             <input
               type="date"
               value={format(checkout, 'yyyy-MM-dd')}
               min={format(addDays(startDate, 1), 'yyyy-MM-dd')}
               onChange={(e) => onEndDate(new Date(e.target.value + 'T12:00:00'))}
-              className={`flex-1 ${FIELD}`}
+              className={`flex-1 ${field}`}
             />
             <input
               type="time"
               value={endTime || '11:00'}
               onChange={(e) => onEndTime(e.target.value)}
-              className={`w-[7.75rem] ${FIELD}`}
+              className={`w-[7.25rem] ${field}`}
             />
           </div>
         </div>
@@ -89,9 +97,9 @@ const EventPeriodFields = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={stack}>
       <div>
-        <label className="text-sm font-medium mb-2 block">
+        <label className={label}>
           {isMultiDay ? t('event.firstDay') : t('event.date')}
         </label>
         <div className="flex gap-2">
@@ -99,10 +107,14 @@ const EventPeriodFields = ({
             type="date"
             value={format(startDate, 'yyyy-MM-dd')}
             onChange={(e) => setStart(e.target.value)}
-            className={`flex-1 ${FIELD}`}
+            className={`flex-1 ${field}`}
           />
           {!isMultiDay && (
-            <button type="button" onClick={() => onEndDate(addDays(startDate, 1))} className={ADD_BTN}>
+            <button
+              type="button"
+              onClick={() => onEndDate(addDays(startDate, 1))}
+              className={dense ? 'h-10 shrink-0 rounded-xl bg-muted px-3 text-sm font-medium active:bg-muted/70' : ADD_BTN}
+            >
               {t('event.addLastDay')}
             </button>
           )}
@@ -123,7 +135,7 @@ const EventPeriodFields = ({
               value={format(endDate, 'yyyy-MM-dd')}
               onChange={(e) => onEndDate(new Date(e.target.value + 'T12:00:00'))}
               min={format(addDays(startDate, 1), 'yyyy-MM-dd')}
-              className={`w-full ${FIELD}`}
+              className={`w-full ${field}`}
             />
           </div>
           <button

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SunMedium } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { useUpdateEvent, useEventVisibleMembers, syncEventVisibleMembers, type Event } from '@/hooks/useEvents';
@@ -384,9 +383,8 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                       <button
                         type="button"
                         onClick={() => setShowDayParts(true)}
-                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary/15 px-4 text-sm font-semibold text-foreground active:bg-primary/25"
+                        className="flex h-10 w-full items-center justify-center rounded-xl bg-muted px-3 text-sm font-medium text-foreground active:bg-muted/70"
                       >
-                        <SunMedium size={16} strokeWidth={2.2} />
                         {t('event.pickDayPart')}
                       </button>
                     ) : (

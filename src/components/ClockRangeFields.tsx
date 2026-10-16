@@ -35,7 +35,7 @@ const ClockRangeFields = ({
             className={TIME_FIELD}
           />
         </label>
-        <div className="min-w-0">
+        <label className="min-w-0">
           <span className="mb-1 flex h-4 items-center justify-between text-xs font-medium text-muted-foreground">
             <span>{t('event.endTime')}</span>
             {endTime && (
@@ -51,33 +51,23 @@ const ClockRangeFields = ({
               </button>
             )}
           </span>
-          {endTime ? (
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => onEndTime(e.target.value)}
-              className={TIME_FIELD}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={onAddHour}
-              className="h-10 w-full rounded-xl bg-muted text-sm font-medium active:bg-muted/70"
-            >
-              {t('event.addHour')}
-            </button>
-          )}
-        </div>
+          <input
+            type="time"
+            value={endTime || ''}
+            onChange={(e) => onEndTime(e.target.value)}
+            className={TIME_FIELD}
+          />
+        </label>
       </div>
-      {endTime && (
+      <div className="flex justify-center">
         <button
           type="button"
           onClick={onAddHour}
-          className="text-sm font-medium text-muted-foreground"
+          className="h-10 min-w-[7.5rem] rounded-xl bg-muted px-5 text-sm font-semibold text-foreground active:bg-muted/70"
         >
           {t('event.addHour')}
         </button>
-      )}
+      </div>
     </div>
   );
 };
