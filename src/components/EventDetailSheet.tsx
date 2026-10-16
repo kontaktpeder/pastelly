@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -12,8 +12,9 @@ import { formatEventStayLabel } from '@/lib/eventStay';
 import { isHotelCategory } from '@/lib/vacationSchedule';
 import EventAddressLink from '@/components/EventAddressLink';
 import type { HouseholdMember } from '@/hooks/useHousehold';
+import CenteredPopup from '@/components/CenteredPopup';
+import SheetActionDock from '@/components/SheetActionDock';
 import { canEditEvent } from '@/lib/canEditEvent';
-import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import type { CalendarKind } from '@/lib/calendarKinds';
 import { useLocale } from '@/hooks/useLocale';
 import type { MessageKey } from '@/lib/i18n';
@@ -40,11 +41,6 @@ const EventDetailSheet = ({
   onQuickEdit,
 }: EventDetailSheetProps) => {
   const { t, dateLocale } = useLocale();
-  const keyboardInset = useKeyboardInset();
-  const keyboardOpen = keyboardInset > 24;
-  const [visible, setVisible] = useState(false);
-  const closingRef = useRef(false);
-  const closeTimerRef = useRef(0);
   const [comment, setComment] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { data: comments = [] } = useEventComments(event.id);
@@ -68,31 +64,6 @@ const EventDetailSheet = ({
     const translated = t(msgKey);
     return translated === msgKey ? key : translated;
   };
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setVisible(true));
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(closeTimerRef.current);
-    };
-  }, []);
-
-  const requestClose = () => {
-    if (closingRef.current) return;
-    closingRef.current = true;
-    setVisible(false);
-    closeTimerRef.current = window.setTimeout(onClose, 180);
-  };
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      requestClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   const handleAddComment = () => {
     if (!comment.trim()) return;
@@ -150,42 +121,21 @@ const EventDetailSheet = ({
   });
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex justify-center px-4"
-      style={{
-        alignItems: keyboardOpen ? 'flex-end' : 'center',
-        paddingTop: 'max(1rem, env(safe-area-inset-top))',
-        paddingBottom: keyboardOpen ? keyboardInset + 12 : 'max(1rem, env(safe-area-inset-bottom))',
-        opacity: visible ? 1 : 0,
-        transition: 'opacity 180ms cubic-bezier(0.32, 0.72, 0, 1)',
-      }}
-      role="presentation"
+    <CenteredPopup
+      onClose={onClose}
+      onExit={onClose}
+      size="sheet"
+      detents={['half', 'full']}
+      initialDetent="half"
+      zClassName="z-[60]"
+      backdrop="none"
     >
-      <button
-        type="button"
-        className="absolute inset-0 bg-foreground/25"
-        aria-label={t('common.close')}
-        onClick={requestClose}
-      />
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={event.title}
-        className="relative z-10 flex max-h-[min(86dvh,40rem)] w-full max-w-md flex-col overflow-hidden rounded-[1.5rem] bg-background shadow-soft-lg"
+        className={`flex-1 overflow-y-auto overscroll-contain scroll-touch px-5 pt-2 min-h-0 ${
+          editable ? 'pb-44' : 'pb-28'
+        }`}
+        data-sheet-scroll
       >
-        <div className="flex shrink-0 justify-end px-3 pt-3">
-          <button
-            type="button"
-            onClick={requestClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/90 text-muted-foreground"
-            aria-label={t('common.close')}
-          >
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
-              <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-touch px-5 pb-4" data-sheet-scroll>
         <div className={`rounded-2xl p-5 mb-4 ${ownerColor.bg}`}>
           <h2 className="text-xl font-bold mb-1">{event.title}</h2>
           <p className="text-sm text-muted-foreground">
@@ -283,9 +233,9 @@ const EventDetailSheet = ({
         </div>
       </div>
 
-      <div className="shrink-0 bg-background px-5 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <SheetActionDock>
         {editable && confirmDelete ? (
-          <div className="mx-auto w-full max-w-xs">
+          <div className="w-full max-w-xs rounded-2xl bg-background p-4 shadow-soft-lg">
             <p className="mb-3 text-center text-sm font-medium">
               {t('event.deleteConfirm')}
             </p>
@@ -309,7 +259,7 @@ const EventDetailSheet = ({
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
+          <>
             <div className="flex w-full gap-2">
               <input
                 value={comment}
@@ -349,11 +299,10 @@ const EventDetailSheet = ({
                 </button>
               </div>
             )}
-          </div>
+          </>
         )}
-      </div>
-      </div>
-    </div>
+      </SheetActionDock>
+    </CenteredPopup>
   );
 };
 

@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SunMedium } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { useCreateEvent, syncEventVisibleMembers } from '@/hooks/useEvents';
@@ -31,7 +30,7 @@ import { applyVacationCategoryTiming, isHotelCategory } from '@/lib/vacationSche
 const FIELD =
   'min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary';
 const PAIR_BTN =
-  'flex min-h-12 w-full items-center justify-center rounded-2xl bg-muted px-3 text-center text-sm font-semibold leading-tight text-foreground active:bg-muted/70';
+  'flex h-10 w-full items-center justify-center rounded-xl bg-muted px-3 text-center text-sm font-medium leading-tight text-foreground active:bg-muted/70';
 
 interface NewEventFlowProps {
   householdId: string;
@@ -313,7 +312,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
   return (
     <CenteredPopup onClose={handleDismiss} onExit={onClose} size="sheet" zClassName="z-[70]" backdrop="solid">
       {/* Header: progress only — ✕ + grabber live in CenteredPopup */}
-      <div className="flex items-center justify-center px-5 pt-1 pb-3 shrink-0">
+      <div className="flex items-center justify-center px-5 pt-0.5 pb-1 shrink-0">
         <div className="flex gap-1.5">
           {Array.from({ length: STEPS }).map((_, i) => (
             <div key={i} className={`w-8 h-1.5 rounded-full transition-colors ${i < step ? 'bg-calendar-accent' : 'bg-border'}`} />
@@ -322,12 +321,12 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
       </div>
 
       {/* Content */}
-      <div className="relative flex-1 px-5 overflow-y-auto min-h-0 pb-4 overscroll-contain scroll-touch" data-sheet-scroll>
+      <div className="relative flex-1 px-5 overflow-y-auto min-h-0 pb-2 overscroll-contain scroll-touch" data-sheet-scroll>
         <AnimatePresence mode="wait" initial={false}>
           {step === 1 && (
-            <motion.div key="step1" {...stepForward} className="space-y-6">
-              <div className="space-y-3">
-                <h2 className="text-2xl font-bold">{t('event.what')}</h2>
+            <motion.div key="step1" {...stepForward} className="space-y-3">
+              <div className="space-y-1.5">
+                <h2 className="text-lg font-bold leading-tight">{t('event.what')}</h2>
                 <input
                   ref={titleRef}
                   type="text"
@@ -337,13 +336,14 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                   enterKeyHint="next"
                   autoComplete="off"
                   autoCorrect="off"
-                  className="w-full rounded-2xl border border-border bg-background px-5 py-4 text-lg caret-foreground focus:outline-none focus:border-foreground/25 focus:ring-1 focus:ring-foreground/15"
+                  className="h-10 w-full rounded-xl border border-border bg-background px-4 text-base caret-foreground focus:outline-none focus:border-foreground/25 focus:ring-1 focus:ring-foreground/15"
                 />
               </div>
 
-              <h2 className="text-2xl font-bold">{t('event.when')}</h2>
+              <h2 className="text-lg font-bold leading-tight">{t('event.when')}</h2>
 
               <EventPeriodFields
+                dense
                 isHotel={isHotel}
                 startDate={startDate}
                 endDate={endDate}
@@ -371,7 +371,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
 
               {/* Clock / all-day — hotel uses check-in / check-out instead */}
               {!isHotel && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {isMultiDay && !showTimedMultiDay ? (
                   <>
                     <div className="rounded-xl bg-muted/70 px-4 py-3">
@@ -413,9 +413,8 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                       <button
                         type="button"
                         onClick={() => setShowDayParts(true)}
-                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary/15 px-4 text-sm font-semibold text-foreground active:bg-primary/25"
+                        className={PAIR_BTN}
                       >
-                        <SunMedium size={16} strokeWidth={2.2} />
                         {t('event.pickDayPart')}
                       </button>
                     ) : (
@@ -457,7 +456,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
               )}
 
               {/* Optional details — closed by default, expand without layout thrash */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {(!showLocation || !showNotes) && (
                   <div className="grid grid-cols-2 gap-2">
                     {!showLocation && (
@@ -520,10 +519,10 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
           )}
 
           {step === 2 && (
-            <motion.div key="step2" {...stepForward} className="space-y-6">
-              <div className="space-y-3">
-                <h2 className="text-2xl font-bold">{t('event.chooseIcon')}</h2>
-                <div className="flex flex-wrap gap-2.5">
+            <motion.div key="step2" {...stepForward} className="space-y-3">
+              <div className="space-y-2">
+                <h2 className="text-lg font-bold leading-tight">{t('event.chooseIcon')}</h2>
+                <div className="flex flex-wrap gap-2">
                   {categoryOptions.map((key) => {
                     const meta = EVENT_CATEGORY_META[key];
                     const Icon = meta.Icon;
@@ -539,43 +538,51 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                           applyCategoryTiming(key);
                           if (key !== 'other') setOtherLabel('');
                         }}
-                        className={`flex h-14 w-14 items-center justify-center rounded-2xl transition-all ${
+                        className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all ${
                           selected ? 'ring-2 ring-current' : ''
                         }`}
                         style={{ backgroundColor: visuals.soft, color: visuals.ink }}
                       >
-                        <Icon size={22} strokeWidth={2.4} style={{ color: visuals.ink }} />
+                        <Icon size={18} strokeWidth={2.4} style={{ color: visuals.ink }} />
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              <h2 className="text-2xl font-bold">{t('event.who')}</h2>
-
-              <div className="space-y-3">
-                {[
-                  { value: 'all_members' as const, label: t('event.everyone'), desc: t('event.everyoneHint') },
-                  { value: 'private' as const, label: t('event.onlyMe'), desc: t('event.onlyMeHint') },
-                  { value: 'selected_members' as const, label: t('event.selected'), desc: t('event.selectedHint') },
-                ].map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setVisibility(opt.value)}
-                    className={`w-full text-left rounded-2xl p-4 transition-all ${
-                      visibility === opt.value
-                        ? 'bg-primary/20 ring-2 ring-primary'
-                        : 'bg-muted hover:bg-muted/80'
-                    }`}
-                  >
-                    <p className="font-semibold">{opt.label}</p>
-                    <p className="text-sm text-muted-foreground">{opt.desc}</p>
-                  </button>
-                ))}
+              <div className="space-y-1.5">
+                <h2 className="text-lg font-bold leading-tight">{t('event.who')}</h2>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'all_members' as const, label: t('event.everyone'), desc: t('event.everyoneHint') },
+                    { value: 'private' as const, label: t('event.onlyMe'), desc: t('event.onlyMeHint') },
+                    { value: 'selected_members' as const, label: t('event.selected'), desc: t('event.selectedHint') },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setVisibility(opt.value)}
+                      className={`flex min-h-10 items-center justify-center rounded-xl px-1 py-2 text-center text-xs font-medium leading-tight ${
+                        visibility === opt.value
+                          ? 'bg-primary/20 ring-2 ring-primary'
+                          : 'bg-muted active:bg-muted/80'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {visibility === 'private'
+                    ? t('event.onlyMeHint')
+                    : visibility === 'selected_members'
+                      ? t('event.selectedHint')
+                      : t('event.everyoneHint')}
+                </p>
               </div>
 
               {showInOtherCalendars && (
-                <label className="flex items-start gap-3 rounded-2xl bg-muted/50 p-4 cursor-pointer">
+                <label className="flex items-start gap-3 rounded-xl bg-muted/50 px-3 py-2 cursor-pointer">
                   <input
                     type="checkbox"
                     className="mt-1 rounded border-border"
@@ -632,10 +639,10 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
 
 
               {/* Summary */}
-              <div className="rounded-2xl bg-muted p-4 mt-4">
-                <p className="text-sm text-muted-foreground mb-1">{t('event.summary')}</p>
-                <p className="font-semibold">{title}</p>
-                <p className="text-sm text-muted-foreground">
+              <div className="rounded-xl bg-muted px-3 py-2">
+                <p className="text-xs text-muted-foreground">{t('event.summary')}</p>
+                <p className="truncate text-sm font-semibold">{title}</p>
+                <p className="truncate text-xs text-muted-foreground">
                   {format(startDate, 'd. MMMM yyyy', { locale: dateLocale })}
                   {endDate && ` → ${format(endDate, 'd. MMMM yyyy', { locale: dateLocale })}`}
                   {' · '}
