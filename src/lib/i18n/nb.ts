@@ -171,6 +171,7 @@ export const nb = {
   'event.hotelHint': 'Innsjekk første natt, utsjekk siste dag.',
   'event.clock': 'Klokke',
   'event.addHour': '+1 time',
+  'event.subtractHour': '−1 time',
   'event.endTime': 'Slutttid',
   'event.dayPart': 'Del av dagen',
   'event.pickDayPart': 'Velg del av dagen',

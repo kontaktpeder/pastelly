@@ -30,7 +30,9 @@ import { applyVacationCategoryTiming, isHotelCategory } from '@/lib/vacationSche
 const FIELD =
   'min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary';
 const PAIR_BTN =
-  'flex h-10 w-full items-center justify-center rounded-xl bg-muted px-3 text-center text-sm font-medium leading-tight text-foreground active:bg-muted/70';
+  'flex min-h-12 w-full items-center justify-center rounded-2xl bg-muted px-3 text-center text-base font-medium leading-snug text-foreground active:bg-muted/80';
+const DAY_PART_BTN =
+  'flex min-h-12 items-center justify-center rounded-2xl px-2 text-center text-base font-medium leading-snug';
 
 interface NewEventFlowProps {
   householdId: string;
@@ -74,13 +76,15 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
-  const addOneHour = (time: string) => {
+  const shiftHour = (time: string, delta: number) => {
     const [h, m] = time.split(':').map(Number);
-    const total = ((h * 60 + (m || 0) + 60) % (24 * 60) + 24 * 60) % (24 * 60);
+    const total = ((h * 60 + (m || 0) + delta) % (24 * 60) + 24 * 60) % (24 * 60);
     const nh = Math.floor(total / 60);
     const nm = total % 60;
     return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
   };
+  const addOneHour = (time: string) => shiftHour(time, 60);
+  const subtractOneHour = (time: string) => shiftHour(time, -60);
 
   const handleDismiss = () => {
     if (step > 1) setStep((s) => s - 1);
@@ -214,6 +218,15 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
     }
   };
 
+  const handleSubtractHour = () => {
+    if (isMultiDay) setShowTimedMultiDay(true);
+    if (!endTime) {
+      setEndTime(subtractOneHour(startTime || '12:00'));
+    } else {
+      setEndTime(subtractOneHour(endTime));
+    }
+  };
+
   const isDayPartSelected = (idx: number) => {
     return idx >= selectedDayParts[0] && idx <= selectedDayParts[1];
   };
@@ -321,12 +334,12 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
       </div>
 
       {/* Content */}
-      <div className="relative flex-1 px-5 overflow-y-auto min-h-0 pb-2 overscroll-contain scroll-touch" data-sheet-scroll>
+      <div className="relative flex-1 px-5 overflow-y-auto min-h-0 pb-4 overscroll-contain scroll-touch" data-sheet-scroll>
         <AnimatePresence mode="wait" initial={false}>
           {step === 1 && (
-            <motion.div key="step1" {...stepForward} className="space-y-3">
-              <div className="space-y-1.5">
-                <h2 className="text-lg font-bold leading-tight">{t('event.what')}</h2>
+            <motion.div key="step1" {...stepForward} className="space-y-5">
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold">{t('event.what')}</h2>
                 <input
                   ref={titleRef}
                   type="text"
@@ -336,14 +349,13 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                   enterKeyHint="next"
                   autoComplete="off"
                   autoCorrect="off"
-                  className="h-10 w-full rounded-xl border border-border bg-background px-4 text-base caret-foreground focus:outline-none focus:border-foreground/25 focus:ring-1 focus:ring-foreground/15"
+                  className="w-full rounded-2xl border border-border bg-background px-5 py-3.5 text-lg caret-foreground focus:outline-none focus:border-foreground/25 focus:ring-1 focus:ring-foreground/15"
                 />
               </div>
 
-              <h2 className="text-lg font-bold leading-tight">{t('event.when')}</h2>
+              <h2 className="text-2xl font-bold">{t('event.when')}</h2>
 
               <EventPeriodFields
-                dense
                 isHotel={isHotel}
                 startDate={startDate}
                 endDate={endDate}
@@ -371,7 +383,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
 
               {/* Clock / all-day — hotel uses check-in / check-out instead */}
               {!isHotel && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {isMultiDay && !showTimedMultiDay ? (
                   <>
                     <div className="rounded-xl bg-muted/70 px-4 py-3">
@@ -397,6 +409,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                       onEndTime={handleEndTimeChange}
                       onClearEnd={() => setEndTime(null)}
                       onAddHour={handleAddHour}
+                      onSubtractHour={handleSubtractHour}
                     />
 
                     {isMultiDay && (
@@ -437,10 +450,10 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                                 key={key}
                                 type="button"
                                 onClick={() => handleDayPartClick(idx)}
-                                className={`rounded-xl py-3 px-4 text-sm font-medium transition-all ${
+                                className={`${DAY_PART_BTN} ${
                                   selected
-                                    ? 'bg-calendar-accent text-foreground ring-2 ring-calendar-accent'
-                                    : 'bg-muted hover:bg-muted/80'
+                                    ? 'bg-muted ring-2 ring-primary'
+                                    : 'bg-muted active:bg-muted/80'
                                 }`}
                               >
                                 {translateDayPart(locale, key)}
@@ -519,10 +532,10 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
           )}
 
           {step === 2 && (
-            <motion.div key="step2" {...stepForward} className="space-y-3">
-              <div className="space-y-2">
-                <h2 className="text-lg font-bold leading-tight">{t('event.chooseIcon')}</h2>
-                <div className="flex flex-wrap gap-2">
+            <motion.div key="step2" {...stepForward} className="space-y-5">
+              <div className="space-y-3">
+                <h2 className="text-2xl font-bold">{t('event.chooseIcon')}</h2>
+                <div className="flex flex-wrap gap-2.5">
                   {categoryOptions.map((key) => {
                     const meta = EVENT_CATEGORY_META[key];
                     const Icon = meta.Icon;
@@ -538,20 +551,20 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                           applyCategoryTiming(key);
                           if (key !== 'other') setOtherLabel('');
                         }}
-                        className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all ${
+                        className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-all ${
                           selected ? 'ring-2 ring-current' : ''
                         }`}
                         style={{ backgroundColor: visuals.soft, color: visuals.ink }}
                       >
-                        <Icon size={18} strokeWidth={2.4} style={{ color: visuals.ink }} />
+                        <Icon size={20} strokeWidth={2.4} style={{ color: visuals.ink }} />
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <h2 className="text-lg font-bold leading-tight">{t('event.who')}</h2>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold">{t('event.who')}</h2>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { value: 'all_members' as const, label: t('event.everyone'), desc: t('event.everyoneHint') },
@@ -562,7 +575,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                       key={opt.value}
                       type="button"
                       onClick={() => setVisibility(opt.value)}
-                      className={`flex min-h-10 items-center justify-center rounded-xl px-1 py-2 text-center text-xs font-medium leading-tight ${
+                      className={`flex min-h-12 items-center justify-center rounded-2xl px-2 py-2 text-center text-base font-medium leading-snug ${
                         visibility === opt.value
                           ? 'bg-primary/20 ring-2 ring-primary'
                           : 'bg-muted active:bg-muted/80'
@@ -572,7 +585,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   {visibility === 'private'
                     ? t('event.onlyMeHint')
                     : visibility === 'selected_members'
@@ -639,10 +652,10 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
 
 
               {/* Summary */}
-              <div className="rounded-xl bg-muted px-3 py-2">
-                <p className="text-xs text-muted-foreground">{t('event.summary')}</p>
-                <p className="truncate text-sm font-semibold">{title}</p>
-                <p className="truncate text-xs text-muted-foreground">
+              <div className="rounded-2xl bg-muted p-4">
+                <p className="mb-1 text-sm text-muted-foreground">{t('event.summary')}</p>
+                <p className="text-base font-semibold">{title}</p>
+                <p className="text-sm text-muted-foreground">
                   {format(startDate, 'd. MMMM yyyy', { locale: dateLocale })}
                   {endDate && ` → ${format(endDate, 'd. MMMM yyyy', { locale: dateLocale })}`}
                   {' · '}

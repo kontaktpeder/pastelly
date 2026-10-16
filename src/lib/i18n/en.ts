@@ -164,6 +164,7 @@ export const en: Record<MessageKey, string> = {
   'event.hotelHint': 'Check-in on the first night, check-out on the last day.',
   'event.clock': 'Time',
   'event.addHour': '+1 hour',
+  'event.subtractHour': '−1 hour',
   'event.endTime': 'End time',
   'event.dayPart': 'Part of day',
   'event.pickDayPart': 'Choose part of day',
