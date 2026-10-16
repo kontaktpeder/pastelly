@@ -45,6 +45,7 @@ interface CalendarViewProps {
   onCurrentDateChange?: Dispatch<SetStateAction<Date>>;
   onSelectDate: (date: Date) => void;
   onCreateEvent: (date: Date) => void;
+  onImportForDate?: (date: Date) => void;
   onEditEvent?: (event: Event) => void;
   onQuickEditEvent?: (event: Event) => void;
   onSwitchCalendar?: (householdId: string) => void;
@@ -158,7 +159,7 @@ function buildMonthDays(monthDate: Date): Date[] {
   return eachDayOfInterval({ start: calStart, end: calEnd });
 }
 
-const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, selectedDate, onCurrentDateChange, onSelectDate, onCreateEvent, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
+const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, selectedDate, onCurrentDateChange, onSelectDate, onCreateEvent, onImportForDate, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
   const { dateLocale } = useLocale();
   const weekdayLabels = useMemo(() => {
     const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -706,6 +707,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           onCreateForDate={(d) => {
             onCreateEvent(d);
           }}
+          onImportForDate={onImportForDate}
           calendarKind={calendarKind}
           canSeedWeek={canSeedWeek}
           onSeedWeek={() => {

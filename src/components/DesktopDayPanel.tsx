@@ -25,6 +25,7 @@ interface DesktopDayPanelProps {
   highlight?: Highlight;
   canSeedWeek?: boolean;
   onCreateForDate: (date: Date) => void;
+  onImportForDate?: (date: Date) => void;
   onEditEvent?: (event: Event) => void;
   onQuickEditEvent?: (event: Event) => void;
   onSeedWeek?: () => void;
@@ -41,6 +42,7 @@ const DesktopDayPanel = ({
   highlight,
   canSeedWeek = false,
   onCreateForDate,
+  onImportForDate,
   onEditEvent,
   onQuickEditEvent,
   onSeedWeek,
@@ -88,6 +90,7 @@ const DesktopDayPanel = ({
             else setDetailEvent(ev);
           }}
           onCreateForDate={onCreateForDate}
+          onImportForDate={onImportForDate}
           onSeedWeek={onSeedWeek}
         />
       </div>

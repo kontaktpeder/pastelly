@@ -14,6 +14,7 @@ interface CalendarDaySheetProps {
   onClose: () => void;
   onPickEvent: (event: DisplayEvent) => void;
   onCreateForDate: (date: Date) => void;
+  onImportForDate?: (date: Date) => void;
   calendarKind?: string;
   canSeedWeek?: boolean;
   onSeedWeek?: () => void;
@@ -28,6 +29,7 @@ const CalendarDaySheet = ({
   onClose,
   onPickEvent,
   onCreateForDate,
+  onImportForDate,
   calendarKind = 'home',
   canSeedWeek = false,
   onSeedWeek,
@@ -61,6 +63,7 @@ const CalendarDaySheet = ({
         layout="sheet"
         onPickEvent={onPickEvent}
         onCreateForDate={onCreateForDate}
+        onImportForDate={onImportForDate}
         onSeedWeek={onSeedWeek}
       />
     </CenteredPopup>
