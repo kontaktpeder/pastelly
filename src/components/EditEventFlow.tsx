@@ -181,13 +181,13 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
     syncTimesFromDayPart(newRange[0], newRange[1]);
   };
 
-  const addOneHour = (time: string) => {
+  const shiftHour = (time: string, delta: number) => {
     const [h, m] = time.split(':').map(Number);
-    const total = ((h * 60 + (m || 0) + 60) % (24 * 60) + 24 * 60) % (24 * 60);
-    const nh = Math.floor(total / 60);
-    const nm = total % 60;
-    return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
+    const total = ((h * 60 + (m || 0) + delta) % (24 * 60) + 24 * 60) % (24 * 60);
+    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
   };
+  const addOneHour = (time: string) => shiftHour(time, 60);
+  const subtractOneHour = (time: string) => shiftHour(time, -60);
 
   const handleStartTimeChange = (value: string) => {
     if (isMultiDay) setShowTimedMultiDay(true);
@@ -219,6 +219,12 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
     if (isMultiDay) setShowTimedMultiDay(true);
     if (!endTime) setEndTime(addOneHour(startTime || '12:00'));
     else setEndTime(addOneHour(endTime));
+  };
+
+  const handleSubtractHour = () => {
+    if (isMultiDay) setShowTimedMultiDay(true);
+    if (!endTime) setEndTime(subtractOneHour(startTime || '12:00'));
+    else setEndTime(subtractOneHour(endTime));
   };
 
   const isDayPartSelected = (idx: number) => idx >= selectedDayParts[0] && idx <= selectedDayParts[1];
@@ -371,6 +377,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                       onEndTime={handleEndTimeChange}
                       onClearEnd={() => setEndTime(null)}
                       onAddHour={handleAddHour}
+                      onSubtractHour={handleSubtractHour}
                     />
 
                     {isMultiDay && (
@@ -383,7 +390,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                       <button
                         type="button"
                         onClick={() => setShowDayParts(true)}
-                        className="flex h-10 w-full items-center justify-center rounded-xl bg-muted px-3 text-sm font-medium text-foreground active:bg-muted/70"
+                        className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-muted px-3 text-base font-medium text-foreground active:bg-muted/80"
                       >
                         {t('event.pickDayPart')}
                       </button>
@@ -398,7 +405,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                         <div className="grid grid-cols-3 gap-2">
                           {DAY_PART_ORDER.map((key, idx) => (
                             <button key={key} type="button" onClick={() => handleDayPartClick(idx)}
-                              className={`rounded-xl py-3 px-4 text-sm font-medium transition-all ${isDayPartSelected(idx) ? 'bg-calendar-accent text-foreground ring-2 ring-calendar-accent' : 'bg-muted hover:bg-muted/80'}`}>
+                              className={`flex min-h-12 items-center justify-center rounded-2xl px-2 text-center text-base font-medium leading-snug ${isDayPartSelected(idx) ? 'bg-muted ring-2 ring-primary' : 'bg-muted active:bg-muted/80'}`}>
                               {dayPartLabel(key)}
                             </button>
                           ))}

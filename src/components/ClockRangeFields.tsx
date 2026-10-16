@@ -1,7 +1,7 @@
 import { useLocale } from '@/hooks/useLocale';
 
 const TIME_FIELD =
-  'h-10 min-w-0 w-full box-border appearance-none rounded-xl border border-border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
+  'h-12 min-w-0 w-full box-border appearance-none rounded-xl border border-border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-primary';
 
 interface ClockRangeFieldsProps {
   startTime: string;
@@ -10,6 +10,7 @@ interface ClockRangeFieldsProps {
   onEndTime: (value: string) => void;
   onClearEnd: () => void;
   onAddHour: () => void;
+  onSubtractHour: () => void;
 }
 
 /** Start and end sit on one row, with slightly shorter fields than the date inputs. */
@@ -20,6 +21,7 @@ const ClockRangeFields = ({
   onEndTime,
   onClearEnd,
   onAddHour,
+  onSubtractHour,
 }: ClockRangeFieldsProps) => {
   const { t } = useLocale();
 
@@ -27,7 +29,7 @@ const ClockRangeFields = ({
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <label className="min-w-0">
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">{t('event.clock')}</span>
+          <span className="mb-1.5 block text-sm font-medium">{t('event.clock')}</span>
           <input
             type="time"
             value={startTime}
@@ -36,7 +38,7 @@ const ClockRangeFields = ({
           />
         </label>
         <label className="min-w-0">
-          <span className="mb-1 flex h-4 items-center justify-between text-xs font-medium text-muted-foreground">
+          <span className="mb-1.5 flex h-5 items-center justify-between text-sm font-medium">
             <span>{t('event.endTime')}</span>
             {endTime && (
               <button
@@ -59,11 +61,18 @@ const ClockRangeFields = ({
           />
         </label>
       </div>
-      <div className="flex justify-center">
+      <div className="flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={onSubtractHour}
+          className="h-8 rounded-xl border border-foreground/30 bg-transparent px-3 text-sm font-medium text-foreground active:bg-muted"
+        >
+          {t('event.subtractHour')}
+        </button>
         <button
           type="button"
           onClick={onAddHour}
-          className="h-10 min-w-[7.5rem] rounded-xl bg-muted px-5 text-sm font-semibold text-foreground active:bg-muted/70"
+          className="h-8 rounded-xl bg-green-200 px-3 text-sm font-semibold text-green-900 active:bg-green-300"
         >
           {t('event.addHour')}
         </button>
