@@ -339,7 +339,10 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
           {step === 1 && (
             <motion.div key="step1" {...stepForward} className="space-y-5">
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold">{t('event.what')}</h2>
+                <h2 className="text-2xl font-bold">
+                  {t('event.what')}
+                  <span className="ml-1 text-lg text-primary" aria-label={t('common.required')}>*</span>
+                </h2>
                 <input
                   ref={titleRef}
                   type="text"
@@ -353,10 +356,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                 />
               </div>
 
-              <h2 className="text-2xl font-bold">
-                {t('event.when')}
-                <span className="ml-1 text-lg text-primary" aria-label={t('common.required')}>*</span>
-              </h2>
+              <h2 className="text-2xl font-bold">{t('event.when')}</h2>
 
               <EventPeriodFields
                 isHotel={isHotel}
