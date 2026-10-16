@@ -53,15 +53,15 @@ const CategoryColorSettings = ({ member, calendarKind = 'home' }: CategoryColorS
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-muted-foreground mb-1">Farger for kategorier</h3>
-      <p className="text-xs text-muted-foreground mb-3">Velg hvordan dine kategorier vises i denne kalenderen.</p>
+      <h3 className="text-base font-semibold text-muted-foreground mb-1">Farger for kategorier</h3>
+      <p className="text-sm text-muted-foreground mb-3">Velg hvordan dine kategorier vises i denne kalenderen.</p>
       <div className="space-y-3">
         {options.map((catKey) => {
           if (catKey === 'other') {
             return (
               <div key={catKey} className="rounded-xl bg-muted p-3 flex items-center justify-between opacity-70">
-                <span className="text-sm font-medium">{t('cat.other')}</span>
-                <span className="text-xs text-muted-foreground">Fast nøytral</span>
+                <span className="text-base font-medium">{t('cat.other')}</span>
+                <span className="text-sm text-muted-foreground">Fast nøytral</span>
               </div>
             );
           }
@@ -74,10 +74,10 @@ const CategoryColorSettings = ({ member, calendarKind = 'home' }: CategoryColorS
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Icon size={16} strokeWidth={2.5} style={{ color: visuals.ink }} />
-                  <span className="text-sm font-medium">{resolveCategoryLabel(catKey, null, locale)}</span>
+                  <span className="text-base font-medium">{resolveCategoryLabel(catKey, null, locale)}</span>
                 </div>
                 {savedKey === catKey && (
-                  <span className="text-[11px] text-muted-foreground">Lagret ✓</span>
+                  <span className="text-sm text-muted-foreground">Lagret ✓</span>
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -101,7 +101,7 @@ const CategoryColorSettings = ({ member, calendarKind = 'home' }: CategoryColorS
         })}
       </div>
       {update.isError && (
-        <p className="text-destructive text-xs mt-2">Kunne ikke lagre farger</p>
+        <p className="text-destructive text-sm mt-2">Kunne ikke lagre farger</p>
       )}
     </div>
   );

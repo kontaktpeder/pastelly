@@ -171,19 +171,19 @@ const EventDetailSheet = ({
                 )}
                 <div className="min-w-0">
                   <h2 className="text-lg font-bold leading-tight">{event.title}</h2>
-                  <p className="mt-1 text-sm">{whenLine}</p>
-                  {partLine && <p className="text-sm text-muted-foreground">{partLine}</p>}
-                  <p className="mt-1 text-sm font-medium" style={{ color: visuals.ink }}>
+                  <p className="mt-1 text-lg">{whenLine}</p>
+                  {partLine && <p className="text-lg text-muted-foreground">{partLine}</p>}
+                  <p className="mt-1 text-base font-medium" style={{ color: visuals.ink }}>
                     {owner?.display_name ? `${owner.display_name} · ` : ''}{label}
                   </p>
                 </div>
               </div>
               {event.location && (
                 <div className="mt-3">
-                  <EventAddressLink location={event.location} className="text-sm" />
+                  <EventAddressLink location={event.location} className="text-base" />
                 </div>
               )}
-              {event.notes && <p className="mt-2 text-sm text-muted-foreground">{event.notes}</p>}
+              {event.notes && <p className="mt-2 text-base text-muted-foreground">{event.notes}</p>}
             </div>
           );
         })()}
@@ -198,8 +198,8 @@ const EventDetailSheet = ({
               onChange={(e) => void handleToggleLeak(e.target.checked)}
             />
             <span>
-              <span className="block font-semibold text-sm">{t('event.leakToMyCalendars')}</span>
-              <span className="block text-xs text-muted-foreground mt-0.5">
+              <span className="block font-semibold text-base">{t('event.leakToMyCalendars')}</span>
+              <span className="block text-sm text-muted-foreground mt-0.5">
                 {t('event.leakToMyCalendarsHint')}
               </span>
             </span>
@@ -207,9 +207,9 @@ const EventDetailSheet = ({
         )}
 
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-3">{t('event.comments')}</h3>
+          <h3 className="text-base font-semibold text-muted-foreground mb-3">{t('event.comments')}</h3>
           {comments.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-3">
+            <p className="text-base text-muted-foreground text-center py-3">
               {t('event.noComments')}
             </p>
           )}
@@ -219,29 +219,51 @@ const EventDetailSheet = ({
               const senderColor = sender ? getMemberColor(sender.color_token) : getMemberColor('pastel-blue');
               return (
                 <div key={c.id} className="flex gap-3">
-                  <div className={`w-8 h-8 rounded-full ${senderColor.bg} flex items-center justify-center text-xs font-bold flex-shrink-0`}>
+                  <div className={`w-8 h-8 rounded-full ${senderColor.bg} flex items-center justify-center text-sm font-bold flex-shrink-0`}>
                     {sender?.display_name?.charAt(0) || '?'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">{sender?.display_name || t('event.unknown')}</span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-base font-semibold">{sender?.display_name || t('event.unknown')}</span>
+                      <span className="text-sm text-muted-foreground">
                         {formatDistanceToNow(new Date(c.created_at), { locale: dateLocale, addSuffix: true })}
                       </span>
                     </div>
-                    <p className="text-sm">{c.body}</p>
+                    <p className="text-base">{c.body}</p>
                   </div>
                 </div>
               );
             })}
           </div>
+          <form
+            className="mt-4 flex items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAddComment();
+            }}
+          >
+            <input
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder={t('event.writeComment')}
+              className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <button
+              type="submit"
+              disabled={!comment.trim()}
+              className="shrink-0 rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-primary-foreground disabled:opacity-40"
+            >
+              {t('event.send')}
+            </button>
+          </form>
         </div>
       </div>
 
+      {editable && (
       <SheetActionDock>
-        {editable && confirmDelete ? (
+        {confirmDelete ? (
           <div className="w-full max-w-xs rounded-2xl bg-background p-4 shadow-soft-lg">
-            <p className="mb-3 text-center text-sm font-medium">
+            <p className="mb-3 text-center text-base font-medium">
               {t('event.deleteConfirm')}
             </p>
             <div className="grid grid-cols-2 gap-2">
@@ -265,23 +287,6 @@ const EventDetailSheet = ({
           </div>
         ) : (
           <>
-            <div className="flex w-full gap-2">
-              <input
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                placeholder={t('event.writeComment')}
-                className="min-w-0 flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <button
-                type="button"
-                onClick={handleAddComment}
-                disabled={!comment.trim()}
-                className="shrink-0 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
-              >
-                {t('event.send')}
-              </button>
-            </div>
             {editable && (
               <div className="flex items-center justify-center gap-3">
                 {onQuickEdit && (
@@ -307,6 +312,7 @@ const EventDetailSheet = ({
           </>
         )}
       </SheetActionDock>
+      )}
     </CenteredPopup>
   );
 };

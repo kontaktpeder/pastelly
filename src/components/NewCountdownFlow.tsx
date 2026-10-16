@@ -189,7 +189,7 @@ const NewCountdownFlow = ({
   const needsScroll = step >= 2;
   const header = (
     <div className={`text-center shrink-0 ${keyboardOpen && step === 1 ? 'pt-1 pb-3' : 'pt-1 pb-4'}`}>
-      <p className="text-xs font-medium text-muted-foreground mb-1">
+      <p className="text-sm font-medium text-muted-foreground mb-1">
         {t('countdown.step', { n: String(step), total: String(STEPS) })}
       </p>
       <h2
@@ -254,7 +254,7 @@ const NewCountdownFlow = ({
             <p className="text-sm text-muted-foreground text-center capitalize">
               {format(date, 'EEEE d. MMMM', { locale: dateLocale })} · {time}
             </p>
-            <p className="text-xs text-muted-foreground text-center">{t('countdown.periodHint')}</p>
+            <p className="text-sm text-muted-foreground text-center">{t('countdown.periodHint')}</p>
             <label className="block">
               <span className="text-sm font-medium mb-1.5 block text-center">{t('countdown.endDate')}</span>
               <input
@@ -299,7 +299,7 @@ const NewCountdownFlow = ({
                   <option value={timeZone}>{timeZone}</option>
                 )}
               </select>
-              <p className="text-xs text-muted-foreground text-center mt-1">{t('countdown.timezoneHint')}</p>
+              <p className="text-sm text-muted-foreground text-center mt-1">{t('countdown.timezoneHint')}</p>
             </label>
           </div>
         )}
@@ -384,14 +384,14 @@ const NewCountdownFlow = ({
                       )}
                     </span>
                     <span className="font-semibold flex-1 text-sm">{m.display_name}</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-sm text-muted-foreground">
                       {selected ? t('countdown.willInvite') : t('countdown.tapToInvite')}
                     </span>
                   </button>
                 );
               })
             )}
-            <p className="text-xs text-muted-foreground pt-1 text-center">{t('countdown.inviteNote')}</p>
+            <p className="text-sm text-muted-foreground pt-1 text-center">{t('countdown.inviteNote')}</p>
           </div>
         )}
       </motion.div>
