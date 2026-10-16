@@ -2,9 +2,9 @@ import { addDays, format } from 'date-fns';
 import { useLocale } from '@/hooks/useLocale';
 
 const FIELD =
-  'min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary';
+  'min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-primary';
 const ADD_BTN =
-  'shrink-0 rounded-xl bg-muted active:bg-muted/70 px-3 py-3 text-sm font-medium whitespace-nowrap min-w-[4.75rem] transition-colors';
+  'shrink-0 rounded-xl bg-muted active:bg-muted/70 px-3 py-3 text-base font-medium whitespace-nowrap min-w-[4.75rem] transition-colors';
 
 interface EventPeriodFieldsProps {
   isHotel: boolean;
@@ -39,7 +39,7 @@ const EventPeriodFields = ({
   const field = dense
     ? 'h-10 min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary'
     : FIELD;
-  const label = dense ? 'mb-1 block text-xs font-medium text-muted-foreground' : 'text-sm font-medium mb-2 block';
+  const label = dense ? 'mb-1 block text-sm font-medium text-muted-foreground' : 'text-base font-medium mb-2 block';
   const stack = dense ? 'space-y-2' : 'space-y-4';
 
   const setStart = (value: string) => {
@@ -72,7 +72,7 @@ const EventPeriodFields = ({
               className={`w-[7.25rem] ${field}`}
             />
           </div>
-          {!dense && <p className="mt-1 text-xs text-muted-foreground">{t('event.hotelHint')}</p>}
+          {!dense && <p className="mt-1 text-base text-muted-foreground">{t('event.hotelHint')}</p>}
         </div>
         <div>
           <label className={label}>{t('event.checkOut')}</label>
@@ -120,7 +120,7 @@ const EventPeriodFields = ({
           )}
         </div>
         {isMultiDay && (
-          <p className="mt-1 text-xs text-muted-foreground">{t('event.periodHint')}</p>
+          <p className="mt-1 text-base text-muted-foreground">{t('event.periodHint')}</p>
         )}
       </div>
 
@@ -128,7 +128,7 @@ const EventPeriodFields = ({
         <div className={`flex items-center gap-2 ${compactEndDate ? 'mt-2' : ''}`}>
           <div className="flex-1 min-w-0">
             {!compactEndDate && (
-              <label className="text-sm font-medium mb-2 block">{t('event.lastDay')}</label>
+              <label className="text-base font-medium mb-2 block">{t('event.lastDay')}</label>
             )}
             <input
               type="date"

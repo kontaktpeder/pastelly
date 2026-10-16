@@ -29,7 +29,7 @@ import { applyVacationCategoryTiming, isHotelCategory } from '@/lib/vacationSche
 
 /** Shared size for date/time inputs — equality = simplicity */
 const FIELD =
-  'min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary';
+  'min-w-0 box-border appearance-none rounded-xl border border-border bg-background px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-primary';
 const PAIR_BTN =
   'flex min-h-12 w-full items-center justify-center rounded-2xl bg-muted px-3 text-center text-base font-medium leading-snug text-foreground active:bg-muted/80';
 const DAY_PART_BTN =
@@ -392,15 +392,15 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                 {isMultiDay && !showTimedMultiDay ? (
                   <>
                     <div className="rounded-xl bg-muted/70 px-4 py-3">
-                      <p className="text-sm font-medium">{t('event.allDayMulti')}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-base font-medium">{t('event.allDayMulti')}</p>
+                      <p className="text-base text-muted-foreground mt-0.5">
                         {t('event.allDayMultiHint')}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={enableTimedMultiDay}
-                      className="text-sm text-muted-foreground underline underline-offset-2"
+                      className="text-base text-muted-foreground underline underline-offset-2"
                     >
                       {t('event.hasTimes')}
                     </button>
@@ -421,7 +421,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                       <button
                         type="button"
                         onClick={applyAllDay}
-                        className="text-sm text-muted-foreground underline underline-offset-2"
+                        className="text-base text-muted-foreground underline underline-offset-2"
                       >
                         {t('event.useAllDay')}
                       </button>
@@ -438,11 +438,11 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                     ) : (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <label className="text-sm font-medium">{t('event.dayPart')}</label>
+                          <label className="text-base font-medium">{t('event.dayPart')}</label>
                           <button
                             type="button"
                             onClick={() => setShowDayParts(false)}
-                            className="text-xs text-muted-foreground underline underline-offset-2"
+                            className="text-base text-muted-foreground underline underline-offset-2"
                           >
                             {t('event.hideDayPart')}
                           </button>
@@ -512,7 +512,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                 {showNotes && (
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
-                      <label className="text-sm font-medium mb-1 block">{t('event.notes')}</label>
+                      <label className="text-base font-medium mb-1 block">{t('event.notes')}</label>
                       <textarea
                         ref={notesRef}
                         value={notes}
@@ -593,7 +593,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                     </button>
                   ))}
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   {visibility === 'private'
                     ? t('event.onlyMeHint')
                     : visibility === 'selected_members'
@@ -611,8 +611,8 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                     onChange={(e) => setHideFromOtherCalendars(e.target.checked)}
                   />
                   <span>
-                    <span className="block font-semibold text-sm">{t('event.hideFromOther')}</span>
-                    <span className="block text-xs text-muted-foreground mt-0.5">
+                    <span className="block font-semibold text-base">{t('event.hideFromOther')}</span>
+                    <span className="block text-base text-muted-foreground mt-0.5">
                       {t('event.hideFromOtherHint')}
                     </span>
                   </span>
@@ -621,7 +621,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
 
               {visibility === 'selected_members' && (
                 <div className="rounded-2xl bg-muted/50 p-4">
-                  <p className="text-sm font-semibold mb-3">Velg hvem som skal se</p>
+                  <p className="text-base font-semibold mb-3">Velg hvem som skal se</p>
                   <div className="flex flex-col gap-2">
                     {members.filter((m) => m.id !== currentMemberId).map((m) => {
                       const checked = selectedMemberIds.includes(m.id);
@@ -633,12 +633,12 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                           className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${checked ? 'bg-primary/20 ring-2 ring-primary' : 'bg-background hover:bg-muted'}`}
                         >
                           <span
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-base font-bold"
                             style={{ backgroundColor: `hsl(var(--member-${m.color_token.replace('pastel-', '')}))` }}
                           >
                             {m.display_name.charAt(0)}
                           </span>
-                          <span className="flex-1 text-sm font-medium">{m.display_name}</span>
+                          <span className="flex-1 text-base font-medium">{m.display_name}</span>
                           <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${checked ? 'bg-primary border-primary' : 'border-border'}`}>
                             {checked && (
                               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -648,11 +648,11 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                       );
                     })}
                     {members.filter((m) => m.id !== currentMemberId).length === 0 && (
-                      <p className="text-sm text-muted-foreground">Ingen andre medlemmer å dele med enda.</p>
+                      <p className="text-base text-muted-foreground">Ingen andre medlemmer å dele med enda.</p>
                     )}
                   </div>
                   {selectedMemberIds.length === 0 && (
-                    <p className="text-xs text-destructive mt-2">Velg minst én person for å fortsette.</p>
+                    <p className="text-base text-destructive mt-2">Velg minst én person for å fortsette.</p>
                   )}
                 </div>
               )}
@@ -676,7 +676,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                     className="rounded-2xl p-4"
                     style={{ backgroundColor: visuals?.soft ?? 'hsl(var(--muted))' }}
                   >
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <p className="text-base font-semibold uppercase tracking-wide text-muted-foreground">
                       {t('event.summary')}
                     </p>
                     <div className="mt-3 flex items-start gap-3">
@@ -690,12 +690,12 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                       )}
                       <div className="min-w-0">
                         <p className="text-lg font-bold leading-tight">{title}</p>
-                        <p className="mt-1 text-sm">{whenLine}</p>
+                        <p className="mt-1 text-lg">{whenLine}</p>
                         {timeLine && (
-                          <p className="text-sm text-muted-foreground">{timeLine}</p>
+                          <p className="text-lg text-muted-foreground">{timeLine}</p>
                         )}
                         {category && (
-                          <p className="mt-1 text-sm font-medium" style={{ color: visuals?.ink }}>
+                          <p className="mt-1 text-base font-medium" style={{ color: visuals?.ink }}>
                             {resolveCategoryLabel(category, otherLabel, locale)}
                           </p>
                         )}

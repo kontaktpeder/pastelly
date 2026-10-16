@@ -108,10 +108,10 @@ const DayOverview = ({
           <div className={`flex flex-col items-center justify-center px-2 text-center ${
             isAgenda ? 'min-h-[4.5rem] py-6' : layout === 'sheet' ? 'py-8' : 'h-full min-h-[8rem]'
           }`}>
-            <p className="font-medium text-foreground">
+            <p className="text-lg font-medium text-foreground">
               {t('event.emptyDay')}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-base text-muted-foreground">
               {canSeedWeek
                 ? t('event.emptyWeekHint')
                 : t('event.emptyDayHint')}
@@ -153,15 +153,15 @@ const DayOverview = ({
                         <BriefcaseBusiness size={12} strokeWidth={2} style={{ color: WORK_BLOCK_MARK.ink }} />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{ev.title}</span>
+                        <span className="block truncate text-lg font-semibold">{ev.title}</span>
                         {timeLabel && (
-                          <p className="mt-0.5 text-xs text-muted-foreground">{timeLabel}</p>
+                          <p className="mt-0.5 text-base text-muted-foreground">{timeLabel}</p>
                         )}
-                        <p className="mt-1 text-[11px] text-muted-foreground">{t('event.workBlockHint')}</p>
+                        <p className="mt-1 text-base text-muted-foreground">{t('event.workBlockHint')}</p>
                       </span>
                     </div>
                     {ev.location && (
-                      <p className="mt-1 text-xs text-muted-foreground">{addressDisplayLabel(ev.location)}</p>
+                      <p className="mt-1 text-base text-muted-foreground">{addressDisplayLabel(ev.location)}</p>
                     )}
                   </button>
                 );
@@ -187,17 +187,17 @@ const DayOverview = ({
                         </span>
                       )}
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{ev.title}</span>
+                        <span className="block truncate text-lg font-semibold">{ev.title}</span>
                         {timeLabel && (
-                          <p className="mt-0.5 text-xs text-muted-foreground">{timeLabel}</p>
+                          <p className="mt-0.5 text-base text-muted-foreground">{timeLabel}</p>
                         )}
-                        <p className="mt-1 text-[11px] text-muted-foreground">
+                        <p className="mt-1 text-base text-muted-foreground">
                           {t('event.overlayHint')}
                         </p>
                       </span>
                     </div>
                     {ev.location && (
-                      <p className="mt-1 text-xs text-muted-foreground">{addressDisplayLabel(ev.location)}</p>
+                      <p className="mt-1 text-base text-muted-foreground">{addressDisplayLabel(ev.location)}</p>
                     )}
                   </button>
                 );
@@ -225,16 +225,16 @@ const DayOverview = ({
                         <Icon size={12} strokeWidth={2} style={{ color: visuals.ink }} />
                       </span>
                     )}
-                    <span className="truncate text-sm font-semibold">{ev.title}</span>
+                    <span className="truncate text-lg font-semibold">{ev.title}</span>
                   </div>
                   {multiLabel && (
-                    <p className="mt-0.5 text-xs font-medium text-foreground/70">{multiLabel}</p>
+                    <p className="mt-0.5 text-base font-medium text-foreground/70">{multiLabel}</p>
                   )}
                   {!(ev.category === 'hotel' && stayLabel) && timeLabel && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">{timeLabel}</p>
+                    <p className="mt-0.5 text-base text-muted-foreground">{timeLabel}</p>
                   )}
                   {ev.location && (
-                    <p className="mt-1 text-xs text-muted-foreground">{addressDisplayLabel(ev.location)}</p>
+                    <p className="mt-1 text-base text-muted-foreground">{addressDisplayLabel(ev.location)}</p>
                   )}
                 </button>
               );

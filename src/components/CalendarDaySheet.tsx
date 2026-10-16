@@ -45,7 +45,7 @@ const CalendarDaySheet = ({
       zClassName="z-50"
     >
       <div className="shrink-0 px-5 pb-3 pt-1">
-        <h2 className="text-lg font-bold capitalize">
+        <h2 className="text-2xl font-bold capitalize">
           {format(date, 'EEEE d. MMMM', { locale: dateLocale })}
         </h2>
       </div>
