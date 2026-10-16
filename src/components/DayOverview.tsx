@@ -8,7 +8,7 @@ import type { Event } from '@/hooks/useEvents';
 import { OVERLAY_MARK, type DisplayEvent } from '@/hooks/useOverlayEvents';
 import { WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
 import type { HouseholdMember } from '@/hooks/useHousehold';
-import PopupStickyFooter from '@/components/PopupStickyFooter';
+import SheetActionDock from '@/components/SheetActionDock';
 import { BriefcaseBusiness, Plus } from 'lucide-react';
 import { formatEventStayLabel } from '@/lib/eventStay';
 import { addressDisplayLabel } from '@/lib/eventLocation';
@@ -21,7 +21,7 @@ export interface DayOverviewProps {
   currentMemberId?: string;
   calendarKind?: string;
   canSeedWeek?: boolean;
-  /** sheet = PopupStickyFooter; panel = bordered stack in desktop aside; agenda = inline week program */
+  /** sheet = planted bottom dock; panel = desktop aside; agenda = inline week program */
   layout?: 'sheet' | 'panel' | 'agenda';
   onPickEvent: (event: DisplayEvent) => void;
   onCreateForDate: (date: Date) => void;
@@ -49,7 +49,7 @@ const DayOverview = ({
       type="button"
       onClick={() => onCreateForDate(date)}
       aria-label={t('event.newActivity')}
-      className="ml-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-200 text-green-900 shadow-sm active:bg-green-300"
+      className="flex h-12 w-12 items-center justify-center rounded-full bg-green-200 text-green-900 active:bg-green-300"
     >
       <Plus size={22} strokeWidth={2.5} />
     </button>
@@ -66,7 +66,7 @@ const DayOverview = ({
           {t('event.fillWeek')}
         </button>
       )}
-      <div className="flex justify-end">{addButton}</div>
+      <div className="flex justify-center">{addButton}</div>
     </>
   );
 
@@ -94,7 +94,13 @@ const DayOverview = ({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div
-        className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain scroll-touch px-5 pb-3"
+        className={`min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain scroll-touch px-5 ${
+          layout === 'sheet'
+            ? canSeedWeek && events.length === 0
+              ? 'pb-40'
+              : 'pb-24'
+            : 'pb-3'
+        }`}
         style={isAgenda ? { touchAction: 'pan-y' } : undefined}
         data-sheet-scroll
       >
@@ -240,9 +246,9 @@ const DayOverview = ({
       {isAgenda ? (
         <div className="shrink-0 px-5 pb-1">{actions}</div>
       ) : layout === 'sheet' ? (
-        <PopupStickyFooter className="space-y-2">{actions}</PopupStickyFooter>
+        <SheetActionDock>{actions}</SheetActionDock>
       ) : (
-        <div className="shrink-0 space-y-2 border-t border-border/60 bg-card/90 px-5 py-3">
+        <div className="flex shrink-0 flex-col items-center gap-2 px-5 py-3">
           {actions}
         </div>
       )}

@@ -13,8 +13,7 @@ import { isHotelCategory } from '@/lib/vacationSchedule';
 import EventAddressLink from '@/components/EventAddressLink';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import CenteredPopup from '@/components/CenteredPopup';
-import PopupStickyFooter from '@/components/PopupStickyFooter';
-import { scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
+import SheetActionDock from '@/components/SheetActionDock';
 import { canEditEvent } from '@/lib/canEditEvent';
 import type { CalendarKind } from '@/lib/calendarKinds';
 import { useLocale } from '@/hooks/useLocale';
@@ -131,7 +130,12 @@ const EventDetailSheet = ({
       zClassName="z-[60]"
       backdrop="none"
     >
-      <div className="flex-1 overflow-y-auto overscroll-contain scroll-touch px-5 pt-2 pb-4 min-h-0" data-sheet-scroll>
+      <div
+        className={`flex-1 overflow-y-auto overscroll-contain scroll-touch px-5 pt-2 min-h-0 ${
+          editable ? 'pb-44' : 'pb-28'
+        }`}
+        data-sheet-scroll
+      >
         <div className={`rounded-2xl p-5 mb-4 ${ownerColor.bg}`}>
           <h2 className="text-xl font-bold mb-1">{event.title}</h2>
           <p className="text-sm text-muted-foreground">
@@ -229,51 +233,9 @@ const EventDetailSheet = ({
         </div>
       </div>
 
-      <PopupStickyFooter className="space-y-2">
-        <div className="flex gap-2">
-          <input
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-            onFocus={scrollFocusIntoView}
-            placeholder={t('event.writeComment')}
-            className="flex-1 min-w-0 rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <button
-            type="button"
-            onClick={handleAddComment}
-            disabled={!comment.trim()}
-            className="shrink-0 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
-          >
-            {t('event.send')}
-          </button>
-        </div>
-
-        {editable && !confirmDelete && (
-          <div className="flex items-center justify-end gap-2">
-            {onQuickEdit && (
-              <button
-                type="button"
-                onClick={() => onQuickEdit(event)}
-                aria-label={t('event.edit')}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary active:bg-primary/25"
-              >
-                <Pencil size={18} strokeWidth={2.4} />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              aria-label={t('event.delete')}
-              className="flex h-12 w-12 items-center justify-center rounded-full border border-destructive/30 text-destructive active:bg-destructive/10"
-            >
-              <Trash2 size={18} strokeWidth={2.4} />
-            </button>
-          </div>
-        )}
-
-        {editable && confirmDelete && (
-          <div className="rounded-2xl bg-destructive/10 p-4">
+      <SheetActionDock>
+        {editable && confirmDelete ? (
+          <div className="w-full max-w-xs rounded-2xl bg-background p-4 shadow-soft-lg">
             <p className="mb-3 text-center text-sm font-medium">
               {t('event.deleteConfirm')}
             </p>
@@ -296,8 +258,50 @@ const EventDetailSheet = ({
               </button>
             </div>
           </div>
+        ) : (
+          <>
+            <div className="flex w-full gap-2">
+              <input
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                placeholder={t('event.writeComment')}
+                className="min-w-0 flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <button
+                type="button"
+                onClick={handleAddComment}
+                disabled={!comment.trim()}
+                className="shrink-0 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+              >
+                {t('event.send')}
+              </button>
+            </div>
+            {editable && (
+              <div className="flex items-center justify-center gap-3">
+                {onQuickEdit && (
+                  <button
+                    type="button"
+                    onClick={() => onQuickEdit(event)}
+                    aria-label={t('event.edit')}
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary active:bg-primary/25"
+                  >
+                    <Pencil size={18} strokeWidth={2.4} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  aria-label={t('event.delete')}
+                  className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive active:bg-destructive/15"
+                >
+                  <Trash2 size={18} strokeWidth={2.4} />
+                </button>
+              </div>
+            )}
+          </>
         )}
-      </PopupStickyFooter>
+      </SheetActionDock>
     </CenteredPopup>
   );
 };
