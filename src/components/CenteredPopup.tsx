@@ -12,6 +12,7 @@ import {
   subscribeNest,
 } from '@/lib/sheetNest';
 import { scrollElementIntoContainer } from '@/lib/scrollFocusIntoView';
+import { SheetDockContext } from '@/components/SheetActionDock';
 import {
   BODY_ACTIVATE_PX,
   COMMIT_PROJECT_SEC,
@@ -88,31 +89,32 @@ function normalizeDetents(detents: SheetDetent[]): SheetDetent[] {
   return ordered.length ? ordered : ['full'];
 }
 
-function writeSheetBox(el: HTMLElement | null, y: number, height: number | null) {
-  if (!el) return;
-  el.style.transform = `translate3d(0, ${y}px, 0)`;
-  if (height != null) el.style.height = `${height}px`;
-}
-
 /**
- * Keep the sheet bottom on the viewport bottom while open (half and full).
- * During dismiss, freeze the height and slide the whole card down.
+ * Open sheets are bottom-anchored: only the height changes, so the bottom
+ * edge (and anything pinned there) does not travel with the drag.
+ * Dismiss freezes that height and slides the card down.
  */
-function sheetBox(
+function applySheetBox(
+  el: HTMLElement | null,
   y: number,
   frameH: number,
   flying: boolean,
   dismissAnchor: number,
-): { y: number; height: number } {
+) {
+  if (!el) return;
   if (flying) {
     const base = Math.max(0, dismissAnchor);
-    return {
-      y: base + (y - dismissAnchor),
-      height: Math.max(0, frameH - base),
-    };
+    el.style.height = `${Math.max(0, frameH - base)}px`;
+    el.style.transform = `translate3d(0, ${y - dismissAnchor}px, 0)`;
+    return;
   }
-  const pin = Math.max(0, y);
-  return { y, height: Math.max(0, frameH - pin) };
+  if (y < 0) {
+    el.style.height = `${Math.max(0, frameH)}px`;
+    el.style.transform = `translate3d(0, ${y}px, 0)`;
+    return;
+  }
+  el.style.height = `${Math.max(0, frameH - y)}px`;
+  el.style.transform = 'translate3d(0, 0, 0)';
 }
 
 /** iOS-style rubber band for overscroll past an edge (overshoot in px). */
@@ -163,6 +165,7 @@ const CenteredPopup = ({
   const nestEnabled = nestProp ?? size === 'sheet';
   const cardRef = useRef<HTMLDivElement>(null);
   const sheetLayerRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const gestureRef = useRef<GestureState | null>(null);
   const detentRef = useRef<SheetDetent>('full');
@@ -275,9 +278,16 @@ const CenteredPopup = ({
 
   const setY = (y: number) => {
     yRef.current = y;
-    const frame = frameHRef.current;
-    const box = sheetBox(y, frame, flyingOutRef.current, dismissAnchorRef.current);
-    writeSheetBox(sheetLayerRef.current, box.y, size === 'sheet' ? box.height : null);
+    const layer = sheetLayerRef.current;
+    if (!layer) return;
+    if (size === 'sheet') {
+      const flying = flyingOutRef.current;
+      applySheetBox(layer, y, frameHRef.current, flying, dismissAnchorRef.current);
+      const shift = flying ? y - dismissAnchorRef.current : 0;
+      overlayRef.current?.style.setProperty('--sheet-dismiss-shift', `${shift}px`);
+      return;
+    }
+    layer.style.transform = `translate3d(0, ${y}px, 0)`;
   };
 
   const stopSpring = () => {
@@ -632,19 +642,29 @@ const CenteredPopup = ({
   }, []);
 
   const useSheetLayout = size === 'sheet';
-  const sheetFrame = sheetBox(
-    yRef.current,
-    frameH,
-    flyingOut,
-    dismissAnchorRef.current,
-  );
+  const [dockRoot, setDockRoot] = useState<HTMLDivElement | null>(null);
+
+  // Own the sheet box outside React style so re-renders can't nudge the bottom.
+  useLayoutEffect(() => {
+    setDockRoot(size === 'sheet' ? frameRef.current : overlayRef.current);
+    if (size !== 'sheet') return;
+    applySheetBox(
+      sheetLayerRef.current,
+      yRef.current,
+      frameHRef.current,
+      flyingOutRef.current,
+      dismissAnchorRef.current,
+    );
+  }, [size]);
 
   const recessTransform = isRecessed
     ? `translate3d(0, ${NEST_RECESS_Y_PX}px, 0) scale(${NEST_RECESS_SCALE})`
     : 'translate3d(0, 0, 0) scale(1)';
 
   return (
+    <SheetDockContext.Provider value={{ root: dockRoot, hidden: isRecessed }}>
     <div
+      ref={overlayRef}
       className={cn(
         'fixed inset-0',
         zClassName,
@@ -669,7 +689,7 @@ const CenteredPopup = ({
         ref={frameRef}
         className={cn(
           'absolute inset-0 flex justify-center pointer-events-none overflow-hidden',
-          useSheetLayout ? 'items-start' : 'items-end',
+          'items-end',
         )}
         style={framePad}
       >
@@ -679,15 +699,12 @@ const CenteredPopup = ({
             'relative z-10 flex w-full max-w-md min-h-0',
             !isRecessed && 'pointer-events-auto',
             useSheetLayout
-              ? 'self-start md:max-w-xl'
+              ? 'self-end md:max-w-xl'
               : 'h-auto max-h-[min(92dvh,100%)]',
           )}
           style={
             useSheetLayout
-              ? {
-                  transform: `translate3d(0, ${sheetFrame.y}px, 0)`,
-                  height: `${sheetFrame.height}px`,
-                }
+              ? undefined
               : { transform: `translate3d(0, ${yRef.current}px, 0)` }
           }
           onClick={(e) => e.stopPropagation()}
@@ -752,6 +769,7 @@ const CenteredPopup = ({
         </div>
       </div>
     </div>
+    </SheetDockContext.Provider>
   );
 };
 

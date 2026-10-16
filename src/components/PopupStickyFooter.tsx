@@ -23,7 +23,7 @@ const PopupStickyFooter = ({ children, className }: PopupStickyFooterProps) => {
     <div
       data-sheet-footer
       className={cn(
-        'relative z-20 shrink-0 bg-background border-t border-border/60 px-5 pt-3',
+        'relative z-20 shrink-0 bg-background px-5 pt-3',
         keyboardOpen ? 'pb-3' : 'pb-[max(0.75rem,env(safe-area-inset-bottom))]',
         className,
       )}
