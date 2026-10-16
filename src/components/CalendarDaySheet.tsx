@@ -41,6 +41,7 @@ const CalendarDaySheet = ({
       size="sheet"
       detents={['half', 'full']}
       initialDetent="half"
+      fitContent
       zClassName="z-50"
     >
       <div className="shrink-0 px-5 pb-3 pt-1">

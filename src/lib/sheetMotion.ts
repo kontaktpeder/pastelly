@@ -147,6 +147,25 @@ export function runSheetSpring(options: {
   };
 }
 
+/** Short day-sheet rest: 55% of the frame. Matches CenteredPopup's half detent. */
+export const SHEET_HALF_VISIBLE = 0.55;
+
+/**
+ * How far up a day sheet should open so `neededPx` of content is on screen.
+ * Never shorter than half. Never taller than the frame — leftover content scrolls.
+ * Returns the sheet's top offset (0 = full height).
+ */
+export function sheetYToReveal(
+  frameH: number,
+  neededPx: number,
+  halfVisible = SHEET_HALF_VISIBLE,
+): number {
+  if (frameH <= 0) return 0;
+  const halfY = Math.max(0, Math.round(frameH * (1 - halfVisible)));
+  const fittedY = Math.max(0, frameH - Math.ceil(neededPx));
+  return Math.min(halfY, fittedY);
+}
+
 /** Ease-out dismiss — smoother than a hard spring fling on long travel. */
 export function runSheetEaseOut(options: {
   from: number;
