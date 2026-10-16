@@ -23,7 +23,7 @@ const PopupStickyFooter = ({ children, className }: PopupStickyFooterProps) => {
     <div
       data-sheet-footer
       className={cn(
-        'absolute inset-x-0 z-20 bg-background px-5 pt-3',
+        'pointer-events-none absolute inset-x-0 z-20 px-5 pt-3 [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_textarea]:pointer-events-auto',
         keyboardOpen ? 'pb-3' : 'pb-[max(0.75rem,env(safe-area-inset-bottom))]',
         className,
       )}

@@ -17,7 +17,8 @@ export const SheetDockContext = createContext<SheetDockValue>({
 /**
  * Actions pinned to the bottom center of the screen while the sheet is open.
  * The sheet only changes height above this dock, so the buttons do not travel,
- * lag, or sit on a divider. On dismiss they follow the sheet via --sheet-dismiss-shift.
+ * lag, or sit on a divider. They float over the sheet until it closes.
+ * On dismiss they follow the sheet via --sheet-dismiss-shift.
  */
 const SheetActionDock = ({ children }: { children: ReactNode }) => {
   const { root, hidden } = useContext(SheetDockContext);
@@ -37,7 +38,7 @@ const SheetActionDock = ({ children }: { children: ReactNode }) => {
       }}
     >
       <div
-        className={`pointer-events-auto flex w-full max-w-md flex-col items-center gap-2 bg-background px-5 pt-3 md:max-w-xl ${
+        className={`pointer-events-none flex w-full max-w-md flex-col items-center gap-2 px-5 pt-3 md:max-w-xl [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_textarea]:pointer-events-auto ${
           keyboardOpen ? 'pb-3' : 'pb-[max(0.75rem,env(safe-area-inset-bottom))]'
         }`}
       >
