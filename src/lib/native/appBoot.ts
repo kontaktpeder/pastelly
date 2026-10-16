@@ -18,7 +18,7 @@ export function markAppReady() {
   if (!isNativePlatform()) return;
   // Slightly shorter than the in-app veil so splash is gone before veil hits 0
   // (avoids a black compositor gap when both layers clear on the same frame).
-  void SplashScreen.hide({ fadeOutDuration: 560 }).catch(() => {
+  void SplashScreen.hide({ fadeOutDuration: 180 }).catch(() => {
     /* already hidden / unsupported */
   });
 }

@@ -18,11 +18,9 @@ import type { HouseholdMember } from '@/hooks/useHousehold';
 import { useLocale } from '@/hooks/useLocale';
 import CenteredPopup from '@/components/CenteredPopup';
 import PopupStickyFooter from '@/components/PopupStickyFooter';
-import { blurSheetField, focusSheetField } from '@/lib/focusSheetField';
+import { blurSheetField } from '@/lib/focusSheetField';
 import { focusFieldSoftly, scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
-import { stepForward, stepSpring } from '@/lib/motion';
-import { cn } from '@/lib/utils';
-import { useVacationMode } from '@/hooks/useVacationMode';
+import { stepForward } from '@/lib/motion';
 import EventPeriodFields from '@/components/EventPeriodFields';
 import EventAddressField from '@/components/EventAddressField';
 import { applyVacationCategoryTiming, isHotelCategory } from '@/lib/vacationSchedule';
@@ -46,14 +44,11 @@ interface NewEventFlowProps {
   onCreated?: (eventId: string, dateStr: string) => void;
 }
 
-const STEPS = 4;
+const STEPS = 2;
 
 const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'home', showInOtherCalendars = false, initialDate, onClose, onCreated }: NewEventFlowProps) => {
   const { t, locale, dateLocale } = useLocale();
-  const vacation = useVacationMode();
-  const categoryOptions = getCategoryOptionsForKind(calendarKind, {
-    vacationMode: vacation.enabledForCalendar && vacation.snapshot.active,
-  });
+  const categoryOptions = getCategoryOptionsForKind(calendarKind);
   const memberColorMap = getMemberColorMap(members.find((m) => m.id === currentMemberId));
   const [step, setStep] = useState(1);
   const [title, setTitle] = useState('');
@@ -79,10 +74,6 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
   const locationRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
-  const stepRef = useRef(step);
-  stepRef.current = step;
-  /** Title UI in-flow only after previous step has finished exiting (avoids stacked glitch). */
-  const [whatVisible, setWhatVisible] = useState(false);
 
   const addOneHour = (time: string) => {
     const [h, m] = time.split(':').map(Number);
@@ -112,37 +103,15 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
     return () => window.clearTimeout(t);
   }, [showNotes]);
 
-  useEffect(() => {
-    if (step !== 3) setWhatVisible(false);
-  }, [step]);
-
-  /**
-   * Title input is pre-mounted (offscreen) on step 2 so we can focus it in the
-   * same tap as Next/category — iOS only opens the keyboard for a real gesture.
-   * Stays offscreen until the previous step’s exit finishes, then reveals in-flow.
-   */
-  const goToWhatStep = () => {
-    setWhatVisible(false);
-    focusSheetField(titleRef.current, { footerReserve: 128 });
-    setStep(3);
-  };
-
   const goNext = () => {
     if (step >= STEPS) return;
-    if (step + 1 === 3) {
-      goToWhatStep();
-      return;
-    }
-    // Dismiss date/time keyboard so sticky Neste isn't left floating on Kategori.
     if (step === 1) blurSheetField();
     setStep((s) => s + 1);
   };
 
   const canProceed =
-    step === 2 ? category !== null :
-    step === 3 ? title.trim().length > 0 :
-    step === 4 ? (visibility !== 'selected_members' || selectedMemberIds.length > 0) :
-    true;
+    step === 1 ? title.trim().length > 0 :
+    category !== null && (visibility !== 'selected_members' || selectedMemberIds.length > 0);
 
   const dayPartStart = DAY_PART_ORDER[selectedDayParts[0]];
   const dayPartEnd = DAY_PART_ORDER[selectedDayParts[1]];
@@ -354,43 +323,24 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
 
       {/* Content */}
       <div className="relative flex-1 px-5 overflow-y-auto min-h-0 pb-4 overscroll-contain scroll-touch" data-sheet-scroll>
-        {/* Shared title field: offscreen until step-2 exit completes, then in-flow on step 3 */}
-        {(step === 2 || step === 3) && (
-          <div
-            className={cn(
-              whatVisible
-                ? 'space-y-6'
-                : 'pointer-events-none fixed left-0 top-0 z-[-1] w-[min(100vw,28rem)] opacity-0',
-            )}
-            aria-hidden={!whatVisible}
-          >
-            {whatVisible && (
-              <h2 className="text-2xl font-bold">{t('event.what')}</h2>
-            )}
-            <input
-              ref={titleRef}
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={category === 'other' && otherLabel.trim() ? otherLabel : 'F.eks. Middag med venner'}
-              enterKeyHint="next"
-              autoComplete="off"
-              autoCorrect="off"
-              tabIndex={whatVisible ? 0 : -1}
-              className="w-full rounded-2xl border border-border bg-background px-5 py-4 text-lg caret-foreground focus:outline-none focus:border-foreground/25 focus:ring-1 focus:ring-foreground/15"
-            />
-          </div>
-        )}
-
-        <AnimatePresence
-          mode="wait"
-          initial={false}
-          onExitComplete={() => {
-            if (stepRef.current === 3) setWhatVisible(true);
-          }}
-        >
+        <AnimatePresence mode="wait" initial={false}>
           {step === 1 && (
             <motion.div key="step1" {...stepForward} className="space-y-6">
+              <div className="space-y-3">
+                <h2 className="text-2xl font-bold">{t('event.what')}</h2>
+                <input
+                  ref={titleRef}
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="F.eks. Middag med venner"
+                  enterKeyHint="next"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className="w-full rounded-2xl border border-border bg-background px-5 py-4 text-lg caret-foreground focus:outline-none focus:border-foreground/25 focus:ring-1 focus:ring-foreground/15"
+                />
+              </div>
+
               <h2 className="text-2xl font-bold">{t('event.when')}</h2>
 
               <EventPeriodFields
@@ -595,68 +545,36 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
 
           {step === 2 && (
             <motion.div key="step2" {...stepForward} className="space-y-6">
-              <h2 className="text-2xl font-bold">{t('event.category')}</h2>
-              <div className={vacation.snapshot.active && vacation.enabledForCalendar ? 'grid grid-cols-2 gap-2' : 'flex flex-col gap-2'}>
-                {categoryOptions.map((key) => {
-                  const meta = EVENT_CATEGORY_META[key];
-                  const Icon = meta.Icon;
-                  const selected = category === key;
-                  const visuals = resolveCategoryVisuals(key, memberColorMap);
-                  const vacationGrid = vacation.snapshot.active && vacation.enabledForCalendar;
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        setCategory(key);
-                        applyCategoryTiming(key);
-                        if (key !== 'other') {
-                          setOtherLabel('');
-                          goToWhatStep();
-                        }
-                      }}
-                      className={`rounded-xl py-3 px-4 text-sm font-medium transition-all flex items-center ${
-                        vacationGrid ? 'gap-2.5 text-left' : 'justify-between'
-                      } ${
-                        selected ? 'ring-2 ring-current' : vacationGrid ? '' : 'bg-muted hover:bg-muted/80'
-                      }`}
-                      style={
-                        selected || vacationGrid
-                          ? { backgroundColor: visuals.soft, color: visuals.ink }
-                          : undefined
-                      }
-                    >
-                      {vacationGrid && (
-                        <span
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                          style={{ backgroundColor: visuals.rail }}
-                        >
-                          <Icon size={16} strokeWidth={2.4} style={{ color: visuals.ink }} />
-                        </span>
-                      )}
-                      <span className="min-w-0 flex-1">{resolveCategoryLabel(key, null, locale)}</span>
-                      {!vacationGrid && <Icon size={18} strokeWidth={2.5} style={{ color: visuals.ink }} />}
-                    </button>
-                  );
-                })}
+              <div className="space-y-3">
+                <h2 className="text-2xl font-bold">{t('event.chooseIcon')}</h2>
+                <div className="flex flex-wrap gap-2.5">
+                  {categoryOptions.map((key) => {
+                    const meta = EVENT_CATEGORY_META[key];
+                    const Icon = meta.Icon;
+                    const selected = category === key;
+                    const visuals = resolveCategoryVisuals(key, memberColorMap);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        aria-label={resolveCategoryLabel(key, null, locale)}
+                        onClick={() => {
+                          setCategory(key);
+                          applyCategoryTiming(key);
+                          if (key !== 'other') setOtherLabel('');
+                        }}
+                        className={`flex h-14 w-14 items-center justify-center rounded-2xl transition-all ${
+                          selected ? 'ring-2 ring-current' : ''
+                        }`}
+                        style={{ backgroundColor: visuals.soft, color: visuals.ink }}
+                      >
+                        <Icon size={22} strokeWidth={2.4} style={{ color: visuals.ink }} />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              {category === 'other' && (
-                <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} transition={stepSpring} className="overflow-hidden">
-                  <label className="text-sm font-medium mb-2 block">Egen kategori (valgfritt)</label>
-                  <input
-                    type="text"
-                    value={otherLabel}
-                    onChange={(e) => setOtherLabel(e.target.value)}
-                    placeholder="F.eks. Trening, Lege, Reise..."
-                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <p className="text-xs text-muted-foreground mt-2">La stå tom hvis du bare vil bruke "Annet".</p>
-                </motion.div>
-              )}
-            </motion.div>
-          )}
 
-          {step === 4 && (
-            <motion.div key="step4" {...stepForward} className="space-y-6">
               <h2 className="text-2xl font-bold">{t('event.who')}</h2>
 
               <div className="space-y-3">

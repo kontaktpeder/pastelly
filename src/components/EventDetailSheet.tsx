@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useEventComments, useAddComment, useDeleteEvent, type Event } from '@/hooks/useEvents';
@@ -248,24 +249,27 @@ const EventDetailSheet = ({
           </button>
         </div>
 
-        {editable && onQuickEdit && (
-          <button
-            type="button"
-            onClick={() => onQuickEdit(event)}
-            className="w-full rounded-2xl bg-primary/15 hover:bg-primary/25 py-3.5 text-sm text-primary font-semibold transition-colors"
-          >
-            {t('event.edit')}
-          </button>
-        )}
-
         {editable && !confirmDelete && (
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className="min-h-12 w-full rounded-2xl border border-destructive/30 py-3.5 text-sm font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-          >
-            {t('event.delete')}
-          </button>
+          <div className="flex items-center justify-end gap-2">
+            {onQuickEdit && (
+              <button
+                type="button"
+                onClick={() => onQuickEdit(event)}
+                aria-label={t('event.edit')}
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary active:bg-primary/25"
+              >
+                <Pencil size={18} strokeWidth={2.4} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              aria-label={t('event.delete')}
+              className="flex h-12 w-12 items-center justify-center rounded-full border border-destructive/30 text-destructive active:bg-destructive/10"
+            >
+              <Trash2 size={18} strokeWidth={2.4} />
+            </button>
+          </div>
         )}
 
         {editable && confirmDelete && (

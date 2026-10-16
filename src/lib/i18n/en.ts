@@ -151,6 +151,7 @@ export const en: Record<MessageKey, string> = {
   'event.what': 'What?',
   'event.who': 'Who can see?',
   'event.category': 'Category',
+  'event.chooseIcon': 'Choose icon',
   'event.date': 'Date',
   'event.endDate': 'Last day',
   'event.firstDay': 'First day',

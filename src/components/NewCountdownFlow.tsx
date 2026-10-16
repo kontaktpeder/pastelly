@@ -50,7 +50,6 @@ const NewCountdownFlow = ({
   const [time, setTime] = useState('08:00');
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState('23:59');
-  const [useVacationMode, setUseVacationMode] = useState(false);
   const currentMember = members.find((m) => m.id === currentMemberId);
   const [timeZone, setTimeZone] = useState(() =>
     resolveTimeZone(currentMember?.timezone || DEFAULT_TIME_ZONE),
@@ -134,13 +133,13 @@ const NewCountdownFlow = ({
         invite_member_ids: inviteIds,
         invite_user_ids: inviteUserIds,
         ends_at: endsAt,
-        use_vacation_mode: useVacationMode,
+        use_vacation_mode: false,
         timezone: timeZone,
       });
       if (created.use_vacation_mode === undefined) {
         persistCountdownVacationLocal(created.id, {
           ends_at: endsAt,
-          use_vacation_mode: useVacationMode,
+          use_vacation_mode: false,
           timezone: timeZone,
         });
       }
@@ -301,25 +300,6 @@ const NewCountdownFlow = ({
                 )}
               </select>
               <p className="text-xs text-muted-foreground text-center mt-1">{t('countdown.timezoneHint')}</p>
-            </label>
-            <label className="flex items-start gap-3 rounded-2xl bg-cyan-50 p-4 cursor-pointer text-left">
-              <input
-                type="checkbox"
-                className="mt-1 h-5 w-5 accent-cyan-700"
-                checked={useVacationMode}
-                onChange={(e) => {
-                  setUseVacationMode(e.target.checked);
-                  if (e.target.checked && !endDate) {
-                    setEndDate(date);
-                  }
-                }}
-              />
-              <span>
-                <span className="block font-semibold text-sm">{t('countdown.useVacationMode')}</span>
-                <span className="block text-xs text-muted-foreground mt-0.5">
-                  {t('countdown.useVacationModeHint')}
-                </span>
-              </span>
             </label>
           </div>
         )}

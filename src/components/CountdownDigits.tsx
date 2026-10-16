@@ -3,8 +3,6 @@ import { motion } from 'framer-motion';
 import { getCountdownRemaining, type CountdownRemaining } from '@/lib/countdownTime';
 import { getCountdownTheme } from '@/lib/countdownThemes';
 import { useLocale } from '@/hooks/useLocale';
-import { formatVacationRange } from '@/lib/vacationMode';
-import { getIntlLocale } from '@/lib/i18n';
 
 export function useLiveRemaining(targetAt: string) {
   const [remaining, setRemaining] = useState(() => getCountdownRemaining(targetAt));
@@ -43,20 +41,14 @@ export function CountdownDigits({
   emoji,
   title,
   compact = false,
-  endsAt,
-  useVacationMode = false,
-  timeZone,
 }: {
   targetAt: string;
   themeId?: string | null;
   emoji?: string | null;
   title?: string;
   compact?: boolean;
-  endsAt?: string | null;
-  useVacationMode?: boolean;
-  timeZone?: string | null;
 }) {
-  const { t, locale } = useLocale();
+  const { t } = useLocale();
   const remaining = useLiveRemaining(targetAt);
   const theme = getCountdownTheme(themeId);
   const { value, label } = countdownUnitLabel(remaining, t);
@@ -68,11 +60,6 @@ export function CountdownDigits({
         : remaining.days > 0
           ? t('countdown.daysUntilTitle', { title })
           : label;
-
-  const vacationRange =
-    useVacationMode && endsAt
-      ? formatVacationRange(new Date(targetAt), new Date(endsAt), getIntlLocale(locale), timeZone || undefined)
-      : null;
 
   return (
     <div
@@ -103,11 +90,6 @@ export function CountdownDigits({
           {title}
         </p>
       ) : null}
-      {vacationRange && (
-        <p className={`mt-2 font-medium text-foreground/80 ${compact ? 'text-[11px]' : 'text-xs'}`}>
-          {t('countdown.autoVacationRange', { range: vacationRange })}
-        </p>
-      )}
       {!remaining.isPast && remaining.days === 0 && (
         <p className="text-xs text-foreground/60 mt-2 font-medium tabular-nums">
           {String(remaining.hours).padStart(2, '0')}:
