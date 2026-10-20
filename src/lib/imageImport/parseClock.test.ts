@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  datesForTimes,
+  finishShiftDates,
   isOvernight,
   parseDayHeader,
   parseRoleAndPlace,
@@ -25,6 +27,33 @@ describe('parseTimeRange', () => {
       endTime: '00:00',
     });
     expect(isOvernight('18:00', '00:00')).toBe(true);
+  });
+
+  it('keeps an end of 00:00 on the same day until the user extends it', () => {
+    const midnight = finishShiftDates({
+      year: 2026,
+      month: 10,
+      day: 23,
+      startTime: '18:00',
+      endTime: '00:00',
+    });
+    expect(midnight).toMatchObject({
+      eventDate: '2026-10-23',
+      endDate: '2026-10-23',
+      overnight: true,
+    });
+    expect(datesForTimes('2026-10-23', '18:00', '00:00', true)).toEqual({
+      endDate: '2026-10-24',
+      overnight: true,
+    });
+    const morning = finishShiftDates({
+      year: 2026,
+      month: 10,
+      day: 23,
+      startTime: '18:00',
+      endTime: '02:00',
+    });
+    expect(morning.endDate).toBe('2026-10-24');
   });
 });
 

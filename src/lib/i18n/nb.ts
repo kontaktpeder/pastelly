@@ -429,6 +429,9 @@ export const nb = {
   'import.mergedFromImages': 'Samme vakt i flere bilder — slått sammen.',
   'import.cancelSummary': '{added} lagt til · {skipped} ikke importert',
   'import.doneAdded': '{count} aktiviteter lagt til',
+  'import.spanQuestion': 'Går denne til neste dag?',
+  'import.oneDay': 'Én dag',
+  'import.nextDay': 'Til neste dag',
 } as const;
 
 export type MessageKey = keyof typeof nb;

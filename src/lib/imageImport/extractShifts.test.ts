@@ -174,7 +174,7 @@ describe('shift grid template', () => {
     expect(needsYearConfirmation(proposals)).toBe(true);
     const dated = applyConfirmedYear(proposals, 2026);
     expect(dated[2]?.eventDate).toBe('2026-10-24');
-    expect(dated[2]?.endDate).toBe('2026-10-25');
+    expect(dated[2]?.endDate).toBe('2026-10-24');
     expect(dated[2]?.overnight).toBe(true);
   });
 });
@@ -378,7 +378,8 @@ describe('shift overview screenshots', () => {
       expect(proposal.location).toBe('Basso Social Oslo AS');
     }
     expect(pages[1]?.find((p) => p.day === 23)?.overnight).toBe(true);
-    expect(pages[1]?.find((p) => p.day === 23)?.endDate).toBe('2026-10-24');
+    expect(pages[1]?.find((p) => p.day === 23)?.endDate).toBe('2026-10-23');
+    expect(pages[2]?.find((p) => p.day === 31)?.endDate).toBe('2026-10-31');
 
     const merged = mergeCertainImageDuplicates(pages.flat());
     expect(merged.map((p) => p.eventDate)).toEqual([
@@ -393,6 +394,34 @@ describe('shift overview screenshots', () => {
     ]);
     expect(merged.find((p) => p.eventDate === '2026-10-22')?.mergedFromImages).toBe(2);
     expect(merged.find((p) => p.eventDate === '2026-10-26')?.mergedFromImages).toBe(2);
+  });
+});
+
+describe('shift card crop', () => {
+  it('frames the whole card when the photo size is known', () => {
+    const words: OcrWord[] = [
+      w('October', 80, 338, 180, 40),
+      w('2026', 280, 338, 120, 40),
+      w('18', 50, 664, 74, 101),
+      w('Preference:', 268, 690, 298, 43),
+      w('Available', 585, 689, 234, 44),
+      w('6:00PM', 219, 860, 224, 42),
+      w('-11:00PM', 463, 860, 281, 42),
+      w('Servitgr,', 218, 936, 169, 40),
+      w('Basso', 406, 938, 117, 31),
+      w('Social', 537, 936, 118, 33),
+      w('Oslo', 670, 937, 88, 32),
+      w('AS', 771, 938, 55, 31),
+    ];
+    const { proposals } = extractShiftsFromWords(words, 0, { width: 1125, height: 2436 });
+    const crop = proposals[0]?.crop;
+    expect(crop?.imageWidth).toBe(1125);
+    expect(crop?.imageHeight).toBe(2436);
+    expect(crop && crop.x).toBeLessThan(200);
+    expect(crop && crop.y).toBeLessThan(840);
+    expect(crop && crop.x + crop.width).toBeGreaterThan(1000);
+    expect(crop && crop.y + crop.height).toBeGreaterThan(1000);
+    expect(crop && crop.y + crop.height).toBeLessThan(1100);
   });
 });
 
