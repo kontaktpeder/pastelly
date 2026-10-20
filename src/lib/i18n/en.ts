@@ -419,4 +419,7 @@ export const en: Record<MessageKey, string> = {
   'import.mergedFromImages': 'Same shift in several photos — merged.',
   'import.cancelSummary': '{added} added · {skipped} not imported',
   'import.doneAdded': '{count} activities added',
+  'import.spanQuestion': 'Does this continue to the next day?',
+  'import.oneDay': 'One day',
+  'import.nextDay': 'Until the next day',
 };

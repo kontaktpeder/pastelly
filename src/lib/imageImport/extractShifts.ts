@@ -1,4 +1,4 @@
-import { clusterLines, cropFromWords, imageBounds, wordCenterX, type OcrLine } from './ocrWords';
+import { clusterLines, cropFromWords, imageBounds, shiftCardCrop, wordCenterX, type OcrLine } from './ocrWords';
 import {
   finishShiftDates,
   isIgnoreLine,
@@ -70,9 +70,13 @@ function toProposal(
     imageHeight: number;
     sourceImageIndex: number;
     index: number;
+    card?: boolean;
   },
 ): ShiftProposal {
   const dates = finishShiftDates(input);
+  const crop = input.card
+    ? shiftCardCrop(input.words, input.imageWidth, input.imageHeight)
+    : cropFromWords(input.words, input.imageWidth, input.imageHeight);
   return {
     id: newId(input.layout, input.index),
     layout: input.layout,
@@ -87,7 +91,7 @@ function toProposal(
     startTime: input.startTime,
     endTime: input.endTime,
     overnight: dates.overnight,
-    crop: cropFromWords(input.words, input.imageWidth, input.imageHeight),
+    crop,
     sourceImageIndex: input.sourceImageIndex,
     mergedFromImages: 1,
   };
@@ -97,8 +101,9 @@ function extractList(
   lines: OcrLine[],
   words: OcrWord[],
   sourceImageIndex: number,
+  imageSize?: { width: number; height: number } | null,
 ): ShiftProposal[] {
-  const { width, height } = imageBounds(words);
+  const { width, height } = imageBounds(words, imageSize);
   const header = headerContext(lines);
   const month = header.month ?? 10;
   const year = header.year;
@@ -145,21 +150,32 @@ function extractList(
         imageHeight: height,
         sourceImageIndex,
         index: out.length,
+        card: true,
       }),
     );
   }
   return out;
 }
 
-function extractOverview(lines: OcrLine[], words: OcrWord[], sourceImageIndex: number): ShiftProposal[] {
+function extractOverview(
+  lines: OcrLine[],
+  words: OcrWord[],
+  sourceImageIndex: number,
+  imageSize?: { width: number; height: number } | null,
+): ShiftProposal[] {
   const startIdx = lines.findIndex((l) => isYourScheduleLabel(l.text));
   const endIdx = lines.findIndex((l, i) => i > startIdx && isOpenShiftsLabel(l.text));
   const band = lines.slice(startIdx >= 0 ? startIdx : 0, endIdx >= 0 ? endIdx : lines.length);
-  return extractList(band, words, sourceImageIndex).map((p) => ({ ...p, layout: 'overview' }));
+  return extractList(band, words, sourceImageIndex, imageSize).map((p) => ({ ...p, layout: 'overview' }));
 }
 
-function extractGrid(lines: OcrLine[], words: OcrWord[], sourceImageIndex: number): ShiftProposal[] {
-  const { width, height } = imageBounds(words);
+function extractGrid(
+  lines: OcrLine[],
+  words: OcrWord[],
+  sourceImageIndex: number,
+  imageSize?: { width: number; height: number } | null,
+): ShiftProposal[] {
+  const { width, height } = imageBounds(words, imageSize);
   const header = headerContext(lines);
   const month = header.month ?? 10;
   const year = header.year;
@@ -243,14 +259,15 @@ function extractGrid(lines: OcrLine[], words: OcrWord[], sourceImageIndex: numbe
 export function extractShiftsFromWords(
   words: OcrWord[],
   sourceImageIndex = 0,
+  imageSize?: { width: number; height: number } | null,
 ): ExtractedPage {
   const usable = words.filter((w) => w.text.trim().length > 0);
   const lines = clusterLines(usable);
   const scored = scoreLayout(lines.map((l) => l.text).join('\n'));
   const byLayout: Record<ShiftLayout, ShiftProposal[]> = {
-    list: extractList(lines, usable, sourceImageIndex),
-    grid: extractGrid(lines, usable, sourceImageIndex),
-    overview: extractOverview(lines, usable, sourceImageIndex),
+    list: extractList(lines, usable, sourceImageIndex, imageSize),
+    grid: extractGrid(lines, usable, sourceImageIndex, imageSize),
+    overview: extractOverview(lines, usable, sourceImageIndex, imageSize),
   };
   let layout = scored;
   let proposals = byLayout[scored];

@@ -129,7 +129,12 @@ export function clusterLines(words: OcrWord[], yTol = 14): OcrLine[] {
   });
 }
 
-export function cropFromWords(words: OcrWord[], imageWidth: number, imageHeight: number): ImageCrop {
+export function cropFromWords(
+  words: OcrWord[],
+  imageWidth: number,
+  imageHeight: number,
+  pad = 8,
+): ImageCrop {
   if (words.length === 0) {
     return { x: 0, y: 0, width: imageWidth, height: imageHeight, imageWidth, imageHeight };
   }
@@ -137,7 +142,6 @@ export function cropFromWords(words: OcrWord[], imageWidth: number, imageHeight:
   const y = Math.min(...words.map((w) => w.y));
   const right = Math.max(...words.map((w) => w.x + w.width));
   const bottom = Math.max(...words.map((w) => w.y + w.height));
-  const pad = 8;
   return {
     x: Math.max(0, x - pad),
     y: Math.max(0, y - pad),
@@ -148,7 +152,37 @@ export function cropFromWords(words: OcrWord[], imageWidth: number, imageHeight:
   };
 }
 
-export function imageBounds(words: OcrWord[]): { width: number; height: number } {
+/**
+ * List cards are wider than the glyphs (padding, trailing icon).
+ * Frame that card so the preview shows the same block as in the photo.
+ */
+export function shiftCardCrop(words: OcrWord[], imageWidth: number, imageHeight: number): ImageCrop {
+  const tight = cropFromWords(words, imageWidth, imageHeight, 0);
+  if (words.length === 0 || imageWidth <= 1 || imageHeight <= 1) return tight;
+  const padY = Math.max(36, Math.round(imageHeight * 0.028));
+  const padLeft = Math.max(36, Math.round(imageWidth * 0.06));
+  const rightMargin = Math.max(24, Math.round(imageWidth * 0.03));
+  const y = Math.max(0, tight.y - padY);
+  const bottom = Math.min(imageHeight, tight.y + tight.height + padY);
+  const x = Math.max(0, tight.x - padLeft);
+  const textRight = tight.x + tight.width;
+  const cardRight = imageWidth - rightMargin;
+  const right = Math.min(imageWidth, cardRight > textRight ? cardRight : textRight + padLeft);
+  return {
+    x,
+    y,
+    width: Math.max(1, right - x),
+    height: Math.max(1, bottom - y),
+    imageWidth,
+    imageHeight,
+  };
+}
+
+export function imageBounds(
+  words: OcrWord[],
+  known?: { width: number; height: number } | null,
+): { width: number; height: number } {
+  if (known && known.width > 0 && known.height > 0) return known;
   if (words.length === 0) return { width: 1, height: 1 };
   return {
     width: Math.max(...words.map((w) => w.x + w.width), 1),

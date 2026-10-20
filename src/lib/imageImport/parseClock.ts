@@ -153,6 +153,12 @@ export function isOvernight(startTime: string, endTime: string): boolean {
   return eh * 60 + em <= sh * 60 + sm;
 }
 
+/** 00:00 is the end of the same day until the user says the shift continues. */
+export function endsAtMidnight(time: string): boolean {
+  const hhmm = time.slice(0, 5);
+  return hhmm === '00:00' || hhmm === '24:00';
+}
+
 export function monthFromText(text: string): number | null {
   const tokens = text.toLowerCase().replace(/[^a-zæøå]/gi, ' ').split(/\s+/);
   for (const token of tokens) {
@@ -293,9 +299,25 @@ export function finishShiftDates(input: {
   const overnight = isOvernight(input.startTime, input.endTime);
   const eventDate = applyYearToDate(input.year, input.month, input.day);
   if (!eventDate) return { eventDate: null, endDate: null, overnight };
+  const continuesNextDay = overnight && !endsAtMidnight(input.endTime);
   return {
     eventDate,
-    endDate: overnight ? addDaysYmd(eventDate, 1) : eventDate,
+    endDate: continuesNextDay ? addDaysYmd(eventDate, 1) : eventDate,
     overnight,
   };
+}
+
+/** Keep a chosen span when the clock still wraps. Midnight stays on one day until chosen. */
+export function datesForTimes(
+  eventDate: string,
+  startTime: string,
+  endTime: string,
+  keepSpan: boolean,
+): { endDate: string; overnight: boolean } {
+  const overnight = isOvernight(startTime, endTime);
+  if (!overnight) return { endDate: eventDate, overnight: false };
+  if (endsAtMidnight(endTime)) {
+    return { endDate: keepSpan ? addDaysYmd(eventDate, 1) : eventDate, overnight: true };
+  }
+  return { endDate: addDaysYmd(eventDate, 1), overnight: true };
 }

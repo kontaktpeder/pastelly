@@ -12,7 +12,7 @@ import {
 } from '@/hooks/useEvents';
 import type { CalendarMembership } from '@/hooks/useCurrentHouseholdContext';
 import { resolveCalendarKind } from '@/lib/calendarKinds';
-import { addDaysYmd } from '@/lib/imageImport/parseClock';
+import { addDaysYmd, datesForTimes } from '@/lib/imageImport/parseClock';
 import { applyConfirmedYear, extractShiftsFromWords, needsYearConfirmation } from '@/lib/imageImport/extractShifts';
 import { findPossibleCalendarDuplicate, mergeCertainImageDuplicates } from '@/lib/imageImport/dedupe';
 import { recognizeImagePages } from '@/lib/imageImport/runOcr';
@@ -47,21 +47,38 @@ function readFilesAsDataUrls(files: File[]): Promise<string[]> {
   );
 }
 
+function readImageSize(url: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => reject(new Error('image'));
+    img.src = url;
+  });
+}
+
+function spansNextDay(proposal: { eventDate: string | null; endDate: string | null }): boolean {
+  return !!proposal.eventDate && !!proposal.endDate && proposal.endDate > proposal.eventDate;
+}
+
+/** Show the whole source card, in its own shape, without clipping the text. */
 function ProposalCrop({ src, crop }: { src: string; crop: ImageCrop }) {
-  const nw = Math.max(crop.width / crop.imageWidth, 0.08);
-  const nh = Math.max(crop.height / crop.imageHeight, 0.06);
+  const safeW = Math.max(crop.width, 1);
+  const safeH = Math.max(crop.height, 1);
   return (
-    <div className="relative h-20 overflow-hidden rounded-xl bg-muted">
-      <img
-        src={src}
-        alt=""
-        className="absolute max-w-none"
-        style={{
-          width: `${100 / nw}%`,
-          left: `${-(crop.x / crop.imageWidth / nw) * 100}%`,
-          top: `${-(crop.y / crop.imageHeight / nh) * 100}%`,
-        }}
-      />
+    <div className="w-full overflow-hidden rounded-2xl bg-muted">
+      <div className="relative h-0 w-full" style={{ paddingBottom: `${(safeH / safeW) * 100}%` }}>
+        <img
+          src={src}
+          alt=""
+          className="absolute max-w-none"
+          style={{
+            width: `${(crop.imageWidth / safeW) * 100}%`,
+            height: `${(crop.imageHeight / safeH) * 100}%`,
+            left: `${-(crop.x / safeW) * 100}%`,
+            top: `${-(crop.y / safeH) * 100}%`,
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -130,8 +147,9 @@ const ImageImportFlow = ({
     try {
       const urls = await readFilesAsDataUrls(files);
       setImages(urls);
+      const sizes = await Promise.all(urls.map((url) => readImageSize(url).catch(() => null)));
       const pages = await recognizeImagePages(urls);
-      const extracted = pages.flatMap((page, i) => extractShiftsFromWords(page.words, i).proposals);
+      const extracted = pages.flatMap((page, i) => extractShiftsFromWords(page.words, i, sizes[i]).proposals);
       const merged = mergeCertainImageDuplicates(extracted);
       if (merged.length === 0) {
         const snippet = pages
@@ -226,10 +244,19 @@ const ImageImportFlow = ({
       prev.map((p, i) => {
         if (i !== index) return p;
         const next = { ...p, ...patch };
-        if (patch.eventDate && !patch.endDate) {
-          next.endDate = next.overnight
-            ? next.eventDate
-            : patch.eventDate;
+        if (patch.eventDate && patch.endDate == null) {
+          const spans = spansNextDay(p);
+          next.endDate = spans && next.eventDate ? addDaysYmd(next.eventDate, 1) : next.eventDate;
+        }
+        if ((patch.startTime || patch.endTime) && next.eventDate) {
+          const timed = datesForTimes(
+            next.eventDate,
+            next.startTime,
+            next.endTime,
+            spansNextDay(next),
+          );
+          next.endDate = timed.endDate;
+          next.overnight = timed.overnight;
         }
         return next;
       }),
@@ -238,7 +265,11 @@ const ImageImportFlow = ({
 
   const summaryLine = useMemo(() => {
     if (!current?.eventDate) return '';
-    const when = format(new Date(current.eventDate + 'T12:00:00'), 'd. MMMM', { locale: dateLocale });
+    const startLabel = format(new Date(current.eventDate + 'T12:00:00'), 'd. MMMM', { locale: dateLocale });
+    const when =
+      current.endDate && current.endDate > current.eventDate
+        ? `${startLabel}–${format(new Date(current.endDate + 'T12:00:00'), 'd. MMMM', { locale: dateLocale })}`
+        : startLabel;
     return [current.title, current.location, when, `${current.startTime}–${current.endTime}`]
       .filter(Boolean)
       .join(' · ');
@@ -433,7 +464,7 @@ const ImageImportFlow = ({
                     onChange={(e) =>
                       updateCurrent({
                         eventDate: e.target.value,
-                        endDate: current.overnight ? addDaysYmd(e.target.value, 1) : e.target.value,
+                        endDate: spansNextDay(current) ? addDaysYmd(e.target.value, 1) : e.target.value,
                       })
                     }
                     className="mt-1 w-full rounded-xl border border-border px-4 py-3"
@@ -475,6 +506,38 @@ const ImageImportFlow = ({
               <div className="rounded-2xl bg-muted p-4">
                 <p className="text-lg font-bold leading-tight">{current.title}</p>
                 <p className="mt-1 text-sm">{summaryLine}</p>
+              </div>
+            )}
+
+            {current.overnight && current.eventDate && (
+              <div className="space-y-2">
+                <p className="text-base font-medium">{t('import.spanQuestion')}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      { next: false, label: t('import.oneDay') },
+                      { next: true, label: t('import.nextDay') },
+                    ] as const
+                  ).map((opt) => {
+                    const selected = spansNextDay(current) === opt.next;
+                    return (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() =>
+                          updateCurrent({
+                            endDate: opt.next ? addDaysYmd(current.eventDate!, 1) : current.eventDate,
+                          })
+                        }
+                        className={`flex min-h-12 items-center justify-center rounded-2xl px-3 py-2 text-center text-base font-medium ${
+                          selected ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
