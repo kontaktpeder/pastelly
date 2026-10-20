@@ -17,6 +17,41 @@ const WEEKDAYS = [
   'sondag',
 ];
 
+/** Abbreviations as they show up in shift apps and in English OCR. */
+const SHORT_WEEKDAYS = [
+  'mon',
+  'tue',
+  'tues',
+  'wed',
+  'thu',
+  'thur',
+  'thurs',
+  'fri',
+  'sat',
+  'sun',
+  'man',
+  'tir',
+  'ons',
+  'tor',
+  'fre',
+  'lør',
+  'lor',
+  'lørd',
+  'lord',
+  'søn',
+  'son',
+  'sønd',
+  'sond',
+  'mand',
+  'tirs',
+  'onsd',
+  'tors',
+  'fred',
+];
+
+const WEEKDAY_RE = [...WEEKDAYS, ...SHORT_WEEKDAYS].join('|');
+const PLACE_SUFFIXES = new Set(['as', 'ab', 'ag', 'sa']);
+
 const MONTHS: Record<string, number> = {
   january: 1,
   february: 2,
@@ -133,24 +168,34 @@ export function yearFromText(text: string): number | null {
   return year >= 2000 && year <= 2100 ? year : null;
 }
 
+function dayInRange(value: string): number | null {
+  const day = Number(value);
+  return day >= 1 && day <= 31 ? day : null;
+}
+
 export function parseDayHeader(text: string): number | null {
   const cleaned = text.replace(/[,.]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!cleaned) return null;
-  const weekday = WEEKDAYS.join('|');
-  const paired = new RegExp(`(?:^|\\s)(\\d{1,2})\\s+(?:${weekday})\\b`, 'i').exec(cleaned);
+  const paired = new RegExp(`(?:^|\\s)(\\d{1,2})\\s+(?:${WEEKDAY_RE})\\b`, 'i').exec(cleaned);
   if (paired) {
-    const day = Number(paired[1]);
-    return day >= 1 && day <= 31 ? day : null;
+    const day = dayInRange(paired[1]);
+    if (day) return day;
   }
-  const swapped = new RegExp(`(?:^|\\s)(?:${weekday})\\s+(\\d{1,2})\\b`, 'i').exec(cleaned);
+  const swapped = new RegExp(`(?:^|\\s)(?:${WEEKDAY_RE})\\s+(\\d{1,2})\\b`, 'i').exec(cleaned);
   if (swapped) {
-    const day = Number(swapped[1]);
-    return day >= 1 && day <= 31 ? day : null;
+    const day = dayInRange(swapped[1]);
+    if (day) return day;
   }
-  if (/^\d{1,2}$/.test(cleaned)) {
-    const day = Number(cleaned);
-    return day >= 1 && day <= 31 ? day : null;
-  }
+  // "17 «& Preference: Available" and "22 Thu" — the number shares the row
+  // with the preference chip or a short weekday. Clocks ("6:00PM") stay out.
+  const lead = /^(\d{1,2})(?![:.\d])\s*(.*)$/.exec(cleaned);
+  if (!lead) return null;
+  const day = dayInRange(lead[1]);
+  if (!day) return null;
+  const rest = lead[2].trim();
+  if (!rest) return day;
+  if (isIgnoreLine(rest)) return day;
+  if (new RegExp(`^(?:${WEEKDAY_RE})\\b`, 'i').test(rest)) return day;
   return null;
 }
 
@@ -180,11 +225,30 @@ export function isOpenShiftsLabel(text: string): boolean {
   return /\bopen\s*shifts?\b/.test(t) || /\bledige\s*vakter\b/.test(t);
 }
 
+function repairJobWord(word: string): string {
+  if (/^servit[oøóg0]?r$/i.test(word)) return 'Servitør';
+  return word;
+}
+
+function roleTokens(side: string): string {
+  const stripped = side.replace(/\[[^\]]*\]/g, ' ').replace(/[«»&|()[\]]/g, ' ');
+  return stripped
+    .split(/\s+/)
+    .map((token) => token.replace(/^[^0-9A-Za-zÆØÅæøå]+|[^0-9A-Za-zÆØÅæøå]+$/g, ''))
+    .filter(Boolean)
+    .filter((token) => {
+      if (/^\d+$/.test(token)) return false;
+      if (token.length <= 2 && !PLACE_SUFFIXES.has(token.toLowerCase())) return false;
+      return /[A-Za-zÆØÅæøå]/.test(token);
+    })
+    .map((token) => repairJobWord(token))
+    .join(' ');
+}
+
 export function parseRoleAndPlace(text: string): { title: string; location: string | null } {
-  const weekday = WEEKDAYS.join('|');
   const cleaned = text
-    .replace(/\b\d{1,2}[:.]\d{2}\s*[ap]m\b/gi, ' ')
-    .replace(new RegExp(`\\b(?:${weekday})\\b`, 'gi'), ' ')
+    .replace(/\b\d{1,2}[:.]\d{2}\s*[ap]\.?m\.?\b/gi, ' ')
+    .replace(new RegExp(`\\b(?:${WEEKDAYS.join('|')})\\b`, 'gi'), ' ')
     .replace(/\b(?:october|oktober|november|december|january|januar)\b/gi, ' ')
     .replace(/\b20\d{2}\b/g, ' ')
     .replace(/\b([1-9]|[12]\d|3[01])\b/g, ' ')
@@ -194,13 +258,20 @@ export function parseRoleAndPlace(text: string): { title: string; location: stri
     .trim();
   if (!cleaned) return { title: '', location: null };
   const comma = cleaned.indexOf(',');
-  if (comma > 0) {
-    return {
-      title: cleaned.slice(0, comma).trim(),
-      location: cleaned.slice(comma + 1).trim() || null,
-    };
-  }
-  return { title: cleaned, location: null };
+  const title = roleTokens(comma > 0 ? cleaned.slice(0, comma) : cleaned);
+  const location = roleTokens(comma > 0 ? cleaned.slice(comma + 1) : '');
+  return { title, location: location || null };
+}
+
+/** Lines that are icons, nav chrome, or a lone weekday — not a job title. */
+export function isSkippableRoleLine(text: string): boolean {
+  const words = text
+    .replace(/\[[^\]]*\]/g, ' ')
+    .split(/[^A-Za-zÆØÅæøå]+/)
+    .filter((word) => word.length >= 3);
+  if (words.length === 0) return true;
+  const cleaned = text.replace(/[^A-Za-zÆØÅæøå]/g, ' ').replace(/\s+/g, ' ').trim();
+  return new RegExp(`^(?:${WEEKDAY_RE})$`, 'i').test(cleaned);
 }
 
 export function applyYearToDate(

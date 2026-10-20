@@ -288,6 +288,114 @@ describe('ocr word flatten', () => {
   });
 });
 
+const shiftOverviewPages = [
+  [
+    '21:14',
+    'Tilbake Shift Overview',
+    'October 2026',
+    '17 «& Preference: Available',
+    '18 «& Preference: Available',
+    '6:00PM -11:00PM',
+    '.',
+    'Servitgr, Basso Social Oslo AS',
+    '19',
+    '«& Preference: Available',
+    'Mon',
+    '6:00PM -10:00PM',
+    'Servitgr, Basso Social Oslo AS',
+    '20 «& Preference: Available',
+    '21',
+    '«& Preference: Available',
+    'Wed',
+    '22 «& Preference: Available',
+    '6:00PM -10:00PM',
+    'Servitgr, Basso Social Oslo AS',
+    '2) ed [XN ]',
+    'Overview Messages Schedule More',
+  ],
+  [
+    'October 2026',
+    '22 «& Preference: Available',
+    '6:00PM -10:00PM',
+    'Servitgr, Basso Social Oslo AS',
+    '23 «& Preference: Available',
+    '6:00PM -12:00AM',
+    'Servitgr, Basso Social Oslo AS',
+    '24 «& Preference: Available',
+    '6:00PM -12:00AM',
+    'Servitgr, Basso Social Oslo AS',
+    '25 «& Preference: Available',
+    '26 «& Preference: Available',
+    '6:00PM -10:00PM',
+    'Servitgr, Basso Social Oslo AS',
+    '2) ed [XN ]',
+  ],
+  [
+    'October 2026',
+    '26',
+    '«& Preference: Available',
+    'Mon',
+    '6:00PM -10:00PM',
+    'Servitgr, Basso Social Oslo AS',
+    '27 «& Preference: Available',
+    '28',
+    '«& Preference: Available',
+    'Wed',
+    '29 «& Preference: Available',
+    '30 «& Preference: Available',
+    '6:00PM -11:00PM',
+    'Servitgr, Basso Social Oslo AS',
+    '31 «& Preference: Available',
+    '6:00PM -12:00AM',
+    'Servitgr, Basso Social Oslo AS',
+    '2) ed [XN ]',
+  ],
+];
+
+describe('shift overview screenshots', () => {
+  it('keeps every shift card and the workplace, and skips preference-only days', () => {
+    const pages = shiftOverviewPages.map((lines, index) =>
+      extractShiftsFromWords(wordsFromPlainText(lines.join('\n')), index).proposals,
+    );
+    expect(pages[0]?.map((p) => `${p.eventDate} ${p.startTime}-${p.endTime}`)).toEqual([
+      '2026-10-18 18:00-23:00',
+      '2026-10-19 18:00-22:00',
+      '2026-10-22 18:00-22:00',
+    ]);
+    expect(pages[1]?.map((p) => `${p.eventDate} ${p.startTime}-${p.endTime}`)).toEqual([
+      '2026-10-22 18:00-22:00',
+      '2026-10-23 18:00-00:00',
+      '2026-10-24 18:00-00:00',
+      '2026-10-26 18:00-22:00',
+    ]);
+    expect(pages[2]?.map((p) => `${p.eventDate} ${p.startTime}-${p.endTime}`)).toEqual([
+      '2026-10-26 18:00-22:00',
+      '2026-10-30 18:00-23:00',
+      '2026-10-31 18:00-00:00',
+    ]);
+    for (const proposal of pages.flat()) {
+      expect(proposal.title).toBe('Servitør');
+      expect(proposal.location).toBe('Basso Social Oslo AS');
+    }
+    expect(pages[1]?.find((p) => p.day === 23)?.overnight).toBe(true);
+    expect(pages[1]?.find((p) => p.day === 23)?.endDate).toBe('2026-10-24');
+
+    const merged = mergeCertainImageDuplicates(pages.flat());
+    expect(merged.map((p) => p.eventDate)).toEqual([
+      '2026-10-18',
+      '2026-10-19',
+      '2026-10-22',
+      '2026-10-23',
+      '2026-10-24',
+      '2026-10-26',
+      '2026-10-30',
+      '2026-10-31',
+    ]);
+    expect(merged.find((p) => p.eventDate === '2026-10-22')?.mergedFromImages).toBe(2);
+    expect(merged.find((p) => p.eventDate === '2026-10-26')?.mergedFromImages).toBe(2);
+  });
+});
+
 describe('duplicates', () => {
   it('merges the same shift seen in two screenshots', () => {
     const list = extractShiftsFromWords(listWords, 0).proposals;
