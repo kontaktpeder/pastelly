@@ -3,6 +3,7 @@ import {
   finishShiftDates,
   isIgnoreLine,
   isOpenShiftsLabel,
+  isSkippableRoleLine,
   isYourScheduleLabel,
   isYourShiftsLabel,
   monthFromText,
@@ -103,60 +104,49 @@ function extractList(
   const year = header.year;
   const out: ShiftProposal[] = [];
   let currentDay: number | null = null;
-  let pendingWords: OcrWord[] = [];
 
-  const flushIfShift = (extra: OcrLine[]) => {
-    const pack = [...pendingWords, ...extra.flatMap((l) => l.words)];
-    const text = [pendingWords.map((w) => w.text).join(' '), ...extra.map((l) => l.text)].join(' ');
-    const range = parseTimeRange(text);
-    if (!range || currentDay == null) {
-      pendingWords = [];
-      return;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const range = parseTimeRange(line.text);
+    const day = parseDayHeader(line.text);
+    if (day != null && !range) {
+      currentDay = day;
+      continue;
     }
-    if (isIgnoreLine(text)) {
-      pendingWords = [];
-      return;
+    if (!range || isIgnoreLine(line.text)) continue;
+
+    const dayForShift = day ?? currentDay ?? findDayLookingBack(lines, i);
+    if (dayForShift == null) continue;
+    currentDay = dayForShift;
+
+    const follow: OcrLine[] = [];
+    for (let j = i + 1; j < lines.length && follow.length < 3; j++) {
+      const next = lines[j]!;
+      if (parseDayHeader(next.text) || parseTimeRange(next.text) || isIgnoreLine(next.text)) break;
+      if (isSkippableRoleLine(next.text)) {
+        if (follow.length > 0) break;
+        continue;
+      }
+      follow.push(next);
     }
-    const rest = parseRoleAndPlace(text);
+    const rest = parseRoleAndPlace(follow.map((l) => l.text).join(' ') || line.text);
     out.push(
       toProposal({
         layout: 'list',
         title: rest.title,
         location: rest.location,
         month,
-        day: currentDay,
+        day: dayForShift,
         year,
         startTime: range.startTime,
         endTime: range.endTime,
-        words: pack,
+        words: [...line.words, ...follow.flatMap((l) => l.words)],
         imageWidth: width,
         imageHeight: height,
         sourceImageIndex,
         index: out.length,
       }),
     );
-    pendingWords = [];
-  };
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    const day = parseDayHeader(line.text);
-    if (day) {
-      flushIfShift([]);
-      currentDay = day;
-      if (!parseTimeRange(line.text)) continue;
-    }
-    if (isIgnoreLine(line.text)) {
-      pendingWords = [];
-      continue;
-    }
-    if (parseTimeRange(line.text)) {
-      currentDay = currentDay ?? findDayLookingBack(lines, i);
-      pendingWords = line.words;
-      const follow = lines.slice(i + 1, i + 3).filter((l) => !parseDayHeader(l.text) && !parseTimeRange(l.text));
-      flushIfShift(follow);
-      i += follow.length;
-    }
   }
   return out;
 }
