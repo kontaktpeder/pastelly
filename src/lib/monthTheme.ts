@@ -37,7 +37,7 @@ const MONTH_COLORS = [
   PASTEL.coral, // Jan — coral (#FF7E6C)
   '#5c30ff', // Feb
   '#09a953', // Mar
-  '#ffcd54', // Apr
+  '#28b8a8', // Apr — darker turquoise
   '#D63D7A', // May — deeper Bubble-Gum
   '#0212ee', // Jun
   '#a260ff', // Jul
