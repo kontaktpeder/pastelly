@@ -59,8 +59,8 @@ const CalendarSwitcher = ({
             </span>
           )}
           <span className="min-w-0">
-            <span className="block text-lg font-bold tracking-tight truncate leading-tight">{household.name}</span>
-            <span className="block text-[10px] font-medium text-muted-foreground leading-tight">
+            <span className="block font-display text-lg font-extrabold tracking-tight truncate leading-tight">{household.name}</span>
+            <span className="block font-display text-[10px] font-semibold text-muted-foreground leading-tight">
               {calendarKindLabelLocalized(household, t)}
             </span>
           </span>

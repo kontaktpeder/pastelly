@@ -561,7 +561,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           className="relative shrink-0 overflow-hidden"
           style={{ backgroundColor: PASTEL.calendarPaper }}
         >
-          <div className="relative h-[4.5rem] overflow-hidden">
+          <div className="relative h-[3.65rem] overflow-hidden">
             <motion.div
               className="absolute top-0 bottom-0 flex will-change-transform"
               style={{
@@ -589,21 +589,18 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         </div>
 
         <div className="relative shrink-0" style={{ backgroundColor: PASTEL.calendarPaper }}>
-          <div className="flex px-2 pb-1.5 pt-0.5">
-            <div className="w-8 shrink-0" aria-hidden />
-            <div className="grid grid-cols-7 flex-1 min-w-0">
-              {weekdayLabels.map((d, i) => (
-                <div
-                  key={`${d}-${i}`}
-                  className="text-center text-base font-semibold uppercase tracking-wide"
-                  style={{
-                    color: i >= 5 ? PASTEL.coral : monthTheme.dark,
-                  }}
-                >
-                  {d}
-                </div>
-              ))}
-            </div>
+          <div className="grid grid-cols-7 w-full pb-1 pt-0.5">
+            {weekdayLabels.map((d, i) => (
+              <div
+                key={`${d}-${i}`}
+                className="text-center font-display text-sm font-bold uppercase tracking-wide tabular-nums"
+                style={{
+                  color: i >= 5 ? PASTEL.coral : monthTheme.dark,
+                }}
+              >
+                {d}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -688,7 +685,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
               animate={{ y: 0 }}
               exit={{ opacity: 0 }}
               transition={fadeQuick}
-              className="absolute inset-0 z-30 bg-background flex flex-col"
+              className="absolute inset-0 z-30 flex flex-col"
+              style={{ backgroundColor: PASTEL.calendarPaper }}
             >
               <YearView
                 year={year}
@@ -788,20 +786,20 @@ const MonthHeaderPanel = ({
   onTitleClick?: () => void;
 }) => {
   const title = (
-    <div className="flex items-stretch gap-3 min-w-0">
+    <div className="flex w-full items-stretch gap-2.5 min-w-0">
       <h2
-        className="text-[2.65rem] font-extrabold capitalize leading-none tracking-tight truncate"
+        className="font-display min-w-0 flex-1 truncate text-[clamp(2.75rem,13vw,3.55rem)] font-black capitalize leading-[0.88] tracking-tight"
         style={{ color: textColor }}
       >
         {monthLabel}
       </h2>
       <span
-        className="w-px shrink-0 self-stretch my-1.5"
+        className="w-px shrink-0 self-stretch my-1"
         style={{ backgroundColor: lineColor }}
         aria-hidden
       />
       <span
-        className="text-lg font-bold tabular-nums leading-none self-center"
+        className="font-display shrink-0 self-center text-base font-extrabold tabular-nums leading-none"
         style={{
           color: textColor,
           writingMode: 'vertical-rl',
@@ -815,11 +813,11 @@ const MonthHeaderPanel = ({
 
   return (
     <div
-      className="h-full shrink-0 flex items-end px-4 pb-1 relative"
+      className="relative flex h-full shrink-0 items-end px-3 pb-0.5"
       style={{ width: width || '33.333%' }}
     >
       {onTitleClick ? (
-        <button type="button" onClick={onTitleClick} className="min-w-0 text-left active:opacity-80">
+        <button type="button" onClick={onTitleClick} className="w-full min-w-0 text-left active:opacity-80">
           {title}
         </button>
       ) : (
@@ -885,72 +883,61 @@ const MonthPanel = ({
     return rows;
   }, [days]);
 
-  const gridLine = withAlpha(monthTheme.base, 0.35);
+  const gridLine = withAlpha(monthTheme.base, 0.38);
   const weekInk = withAlpha(monthTheme.dark, 0.55);
 
   return (
     <div
-      className={`flex flex-col h-full min-h-0 shrink-0 px-2 pt-0 pb-[max(0.25rem,env(safe-area-inset-bottom))] ${
+      className={`flex flex-col h-full min-h-0 shrink-0 pt-0 pb-[max(0.25rem,env(safe-area-inset-bottom))] ${
         interactive ? '' : 'pointer-events-none'
       }`}
       style={{ width: width || '33.333%' }}
     >
-      <div
-        className="flex flex-col flex-1 min-h-0 overflow-hidden rounded-xl"
-        style={{ border: `1px solid ${gridLine}` }}
-      >
+      <div className="flex flex-col flex-1 min-h-0">
         {weeks.map((weekDays, weekIndex) => {
           const weekNum = getISOWeek(weekDays[0]);
           return (
             <div
               key={format(weekDays[0], 'yyyy-MM-dd')}
-              className="flex flex-1 min-h-0"
+              className="grid grid-cols-7 flex-1 min-h-0 auto-rows-[minmax(0,1fr)] content-stretch"
               style={{
-                borderTop: weekIndex > 0 ? `1px solid ${gridLine}` : undefined,
+                borderTop: `1px solid ${gridLine}`,
               }}
             >
-              <div className="w-8 shrink-0 flex items-start justify-center pt-2">
-                <span
-                  className="text-sm font-medium tabular-nums leading-none select-none"
-                  style={{ color: weekInk }}
-                >
-                  {weekNum}
-                </span>
-              </div>
-              <div className="grid grid-cols-7 flex-1 min-w-0 min-h-0 auto-rows-[minmax(0,1fr)] content-stretch">
-                {weekDays.map((day, dayIndex) => {
-                  const dateStr = format(day, 'yyyy-MM-dd');
-                  const inMonth = isSameMonth(day, monthDate);
-                  const allDayEvents = eventsByDate[dateStr] || neighbourEventsByDate?.[dateStr] || [];
-                  const dayEvents = allDayEvents.filter((ev) => !isMultiDayEvent(ev));
-                  const spanSegments = spanByDate.get(dateStr) || [];
-                  return (
-                    <DayCell
-                      key={dateStr}
-                      day={day}
-                      dateStr={dateStr}
-                      dayEvents={dayEvents}
-                      spanSegments={spanSegments}
-                      inMonth={inMonth}
-                      today={isToday(day)}
-                      weekend={isWeekend(day)}
-                      isHighlighted={!!(highlight && highlight.dateStr === dateStr)}
-                      monthTheme={monthTheme}
-                      members={members}
-                      highlight={highlight}
-                      onTap={onTap}
-                      onLongPress={onLongPress}
-                      onPressLock={onPressLock}
-                      onPressUnlock={onPressUnlock}
-                      getMemberForEvent={getMemberForEvent}
-                      marksVisible={marksVisible}
-                      selected={!!showSelection && selectedDateStr === dateStr}
-                      gridLine={gridLine}
-                      showRightBorder={dayIndex < 6}
-                    />
-                  );
-                })}
-              </div>
+              {weekDays.map((day, dayIndex) => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const inMonth = isSameMonth(day, monthDate);
+                const allDayEvents = eventsByDate[dateStr] || neighbourEventsByDate?.[dateStr] || [];
+                const dayEvents = allDayEvents.filter((ev) => !isMultiDayEvent(ev));
+                const spanSegments = spanByDate.get(dateStr) || [];
+                return (
+                  <DayCell
+                    key={dateStr}
+                    day={day}
+                    dateStr={dateStr}
+                    dayEvents={dayEvents}
+                    spanSegments={spanSegments}
+                    inMonth={inMonth}
+                    today={isToday(day)}
+                    weekend={isWeekend(day)}
+                    isHighlighted={!!(highlight && highlight.dateStr === dateStr)}
+                    monthTheme={monthTheme}
+                    members={members}
+                    highlight={highlight}
+                    onTap={onTap}
+                    onLongPress={onLongPress}
+                    onPressLock={onPressLock}
+                    onPressUnlock={onPressUnlock}
+                    getMemberForEvent={getMemberForEvent}
+                    marksVisible={marksVisible}
+                    selected={!!showSelection && selectedDateStr === dateStr}
+                    gridLine={gridLine}
+                    showRightBorder={dayIndex < 6}
+                    weekNumber={dayIndex === 0 ? weekNum : undefined}
+                    weekNumberColor={weekInk}
+                  />
+                );
+              })}
             </div>
           );
         })}
@@ -983,6 +970,9 @@ interface DayCellProps {
   selected?: boolean;
   gridLine?: string;
   showRightBorder?: boolean;
+  /** ISO week number drawn tiny above Monday so it takes no column */
+  weekNumber?: number;
+  weekNumberColor?: string;
 }
 
 /** Max single-day marks shown before +N overflow */
@@ -1059,6 +1049,8 @@ const DayCell = ({
   selected = false,
   gridLine,
   showRightBorder = false,
+  weekNumber,
+  weekNumberColor,
 }: DayCellProps) => {
   const { dateLocale } = useLocale();
   const dayAriaLabel = format(day, 'EEEE d. MMMM yyyy', { locale: dateLocale });
@@ -1151,16 +1143,25 @@ const DayCell = ({
       {...longPressHandlers}
       onClick={handleClick}
       aria-label={dayAriaLabel}
-      className={`relative flex flex-col items-stretch justify-start pt-1 pb-1 px-0.5 min-h-0 h-full overflow-hidden ${
+      className={`relative flex flex-col items-stretch justify-start pt-1 pb-1 px-0.5 min-h-0 h-full overflow-hidden font-display ${
         isHighlighted ? 'ring-2 ring-inset ring-primary/40' : ''
       }`}
       style={{
         borderRight: showRightBorder && gridLine ? `1px solid ${gridLine}` : undefined,
       }}
     >
+      {weekNumber != null && (
+        <span
+          className="pointer-events-none absolute left-1 top-0.5 z-[2] select-none font-display text-[10px] font-bold tabular-nums leading-none"
+          style={{ color: weekNumberColor }}
+          aria-hidden
+        >
+          {weekNumber}
+        </span>
+      )}
       <span
-        className={`ml-auto mr-0.5 w-7 h-7 shrink-0 flex items-center justify-center rounded-full text-base font-semibold tabular-nums leading-none ${
-          today ? 'border-[1.5px] border-primary text-primary font-bold' : ''
+        className={`mx-auto w-7 h-7 shrink-0 flex items-center justify-center rounded-full font-display text-base font-bold tabular-nums leading-none ${
+          today ? 'border-[1.5px] border-primary text-primary' : ''
         } ${selected && !today ? 'bg-primary/15' : ''}`}
         style={{ color: today ? undefined : dateInk }}
       >
