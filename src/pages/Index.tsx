@@ -346,8 +346,14 @@ const Index = () => {
     <CalendarShell calendarKind={calendarKind}>
       {showBootVeil && <BootVeil revealing={bootPhase === 'revealing'} />}
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col bg-background">
-      <header className="flex items-center justify-between gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-0.5 z-10">
+      <div
+        className="relative z-10 flex min-h-0 flex-1 flex-col"
+        style={{ backgroundColor: PASTEL.calendarPaper }}
+      >
+      <header
+        className="flex items-center justify-between gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-0.5 z-10"
+        style={{ backgroundColor: PASTEL.calendarPaper }}
+      >
         <CalendarSwitcher
           household={household}
           memberships={orderedMemberships}
@@ -384,14 +390,18 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 overflow-hidden relative bg-background md:grid md:grid-cols-[minmax(0,1fr)_22rem] lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <main
+        className="flex-1 min-h-0 overflow-hidden relative md:grid md:grid-cols-[minmax(0,1fr)_22rem] lg:grid-cols-[minmax(0,1fr)_24rem]"
+        style={{ backgroundColor: PASTEL.calendarPaper }}
+      >
         {/* Single instance — no exit/enter overlap (avoids layered calendars) */}
         <motion.div
           key={household.id}
           initial={stackMotionOn ? { y: stackDirection >= 0 ? 36 : -36 } : false}
           animate={{ y: 0 }}
           transition={stackTransition}
-          className="h-full min-w-0 flex flex-col bg-background"
+          className="h-full min-w-0 flex flex-col"
+          style={{ backgroundColor: PASTEL.calendarPaper }}
         >
           <CalendarDateBridge
             focusedDate={focusedDate}
@@ -595,8 +605,8 @@ const CalendarShell = ({
   return (
     <div
       data-calendar-kind={calendarKind}
-      className="group h-[100dvh] w-full bg-background flex flex-col max-w-6xl mx-auto relative overflow-hidden"
-      style={{ backgroundColor: PASTEL.paper }}
+      className="group h-[100dvh] w-full flex flex-col max-w-6xl mx-auto relative overflow-hidden"
+      style={{ backgroundColor: PASTEL.calendarPaper }}
     >
       {children}
     </div>
