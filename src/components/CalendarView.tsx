@@ -9,9 +9,9 @@ import {
   type DisplayEvent,
 } from '@/hooks/useOverlayEvents';
 import { mergeWorkBlocks, useWorkScheduleBlocks, WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
-import { resolveCategoryVisuals, getMemberColorMap, silverMarkRim, categoryMarkFill } from '@/lib/categoryPresentation';
+import { resolveCategoryVisuals, getMemberColorMap, categoryMarkFill } from '@/lib/categoryPresentation';
 import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
-import { getMonthTheme, PASTEL } from '@/lib/monthTheme';
+import { getMonthTheme, PASTEL, withAlpha } from '@/lib/monthTheme';
 import {
   buildSpanSegmentsByDate,
   isMultiDayEvent,
@@ -556,9 +556,12 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     <>
       <div className="relative flex flex-col h-full min-h-0">
         <div className={`flex flex-col h-full min-h-0 ${showYear ? 'invisible pointer-events-none' : ''}`}>
-        {/* Month hint strip — soft wash, peeks with the day grid */}
-        <div className="relative rounded-b-xl overflow-hidden shrink-0">
-          <div className="relative h-12 overflow-hidden">
+        {/* Month title + year strip — peeks with the day grid */}
+        <div
+          className="relative shrink-0 overflow-hidden"
+          style={{ backgroundColor: PASTEL.calendarPaper }}
+        >
+          <div className="relative h-[4.5rem] overflow-hidden">
             <motion.div
               className="absolute top-0 bottom-0 flex will-change-transform"
               style={{
@@ -567,38 +570,36 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                 left: pageWidth ? -pageWidth * WINDOW : '-200%',
               }}
             >
-              {stripDates.map((date, i) => (
-                <MonthHeaderPanel
-                  key={`${date.getFullYear()}-${date.getMonth()}`}
-                  width={pageWidth}
-                  label={format(date, 'MMMM yyyy', { locale: dateLocale })}
-                  fill={i === WINDOW ? monthTheme.light : getMonthTheme(date).light}
-                  textColor={i === WINDOW ? monthTheme.textOnLight : getMonthTheme(date).textOnLight}
-                  onTitleClick={i === WINDOW ? openYearView : undefined}
-                />
-              ))}
+              {stripDates.map((date, i) => {
+                const theme = i === WINDOW ? monthTheme : getMonthTheme(date);
+                return (
+                  <MonthHeaderPanel
+                    key={`${date.getFullYear()}-${date.getMonth()}`}
+                    width={pageWidth}
+                    monthLabel={format(date, 'MMMM', { locale: dateLocale })}
+                    yearLabel={format(date, 'yyyy')}
+                    textColor={theme.dark}
+                    lineColor={withAlpha(theme.base, 0.55)}
+                    onTitleClick={i === WINDOW ? openYearView : undefined}
+                  />
+                );
+              })}
             </motion.div>
           </div>
-          {!isOnCurrentMonth && (
-            <button
-              type="button"
-              onClick={goToToday}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 min-h-9 px-3 rounded-full bg-white/80 active:bg-white text-base font-semibold"
-              style={{ color: monthTheme.dark }}
-            >
-              I dag
-            </button>
-          )}
         </div>
 
-        <div className="bg-transparent relative">
-          <div className="flex px-1 py-1">
+        <div className="relative shrink-0" style={{ backgroundColor: PASTEL.calendarPaper }}>
+          <div className="flex px-2 pb-1.5 pt-0.5">
             <div className="w-8 shrink-0" aria-hidden />
             <div className="grid grid-cols-7 flex-1 min-w-0">
               {weekdayLabels.map((d, i) => (
-                <div key={`${d}-${i}`} className={`text-center text-base font-semibold uppercase tracking-wide ${
-                  i >= 5 ? 'text-primary/60' : 'text-foreground/55'
-                }`}>
+                <div
+                  key={`${d}-${i}`}
+                  className="text-center text-base font-semibold uppercase tracking-wide"
+                  style={{
+                    color: i >= 5 ? PASTEL.coral : monthTheme.dark,
+                  }}
+                >
                   {d}
                 </div>
               ))}
@@ -610,7 +611,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         <div
           ref={trackRef}
           className="relative flex-1 min-h-0 overflow-hidden select-none calendar-gesture-surface"
-          style={{ backgroundColor: PASTEL.paper }}
+          style={{ backgroundColor: PASTEL.calendarPaper }}
         >
           <motion.div
             className="absolute top-0 bottom-0 flex will-change-transform"
@@ -657,6 +658,25 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
             })}
           </motion.div>
         </div>
+
+        {!isOnCurrentMonth && (
+          <div
+            className="shrink-0 flex justify-center px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            style={{ backgroundColor: PASTEL.calendarPaper }}
+          >
+            <button
+              type="button"
+              onClick={goToToday}
+              className="min-h-10 px-5 rounded-full text-base font-semibold active:opacity-80"
+              style={{
+                color: monthTheme.dark,
+                backgroundColor: withAlpha(monthTheme.base, 0.18),
+              }}
+            >
+              I dag
+            </button>
+          </div>
+        )}
         </div>
 
 
@@ -754,34 +774,60 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
 const MonthHeaderPanel = ({
   width,
-  label,
-  fill,
+  monthLabel,
+  yearLabel,
   textColor,
+  lineColor,
   onTitleClick,
 }: {
   width: number;
-  label: string;
-  fill: string;
+  monthLabel: string;
+  yearLabel: string;
   textColor: string;
+  lineColor: string;
   onTitleClick?: () => void;
-}) => (
-  <div
-    className="h-full shrink-0 flex items-center justify-center px-5 relative"
-    style={{
-      width: width || '33.333%',
-      backgroundColor: fill,
-      color: textColor,
-    }}
-  >
-    {onTitleClick ? (
-      <button type="button" onClick={onTitleClick} className="relative text-center">
-        <h2 className="text-2xl font-bold capitalize leading-tight text-current">{label}</h2>
-      </button>
-    ) : (
-      <h2 className="relative text-2xl font-bold capitalize leading-tight text-current text-center">{label}</h2>
-    )}
-  </div>
-);
+}) => {
+  const title = (
+    <div className="flex items-stretch gap-3 min-w-0">
+      <h2
+        className="text-[2.65rem] font-extrabold capitalize leading-none tracking-tight truncate"
+        style={{ color: textColor }}
+      >
+        {monthLabel}
+      </h2>
+      <span
+        className="w-px shrink-0 self-stretch my-1.5"
+        style={{ backgroundColor: lineColor }}
+        aria-hidden
+      />
+      <span
+        className="text-lg font-bold tabular-nums leading-none self-center"
+        style={{
+          color: textColor,
+          writingMode: 'vertical-rl',
+          textOrientation: 'mixed',
+        }}
+      >
+        {yearLabel}
+      </span>
+    </div>
+  );
+
+  return (
+    <div
+      className="h-full shrink-0 flex items-end px-4 pb-1 relative"
+      style={{ width: width || '33.333%' }}
+    >
+      {onTitleClick ? (
+        <button type="button" onClick={onTitleClick} className="min-w-0 text-left active:opacity-80">
+          {title}
+        </button>
+      ) : (
+        title
+      )}
+    </div>
+  );
+};
 
 /* ---------- Month panel ---------- */
 
@@ -839,62 +885,76 @@ const MonthPanel = ({
     return rows;
   }, [days]);
 
+  const gridLine = withAlpha(monthTheme.base, 0.35);
+  const weekInk = withAlpha(monthTheme.dark, 0.55);
+
   return (
     <div
-      className={`flex flex-col h-full min-h-0 shrink-0 px-1 pt-0.5 pb-[max(0.25rem,env(safe-area-inset-bottom))] ${
+      className={`flex flex-col h-full min-h-0 shrink-0 px-2 pt-0 pb-[max(0.25rem,env(safe-area-inset-bottom))] ${
         interactive ? '' : 'pointer-events-none'
       }`}
       style={{ width: width || '33.333%' }}
     >
-      {weeks.map((weekDays, weekIndex) => {
-        const weekNum = getISOWeek(weekDays[0]);
-        return (
-          <div
-            key={format(weekDays[0], 'yyyy-MM-dd')}
-            className={`flex flex-1 min-h-0 gap-x-0 ${
-              weekIndex > 0 ? 'border-t border-border/15' : ''
-            }`}
-          >
-            <div className="w-8 shrink-0 flex items-start justify-center pt-2">
-              <span className="text-sm font-medium tabular-nums leading-none select-none text-muted-foreground/55">
-                {weekNum}
-              </span>
+      <div
+        className="flex flex-col flex-1 min-h-0 overflow-hidden rounded-xl"
+        style={{ border: `1px solid ${gridLine}` }}
+      >
+        {weeks.map((weekDays, weekIndex) => {
+          const weekNum = getISOWeek(weekDays[0]);
+          return (
+            <div
+              key={format(weekDays[0], 'yyyy-MM-dd')}
+              className="flex flex-1 min-h-0"
+              style={{
+                borderTop: weekIndex > 0 ? `1px solid ${gridLine}` : undefined,
+              }}
+            >
+              <div className="w-8 shrink-0 flex items-start justify-center pt-2">
+                <span
+                  className="text-sm font-medium tabular-nums leading-none select-none"
+                  style={{ color: weekInk }}
+                >
+                  {weekNum}
+                </span>
+              </div>
+              <div className="grid grid-cols-7 flex-1 min-w-0 min-h-0 auto-rows-[minmax(0,1fr)] content-stretch">
+                {weekDays.map((day, dayIndex) => {
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const inMonth = isSameMonth(day, monthDate);
+                  const allDayEvents = eventsByDate[dateStr] || neighbourEventsByDate?.[dateStr] || [];
+                  const dayEvents = allDayEvents.filter((ev) => !isMultiDayEvent(ev));
+                  const spanSegments = spanByDate.get(dateStr) || [];
+                  return (
+                    <DayCell
+                      key={dateStr}
+                      day={day}
+                      dateStr={dateStr}
+                      dayEvents={dayEvents}
+                      spanSegments={spanSegments}
+                      inMonth={inMonth}
+                      today={isToday(day)}
+                      weekend={isWeekend(day)}
+                      isHighlighted={!!(highlight && highlight.dateStr === dateStr)}
+                      monthTheme={monthTheme}
+                      members={members}
+                      highlight={highlight}
+                      onTap={onTap}
+                      onLongPress={onLongPress}
+                      onPressLock={onPressLock}
+                      onPressUnlock={onPressUnlock}
+                      getMemberForEvent={getMemberForEvent}
+                      marksVisible={marksVisible}
+                      selected={!!showSelection && selectedDateStr === dateStr}
+                      gridLine={gridLine}
+                      showRightBorder={dayIndex < 6}
+                    />
+                  );
+                })}
+              </div>
             </div>
-            <div className="grid grid-cols-7 flex-1 min-w-0 min-h-0 auto-rows-[minmax(0,1fr)] gap-x-0 content-stretch">
-              {weekDays.map((day) => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const inMonth = isSameMonth(day, monthDate);
-                const allDayEvents = eventsByDate[dateStr] || neighbourEventsByDate?.[dateStr] || [];
-                const dayEvents = allDayEvents.filter((ev) => !isMultiDayEvent(ev));
-                const spanSegments = spanByDate.get(dateStr) || [];
-                return (
-                  <DayCell
-                    key={dateStr}
-                    day={day}
-                    dateStr={dateStr}
-                    dayEvents={dayEvents}
-                    spanSegments={spanSegments}
-                    inMonth={inMonth}
-                    today={isToday(day)}
-                    weekend={isWeekend(day)}
-                    isHighlighted={!!(highlight && highlight.dateStr === dateStr)}
-                    monthTheme={monthTheme}
-                    members={members}
-                    highlight={highlight}
-                    onTap={onTap}
-                    onLongPress={onLongPress}
-                    onPressLock={onPressLock}
-                    onPressUnlock={onPressUnlock}
-                    getMemberForEvent={getMemberForEvent}
-                    marksVisible={marksVisible}
-                    selected={!!showSelection && selectedDateStr === dateStr}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -921,18 +981,20 @@ interface DayCellProps {
   marksVisible?: boolean;
   /** Soft fill on the day number. Does not replace today's ring. */
   selected?: boolean;
+  gridLine?: string;
+  showRightBorder?: boolean;
 }
 
 /** Max single-day marks shown before +N overflow */
 const MAX_VISIBLE_MARKS = 3;
 /** Icon sits optically centered in the chip */
-const CAL_ICON_SIZE = 10;
-const CAL_ICON_STROKE = 2.25;
+const CAL_ICON_SIZE = 11;
+const CAL_ICON_STROKE = 2.2;
 /** Single-day mark: round chip; flex box centers the SVG */
 const DAY_PILL =
-  'h-4 w-4 mx-auto rounded-full inline-flex items-center justify-center shrink-0 leading-none overflow-hidden';
-const SPAN_ROW_H = 'h-4';
-/** Multi-day rail ends — soft round to match circular chips */
+  'h-[1.15rem] w-[1.15rem] rounded-full inline-flex items-center justify-center shrink-0 leading-none overflow-hidden';
+const SPAN_ROW_H = 'h-[0.7rem]';
+/** Multi-day rail ends — soft round like the reference calendar */
 const SPAN_ROUND_START = 'rounded-l-full';
 const SPAN_ROUND_END = 'rounded-r-full';
 
@@ -995,6 +1057,8 @@ const DayCell = ({
   getMemberForEvent,
   marksVisible = true,
   selected = false,
+  gridLine,
+  showRightBorder = false,
 }: DayCellProps) => {
   const { dateLocale } = useLocale();
   const dayAriaLabel = format(day, 'EEEE d. MMMM yyyy', { locale: dateLocale });
@@ -1014,6 +1078,11 @@ const DayCell = ({
   const { rows, overflow } = packEventRows(dayEvents, MAX_VISIBLE_MARKS);
   const laneCount = Math.max(maxSpanLane(spanSegments) + 1, 0);
   const spanByLane = new Map(spanSegments.map((s) => [s.lane, s]));
+  const dateInk = !inMonth
+    ? withAlpha(PASTEL.ink, 0.28)
+    : weekend
+      ? withAlpha(PASTEL.ink, 0.72)
+      : withAlpha(PASTEL.ink, 0.9);
 
   const renderEventMark = (ev: DisplayEvent) => {
     const evHighlighted = highlight && highlight.eventId === ev.id;
@@ -1026,7 +1095,6 @@ const DayCell = ({
           className={`${DAY_PILL} ${evHighlighted ? 'ring-1 ring-primary/40' : ''}`}
           style={{
             background: categoryMarkFill(WORK_BLOCK_MARK.soft, WORK_BLOCK_MARK.rail),
-            boxShadow: silverMarkRim(),
           }}
         >
           <MarkGlyph Icon={BriefcaseBusiness} color={WORK_BLOCK_MARK.ink} />
@@ -1043,7 +1111,6 @@ const DayCell = ({
           className={`${DAY_PILL} ${evHighlighted ? 'ring-1 ring-primary/40' : ''}`}
           style={{
             background: categoryMarkFill(OVERLAY_MARK.soft, OVERLAY_MARK.rail),
-            boxShadow: silverMarkRim(),
           }}
         >
           {fromWork ? (
@@ -1065,7 +1132,6 @@ const DayCell = ({
         className={`${DAY_PILL} ${evHighlighted ? 'ring-1 ring-primary/40' : ''}`}
         style={{
           background: categoryMarkFill(visuals.soft, visuals.rail),
-          boxShadow: silverMarkRim(),
         }}
       >
         {Icon ? (
@@ -1085,87 +1151,82 @@ const DayCell = ({
       {...longPressHandlers}
       onClick={handleClick}
       aria-label={dayAriaLabel}
-      className={`relative flex flex-col items-center justify-start pt-0 pb-0 px-0 rounded-2xl min-h-0 h-full overflow-visible ${
-        isHighlighted ? 'ring-2 ring-primary/40' : ''
+      className={`relative flex flex-col items-stretch justify-start pt-1 pb-1 px-0.5 min-h-0 h-full overflow-hidden ${
+        isHighlighted ? 'ring-2 ring-inset ring-primary/40' : ''
       }`}
+      style={{
+        borderRight: showRightBorder && gridLine ? `1px solid ${gridLine}` : undefined,
+      }}
     >
       <span
-        className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-base font-semibold tabular-nums leading-none ${
-          today
-            ? 'border-[1.5px] border-primary text-primary font-bold'
-            : !inMonth
-              ? 'text-muted-foreground/40'
-              : weekend
-                ? 'text-foreground/70'
-                : 'text-foreground/90'
-        } ${selected ? 'bg-primary/15' : ''}`}
+        className={`ml-auto mr-0.5 w-7 h-7 shrink-0 flex items-center justify-center rounded-full text-base font-semibold tabular-nums leading-none ${
+          today ? 'border-[1.5px] border-primary text-primary font-bold' : ''
+        } ${selected && !today ? 'bg-primary/15' : ''}`}
+        style={{ color: today ? undefined : dateInk }}
       >
         {format(day, 'd')}
       </span>
 
-      {(laneCount > 0 || rows.length > 0) && (
+      {(laneCount > 0 || rows.length > 0 || overflow > 0) && (
         <div
-          className="mt-0.5 w-full flex flex-col items-center gap-0.5 min-h-0 flex-1 px-0 z-[1] transition-opacity duration-500 ease-out"
+          className="mt-0.5 w-full flex flex-col justify-end gap-0.5 min-h-0 flex-1 px-0 z-[1] transition-opacity duration-500 ease-out"
           style={{ opacity: marksVisible ? 1 : 0 }}
         >
-          {laneCount > 0 &&
-            Array.from({ length: Math.min(laneCount, MAX_SPAN_LANES) }, (_, lane) => {
-              const seg = spanByLane.get(lane);
-              if (!seg) {
-                return <div key={`lane-${lane}`} className={`${SPAN_ROW_H} w-full`} aria-hidden />;
-              }
-              const segEvent = seg.event as DisplayEvent;
-              const isOverlay = !!segEvent.isOverlay;
-              const isWorkBlock = !!segEvent.isWorkBlock;
-              const fromWork = isWorkBlock || (isOverlay && (segEvent.sourceHouseholdKind || '').toLowerCase() === 'work');
-              const member = isOverlay || isWorkBlock ? undefined : getMemberForEvent(seg.event);
-              const visuals = isWorkBlock
-                ? WORK_BLOCK_MARK
-                : isOverlay
-                  ? OVERLAY_MARK
-                  : resolveCategoryVisuals(seg.event.category, getMemberColorMap(member));
-              const meta = EVENT_CATEGORY_META[(seg.event.category as keyof typeof EVENT_CATEGORY_META) || 'other'];
-              const Icon = fromWork ? BriefcaseBusiness : isOverlay ? null : meta?.Icon;
-              const evHighlighted = highlight && highlight.eventId === seg.event.id;
+          {laneCount > 0 && (
+            <div className="w-full flex flex-col gap-[3px] mt-auto mb-0.5">
+              {Array.from({ length: Math.min(laneCount, MAX_SPAN_LANES) }, (_, lane) => {
+                const seg = spanByLane.get(lane);
+                if (!seg) {
+                  return <div key={`lane-${lane}`} className={`${SPAN_ROW_H} w-full`} aria-hidden />;
+                }
+                const segEvent = seg.event as DisplayEvent;
+                const isOverlay = !!segEvent.isOverlay;
+                const isWorkBlock = !!segEvent.isWorkBlock;
+                const member = isOverlay || isWorkBlock ? undefined : getMemberForEvent(seg.event);
+                const visuals = isWorkBlock
+                  ? WORK_BLOCK_MARK
+                  : isOverlay
+                    ? OVERLAY_MARK
+                    : resolveCategoryVisuals(seg.event.category, getMemberColorMap(member));
+                const evHighlighted = highlight && highlight.eventId === seg.event.id;
 
-              return (
-                <div
-                  key={seg.event.id}
-                  title={seg.event.title}
-                  className={`relative ${SPAN_ROW_H} w-full`}
-                >
-                  {/* Flush rail — same geometry every day so the line never jumps */}
+                return (
                   <div
-                    aria-hidden
-                    className={`absolute inset-0 ${
-                      seg.isStart ? SPAN_ROUND_START : ''
-                    } ${seg.isEnd ? SPAN_ROUND_END : ''} ${
-                      evHighlighted ? 'ring-1 ring-primary/40' : ''
-                    }`}
-                    style={{
-                      background: categoryMarkFill(visuals.soft, visuals.rail),
-                      boxShadow: silverMarkRim(),
-                    }}
-                  />
-                  {seg.isStart && Icon && (
-                    <span className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center leading-none">
-                      <MarkGlyph Icon={Icon} color={visuals.ink} />
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          {rows.map((row, i) => (
-            <div
-              key={row.map((e) => e.id).join('-') || i}
-              className="w-full flex flex-col items-center"
-            >
-              {row.map((ev) => renderEventMark(ev))}
+                    key={seg.event.id}
+                    title={seg.event.title}
+                    className={`relative ${SPAN_ROW_H} w-full`}
+                  >
+                    <div
+                      aria-hidden
+                      className={`absolute inset-y-0 left-0 right-0 ${
+                        seg.isStart ? SPAN_ROUND_START : ''
+                      } ${seg.isEnd ? SPAN_ROUND_END : ''} ${
+                        evHighlighted ? 'ring-1 ring-primary/40' : ''
+                      }`}
+                      style={{
+                        backgroundColor: visuals.soft,
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
-          ))}
-          {overflow > 0 && (
-            <div className="text-sm text-muted-foreground text-center font-semibold leading-none shrink-0">
-              +{overflow}
+          )}
+          {(rows.length > 0 || overflow > 0) && (
+            <div className="w-full flex flex-col items-center gap-0.5 mt-auto">
+              {rows.map((row, i) => (
+                <div
+                  key={row.map((e) => e.id).join('-') || i}
+                  className="w-full flex flex-col items-center"
+                >
+                  {row.map((ev) => renderEventMark(ev))}
+                </div>
+              ))}
+              {overflow > 0 && (
+                <div className="text-sm text-muted-foreground text-center font-semibold leading-none shrink-0">
+                  +{overflow}
+                </div>
+              )}
             </div>
           )}
         </div>
