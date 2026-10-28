@@ -29,22 +29,23 @@ export const PASTEL = {
 } as const;
 
 /**
- * One accent per month (Jan→Dec) from the calendar palette card.
- * Cream paper stays fixed; these color month, year, lines and digits.
+ * One accent per month (Jan→Dec).
+ * Pale palette tones (Jan/Mar/Jun/Aug/Sep/Oct/Dec) swapped to deep
+ * counterparts so cream paper keeps strong contrast; the rest deepened too.
  */
 const MONTH_COLORS = [
-  '#AACC96', // Jan — Tea Green
-  '#25533F', // Feb — Forest
-  '#F4BEAE', // Mar — Peach Frost
-  '#52A5CE', // Apr — Blue Berry
-  '#FF7BAC', // May — Bubble-Gum
-  '#876029', // Jun — Dry Earth
-  '#6D1F42', // Jul — Grape Juice
-  '#D3B6D3', // Aug — Lilacs
-  '#EFCE7B', // Sep — Butter Yellow
-  '#B9CEE8', // Oct — Iced Blue
-  '#EF6F3C', // Nov — Blood Orange
-  '#AFAB23', // Dec — Olive Green
+  '#25533F', // Jan — Forest (was pale Tea Green)
+  '#1A3D2E', // Feb — deeper Forest
+  '#876029', // Mar — Dry Earth (was pale Peach Frost)
+  '#2A6F96', // Apr — deeper Blue Berry
+  '#D63D7A', // May — deeper Bubble-Gum
+  '#5A4018', // Jun — deeper Dry Earth
+  '#4A1530', // Jul — deeper Grape Juice
+  '#6D1F42', // Aug — Grape Juice (was pale Lilacs)
+  '#B8860B', // Sep — deep butter gold (was pale Butter Yellow)
+  '#3A6A95', // Oct — deep iced blue (was pale Iced Blue)
+  '#C44E1A', // Nov — deeper Blood Orange
+  '#5C5A12', // Dec — deep olive (was pale Olive Green)
 ];
 
 function clamp(v: number, min = 0, max = 255) {
