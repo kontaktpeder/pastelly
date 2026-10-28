@@ -133,6 +133,7 @@ export const nb = {
   'profile.settingsThis': 'Innstillinger for denne kalenderen',
   'profile.avatarHint': 'Profilbildet gjelder bare denne kalenderen',
   'profile.general': 'Generelt',
+  'profile.account': 'Konto',
   'profile.accountHint': 'Gjelder kontoen din og alle kalendere',
   'profile.members': 'Medlemmer',
   'profile.leave': 'Forlat denne kalenderen',

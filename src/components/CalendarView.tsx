@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { motion, AnimatePresence, useMotionValue, animate, type PanInfo } from 'framer-motion';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isWeekend, isSameMonth, addMonths, getISOWeek, addDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isSameMonth, addMonths, getISOWeek, addDays } from 'date-fns';
 import { useEventsForMonth, type Event } from '@/hooks/useEvents';
 import {
   mergeEventsWithOverlays,
@@ -11,7 +11,7 @@ import {
 import { mergeWorkBlocks, useWorkScheduleBlocks, WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
 import { resolveCategoryVisuals, getMemberColorMap, categoryMarkFill } from '@/lib/categoryPresentation';
 import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
-import { getMonthTheme, PASTEL, withAlpha } from '@/lib/monthTheme';
+import { getMonthTheme, PASTEL, sundayAccentForDate, sundayAccentForMonth, withAlpha } from '@/lib/monthTheme';
 import {
   buildSpanSegmentsByDate,
   isMultiDayEvent,
@@ -558,7 +558,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           className="relative shrink-0 overflow-hidden"
           style={{ backgroundColor: PASTEL.calendarPaper }}
         >
-          <div className="relative h-[5.25rem] overflow-hidden">
+          <div className="relative h-[5.75rem] overflow-hidden">
             <motion.div
               className="absolute top-0 bottom-0 flex will-change-transform"
               style={{
@@ -587,17 +587,22 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
         <div className="relative shrink-0" style={{ backgroundColor: PASTEL.calendarPaper }}>
           <div className="grid grid-cols-7 w-full pb-1 pt-0.5">
-              {weekdayLabels.map((d, i) => (
+              {weekdayLabels.map((d, i) => {
+              const isSunday = i === 6;
+              return (
               <div
                 key={`${d}-${i}`}
                 className="text-center font-calendar text-sm font-semibold uppercase tracking-wide"
                 style={{
-                  color: monthTheme.base,
+                  color: isSunday
+                    ? sundayAccentForMonth(currentDate.getMonth())
+                    : monthTheme.base,
                 }}
               >
                 {d}
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
 
@@ -782,20 +787,20 @@ const MonthHeaderPanel = ({
   onTitleClick?: () => void;
 }) => {
   const title = (
-    <div className="flex w-full min-w-0 items-center gap-2.5">
+    <div className="flex w-full min-w-0 items-center gap-3">
       <h2
-        className="font-calendar min-w-0 flex-1 text-[clamp(2.5rem,11vw,3.25rem)] font-black capitalize leading-none tracking-tighter"
+        className="font-calendar min-w-0 flex-1 text-[clamp(2.85rem,12.5vw,3.75rem)] font-black capitalize leading-none tracking-wide"
         style={{ color: textColor }}
       >
         {monthLabel}
       </h2>
       <span
-        className="h-10 w-px shrink-0"
+        className="h-11 w-px shrink-0"
         style={{ backgroundColor: lineColor }}
         aria-hidden
       />
       <span
-        className="font-calendar shrink-0 text-base font-black tabular-nums leading-none"
+        className="font-calendar shrink-0 text-lg font-black tabular-nums leading-none tracking-wide"
         style={{
           color: textColor,
           writingMode: 'vertical-rl',
@@ -809,7 +814,7 @@ const MonthHeaderPanel = ({
 
   return (
     <div
-      className="relative flex h-full shrink-0 items-center px-3 py-2"
+      className="relative flex h-full shrink-0 items-center px-2.5 py-2"
       style={{ width: width || '33.333%' }}
     >
       {onTitleClick ? (
@@ -879,8 +884,8 @@ const MonthPanel = ({
     return rows;
   }, [days]);
 
-  const gridLine = withAlpha(monthTheme.base, 0.55);
-  const weekInk = withAlpha(monthTheme.base, 0.75);
+  const gridLine = withAlpha(monthTheme.base, 0.82);
+  const weekInk = withAlpha(monthTheme.base, 0.88);
 
   return (
     <div
@@ -904,7 +909,7 @@ const MonthPanel = ({
               key={format(weekDays[0], 'yyyy-MM-dd')}
               className="grid grid-cols-7 flex-1 min-h-0 auto-rows-[minmax(0,1fr)] content-stretch"
               style={{
-                borderTop: `1px solid ${gridLine}`,
+                borderTop: `1.5px solid ${gridLine}`,
               }}
             >
               {weekDays.map((day, dayIndex) => {
@@ -922,7 +927,7 @@ const MonthPanel = ({
                     spanSegments={spanSegments}
                     inMonth={inMonth}
                     today={isToday(day)}
-                    weekend={isWeekend(day)}
+                    isSunday={day.getDay() === 0}
                     isHighlighted={!!(highlight && highlight.dateStr === dateStr)}
                     monthTheme={monthTheme}
                     members={members}
@@ -959,7 +964,7 @@ interface DayCellProps {
   spanSegments: SpanSegment[];
   inMonth: boolean;
   today: boolean;
-  weekend: boolean;
+  isSunday: boolean;
   isHighlighted: boolean;
   monthTheme: ReturnType<typeof getMonthTheme>;
   members: HouseholdMember[];
@@ -1041,7 +1046,7 @@ const DayCell = ({
   spanSegments,
   inMonth,
   today,
-  weekend,
+  isSunday,
   isHighlighted,
   monthTheme,
   members: _members,
@@ -1077,7 +1082,7 @@ const DayCell = ({
   const { rows, overflow } = packEventRows(dayEvents, MAX_VISIBLE_MARKS);
   const spanByLane = new Map(spanSegments.map((s) => [s.lane, s]));
   const reservedLanes = Math.max(weekLaneCount, 0);
-  const accent = monthTheme.base;
+  const accent = isSunday ? sundayAccentForDate(day) : monthTheme.base;
   const dateInk = !inMonth ? withAlpha(accent, 0.32) : accent;
 
   const renderEventMark = (ev: DisplayEvent) => {
@@ -1151,12 +1156,12 @@ const DayCell = ({
         isHighlighted ? 'ring-2 ring-inset ring-primary/40' : ''
       }`}
       style={{
-        borderRight: showRightBorder && gridLine ? `1px solid ${gridLine}` : undefined,
+        borderRight: showRightBorder && gridLine ? `1.5px solid ${gridLine}` : undefined,
       }}
     >
       {weekNumber != null && (
         <span
-          className="pointer-events-none absolute left-1 top-0.5 z-[2] select-none font-digits text-[10px] font-medium tabular-nums leading-none"
+          className="pointer-events-none absolute left-1 top-0.5 z-[2] select-none font-digits text-[10px] font-semibold tabular-nums leading-none"
           style={{ color: weekNumberColor }}
           aria-hidden
         >
@@ -1164,8 +1169,8 @@ const DayCell = ({
         </span>
       )}
       <span
-        className={`mx-auto w-7 h-7 shrink-0 flex items-center justify-center rounded-full font-digits text-base font-light tabular-nums leading-none ${
-          today ? 'border-[1.5px] border-primary text-primary font-medium' : ''
+        className={`mx-auto w-7 h-7 shrink-0 flex items-center justify-center rounded-full font-digits text-base font-semibold tabular-nums leading-none ${
+          today ? 'border-[1.5px] border-primary text-primary font-bold' : ''
         } ${selected && !today ? 'bg-primary/15' : ''}`}
         style={{ color: today ? undefined : dateInk }}
       >
@@ -1256,7 +1261,7 @@ const YearView = ({ year, onSelectMonth, onBack, onChangeYear }: { year: number;
         {year}
       </ViewHeader>
 
-      <div className="grid grid-cols-3 gap-4 px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] flex-1 content-start overflow-y-auto scroll-touch overscroll-contain">
+      <div className="grid grid-cols-3 gap-2.5 px-2.5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] flex-1 content-start overflow-y-auto scroll-touch overscroll-contain">
         {months.map((m) => {
           const theme = getMonthTheme(new Date(year, m, 1));
           const isCurrentMonth = now.getFullYear() === year && now.getMonth() === m;
@@ -1265,7 +1270,7 @@ const YearView = ({ year, onSelectMonth, onBack, onChangeYear }: { year: number;
               key={m}
               type="button"
               onClick={() => onSelectMonth(m)}
-              className={`rounded-2xl py-4 text-center transition-all duration-200 ${
+              className={`rounded-2xl py-5 text-center transition-all duration-200 ${
                 isCurrentMonth ? 'ring-2 ring-offset-2' : ''
               }`}
               style={{
@@ -1274,7 +1279,7 @@ const YearView = ({ year, onSelectMonth, onBack, onChangeYear }: { year: number;
               }}
             >
               <span
-                className="font-calendar text-2xl font-black capitalize tracking-tight"
+                className="font-calendar text-3xl font-black capitalize tracking-wide"
                 style={{ color: PASTEL.calendarPaper }}
               >
                 {format(new Date(year, m, 1), 'MMM', { locale: dateLocale })}

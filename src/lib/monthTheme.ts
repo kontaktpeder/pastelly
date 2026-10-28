@@ -48,6 +48,15 @@ const MONTH_COLORS = [
   '#d20001', // Dec
 ];
 
+/** Sundays use December red; in December they use July purple. */
+export function sundayAccentForMonth(monthIndex: number): string {
+  return monthIndex === 11 ? MONTH_COLORS[6]! : MONTH_COLORS[11]!;
+}
+
+export function sundayAccentForDate(date: Date): string {
+  return sundayAccentForMonth(date.getMonth());
+}
+
 function clamp(v: number, min = 0, max = 255) {
   return Math.max(min, Math.min(max, v));
 }
