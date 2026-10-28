@@ -16,6 +16,10 @@ export default {
       fontFamily: {
         display: ["Nunito", "system-ui", "sans-serif"],
         body: ["DM Sans", "system-ui", "sans-serif"],
+        /** Calendar month titles — heavy geometric like the reference pages */
+        calendar: ["Montserrat", "system-ui", "sans-serif"],
+        /** Day digits — light geometric figures that stay even in width */
+        digits: ["Inter", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
