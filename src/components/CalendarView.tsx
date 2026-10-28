@@ -573,8 +573,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                     width={pageWidth}
                     monthLabel={format(date, 'MMMM', { locale: dateLocale })}
                     yearLabel={format(date, 'yyyy')}
-                    textColor={theme.dark}
-                    lineColor={withAlpha(theme.base, 0.55)}
+                    textColor={theme.base}
+                    lineColor={theme.base}
                     onTitleClick={i === WINDOW ? openYearView : undefined}
                   />
                 );
@@ -590,7 +590,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                 key={`${d}-${i}`}
                 className="text-center font-calendar text-sm font-semibold uppercase tracking-wide"
                 style={{
-                  color: i >= 5 ? PASTEL.coral : monthTheme.dark,
+                  color: monthTheme.base,
                 }}
               >
                 {d}
@@ -860,8 +860,8 @@ const MonthPanel = ({
     return rows;
   }, [days]);
 
-  const gridLine = withAlpha(monthTheme.base, 0.38);
-  const weekInk = withAlpha(monthTheme.dark, 0.55);
+  const gridLine = withAlpha(monthTheme.base, 0.55);
+  const weekInk = withAlpha(monthTheme.base, 0.75);
 
   return (
     <div
@@ -1024,7 +1024,7 @@ const DayCell = ({
   today,
   weekend,
   isHighlighted,
-  monthTheme: _monthTheme,
+  monthTheme,
   members: _members,
   highlight,
   onTap,
@@ -1058,11 +1058,8 @@ const DayCell = ({
   const { rows, overflow } = packEventRows(dayEvents, MAX_VISIBLE_MARKS);
   const spanByLane = new Map(spanSegments.map((s) => [s.lane, s]));
   const reservedLanes = Math.max(weekLaneCount, 0);
-  const dateInk = !inMonth
-    ? withAlpha(PASTEL.ink, 0.28)
-    : weekend
-      ? withAlpha(PASTEL.ink, 0.72)
-      : withAlpha(PASTEL.ink, 0.9);
+  const accent = monthTheme.base;
+  const dateInk = !inMonth ? withAlpha(accent, 0.32) : accent;
 
   const renderEventMark = (ev: DisplayEvent) => {
     const evHighlighted = highlight && highlight.eventId === ev.id;

@@ -1,4 +1,5 @@
 export type MonthTheme = {
+  /** Month accent — month name, year, weekdays, grid, day numbers */
   base: string;
   light: string;
   dark: string;
@@ -10,8 +11,7 @@ export type MonthTheme = {
 };
 
 /**
- * Muted blob pastels — one shared family for months, events, and paper.
- * Cream stays a soft summer / neutral wash; never a loud category.
+ * Shared pastels for events and paper. Month chrome uses MONTH_COLORS.
  */
 export const PASTEL = {
   mustard: "#F5B832",
@@ -24,24 +24,27 @@ export const PASTEL = {
   /** Clean white — pastels read clearer than on warm cream */
   paper: "#FFFFFF",
   /** Soft cream wash for the whole calendar shell */
-  calendarPaper: "#FDF8EE",
+  calendarPaper: "#F9F4E8",
   ink: "#3A2A38",
 } as const;
 
-/** Seasonal rotation of the 7-tone set across 12 months. */
+/**
+ * One accent per month (Jan→Dec) from the calendar palette card.
+ * Cream paper stays fixed; these color month, year, lines and digits.
+ */
 const MONTH_COLORS = [
-  PASTEL.periwinkle, // Jan
-  PASTEL.blush, // Feb
-  PASTEL.sage, // Mar
-  PASTEL.blush, // Apr
-  PASTEL.coral, // May
-  PASTEL.mustard, // Jun
-  PASTEL.cream, // Jul
-  PASTEL.mustard, // Aug
-  PASTEL.teal, // Sep
-  PASTEL.coral, // Oct
-  PASTEL.periwinkle, // Nov
-  PASTEL.blush, // Dec
+  '#AACC96', // Jan — Tea Green
+  '#25533F', // Feb — Forest
+  '#F4BEAE', // Mar — Peach Frost
+  '#52A5CE', // Apr — Blue Berry
+  '#FF7BAC', // May — Bubble-Gum
+  '#876029', // Jun — Dry Earth
+  '#6D1F42', // Jul — Grape Juice
+  '#D3B6D3', // Aug — Lilacs
+  '#EFCE7B', // Sep — Butter Yellow
+  '#B9CEE8', // Oct — Iced Blue
+  '#EF6F3C', // Nov — Blood Orange
+  '#AFAB23', // Dec — Olive Green
 ];
 
 function clamp(v: number, min = 0, max = 255) {
@@ -150,14 +153,13 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
 }
 
-/** Calendar month strip uses a paper wash; year chips keep fuller `base`. */
+/** Calendar chrome uses `base` as-is; year chips keep a soft wash of the same hue. */
 export function getMonthTheme(date: Date): MonthTheme {
-  const base = MONTH_COLORS[date.getMonth()];
-  // Richer wash so white labels stay readable.
-  const light = mix(base, PASTEL.paper, 0.22);
-  const dark = mix(base, PASTEL.ink, 0.42);
-  const textOnStrong = "#FFFFFF";
-  const textOnLight = "#FFFFFF";
+  const base = MONTH_COLORS[date.getMonth()]!;
+  const light = mix(base, PASTEL.calendarPaper, 0.35);
+  const dark = base;
+  const textOnStrong = relativeLuma(base) > 0.62 ? PASTEL.ink : '#FFFFFF';
+  const textOnLight = base;
   const gradient = light;
   return { base, light, dark, textOnStrong, textOnLight, gradient };
 }
