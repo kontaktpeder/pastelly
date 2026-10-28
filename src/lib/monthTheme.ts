@@ -44,7 +44,7 @@ const MONTH_COLORS = [
   '#6D1F42', // Aug — Grape Juice (was pale Lilacs)
   '#B8860B', // Sep — deep butter gold (was pale Butter Yellow)
   '#ff7b30', // Oct
-  '#C44E1A', // Nov — deeper Blood Orange
+  '#ff00ff', // Nov
   '#d20001', // Dec
 ];
 
