@@ -35,11 +35,14 @@ export const PASTEL = {
  * Pale palette tones (Jan/Mar/Jun/Aug/Sep/Oct/Dec) swapped to deep
  * counterparts so cream paper keeps strong contrast; the rest deepened too.
  */
+/** April sheet — turquoise under beige chrome. */
+const APRIL_PAPER = '#40e0d0';
+
 const MONTH_COLORS = [
   PASTEL.coral, // Jan — coral (#FF7E6C)
   '#5c30ff', // Feb
   '#09a953', // Mar
-  '#40e0d0', // Apr — light turquoise
+  PASTEL.calendarPaper, // Apr — beige titles/numbers on turquoise paper
   '#D63D7A', // May — deeper Bubble-Gum
   '#0212ee', // Jun
   '#a260ff', // Jul
@@ -167,8 +170,9 @@ export function withAlpha(hex: string, alpha: number): string {
 
 /** Calendar chrome uses `base` as-is; year chips keep a soft wash of the same hue. */
 export function getMonthTheme(date: Date): MonthTheme {
-  const base = MONTH_COLORS[date.getMonth()]!;
-  const paper = PASTEL.calendarPaper;
+  const month = date.getMonth();
+  const base = MONTH_COLORS[month]!;
+  const paper = month === 3 ? APRIL_PAPER : PASTEL.calendarPaper;
   const light = mix(base, paper, 0.35);
   const dark = base;
   const textOnStrong = relativeLuma(base) > 0.62 ? PASTEL.ink : '#FFFFFF';
