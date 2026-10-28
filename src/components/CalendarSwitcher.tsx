@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BriefcaseBusiness, ChevronDown, Home, Settings } from 'lucide-react';
+import { BriefcaseBusiness, ChevronDown, Home, Settings, UserRound } from 'lucide-react';
 import { calendarKindLabelLocalized, resolveCalendarKind } from '@/lib/calendarKinds';
 import { useLocale } from '@/hooks/useLocale';
 import type { CalendarMembership } from '@/hooks/useCurrentHouseholdContext';
@@ -11,6 +11,7 @@ interface CalendarSwitcherProps {
   stackIndex?: number;
   onSelect: (householdId: string) => void;
   onOpenSettings: (householdId: string) => void;
+  onOpenAccount: () => void;
 }
 
 const CalendarSwitcher = ({
@@ -19,6 +20,7 @@ const CalendarSwitcher = ({
   stackIndex = 0,
   onSelect,
   onOpenSettings,
+  onOpenAccount,
 }: CalendarSwitcherProps) => {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
@@ -28,53 +30,40 @@ const CalendarSwitcher = ({
   const kindLabel = calendarKindLabelLocalized(household, t);
 
   return (
-    <div className="relative min-w-0 flex-1">
-      <div className="flex items-center gap-1 min-w-0">
-        <button
-          type="button"
-          onClick={() => canSwitch && setOpen((v) => !v)}
-          className={`flex items-center gap-1.5 shrink-0 ${
-            canSwitch ? 'cursor-pointer' : 'cursor-default'
-          }`}
-          aria-label={kindLabel}
-          aria-expanded={canSwitch ? open : undefined}
-          aria-haspopup={canSwitch ? 'listbox' : undefined}
-        >
-          {canSwitch && (
-            <span className="flex items-center gap-1.5 shrink-0 self-center" aria-hidden>
-              <span className="flex flex-col gap-1">
-                {memberships.map((m, i) => (
-                  <span
-                    key={m.household_id}
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      i === stackIndex ? 'bg-foreground/70' : 'bg-border'
-                    }`}
-                  />
-                ))}
-              </span>
-              <ChevronDown
-                size={16}
-                strokeWidth={2.25}
-                className={`text-muted-foreground transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
-              />
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 shrink-0 cursor-pointer"
+        aria-label={kindLabel}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        {canSwitch && (
+          <span className="flex items-center gap-1.5 shrink-0 self-center" aria-hidden>
+            <span className="flex flex-col gap-1">
+              {memberships.map((m, i) => (
+                <span
+                  key={m.household_id}
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    i === stackIndex ? 'bg-foreground/70' : 'bg-border'
+                  }`}
+                />
+              ))}
             </span>
-          )}
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl text-foreground/80">
-            <KindIcon size={22} strokeWidth={2.25} aria-hidden />
+            <ChevronDown
+              size={16}
+              strokeWidth={2.25}
+              className={`text-muted-foreground transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+            />
           </span>
-        </button>
+        )}
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl text-foreground/80">
+          <KindIcon size={22} strokeWidth={2.25} aria-hidden />
+        </span>
+      </button>
 
-        <button
-          type="button"
-          onClick={() => onOpenSettings(household.id)}
-          aria-label={t('profile.settingsThis')}
-          className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground/35 hover:text-muted-foreground/70 hover:bg-muted/50 transition-colors"
-        >
-          <Settings size={15} strokeWidth={2} />
-        </button>
-      </div>
-
-      {open && canSwitch && (
+      {open && (
         <>
           <button
             type="button"
@@ -83,7 +72,7 @@ const CalendarSwitcher = ({
             onClick={() => setOpen(false)}
           />
           <div
-            className="absolute left-0 top-full mt-2 z-50 w-[min(100vw-2.5rem,18rem)] rounded-2xl border border-border bg-background shadow-lg p-2"
+            className="absolute right-0 top-full mt-2 z-50 w-[min(100vw-2.5rem,18rem)] rounded-2xl border border-border bg-background shadow-lg p-2"
             role="listbox"
           >
             {memberships.map((m) => {
@@ -108,6 +97,21 @@ const CalendarSwitcher = ({
                 />
               );
             })}
+            <div className="my-1.5 border-t border-border/70" />
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onOpenAccount();
+              }}
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              <UserRound size={18} strokeWidth={2.2} className="shrink-0 opacity-70" aria-hidden />
+              <span className="min-w-0">
+                <span className="block truncate">{t('profile.account')}</span>
+                <span className="block text-[11px] text-muted-foreground">{t('profile.accountHint')}</span>
+              </span>
+            </button>
           </div>
         </>
       )}
@@ -162,7 +166,7 @@ function SwitcherRow({
           onSettings();
         }}
         aria-label={settingsLabel}
-        className="shrink-0 flex items-center justify-center w-10 h-10 mr-0.5 rounded-xl text-muted-foreground/35 hover:text-muted-foreground/70 hover:bg-background/60 transition-colors"
+        className="shrink-0 flex items-center justify-center w-10 h-10 mr-0.5 rounded-xl text-muted-foreground/50 hover:text-muted-foreground hover:bg-background/60 transition-colors"
       >
         <Settings size={15} strokeWidth={2} />
       </button>

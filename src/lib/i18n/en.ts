@@ -127,6 +127,7 @@ export const en: Record<MessageKey, string> = {
   'profile.settingsThis': 'Settings for this calendar',
   'profile.avatarHint': 'Profile photo is only for this calendar',
   'profile.general': 'General',
+  'profile.account': 'Account',
   'profile.accountHint': 'Applies to your account and all calendars',
   'profile.members': 'Members',
   'profile.leave': 'Leave this calendar',

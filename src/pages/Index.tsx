@@ -351,7 +351,7 @@ const Index = () => {
         style={{ backgroundColor: PASTEL.calendarPaper }}
       >
       <header
-        className="flex items-center justify-between gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-0.5 z-10"
+        className="flex items-center justify-end gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-0.5 z-10"
         style={{ backgroundColor: PASTEL.calendarPaper }}
       >
         <CalendarSwitcher
@@ -366,28 +366,12 @@ const Index = () => {
               tryOpenSheet(() => setProfileMode('calendar'));
             });
           }}
-        />
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-          onClick={() => {
+          onOpenAccount={() => {
             window.requestAnimationFrame(() => {
               tryOpenSheet(() => setProfileMode('account'));
             });
           }}
-          className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden shadow-sm"
-          style={
-            !currentMember.avatar_url
-              ? { backgroundColor: `hsl(var(--member-${currentMember.color_token.replace('pastel-', '')}))` }
-              : undefined
-          }
-        >
-          {currentMember.avatar_url ? (
-            <img src={currentMember.avatar_url} alt={currentMember.display_name} className="w-full h-full object-cover" />
-          ) : (
-            currentMember.display_name.charAt(0)
-          )}
-        </button>
-        </div>
+        />
       </header>
 
       <main
