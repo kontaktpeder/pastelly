@@ -542,11 +542,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     setShowYear(false);
   };
 
-  const isOnCurrentMonth = isSameMonth(currentDate, new Date());
-  const goToToday = () => {
-    jumpToMonth(new Date());
-  };
-
   const daySheetEvents = daySheetDate
     ? eventsByDate[format(daySheetDate, 'yyyy-MM-dd')] || []
     : [];
@@ -590,10 +585,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
         <div className="relative shrink-0" style={{ backgroundColor: PASTEL.calendarPaper }}>
           <div className="grid grid-cols-7 w-full pb-1 pt-0.5">
-            {weekdayLabels.map((d, i) => (
+              {weekdayLabels.map((d, i) => (
               <div
                 key={`${d}-${i}`}
-                className="text-center font-display text-sm font-bold uppercase tracking-wide tabular-nums"
+                className="text-center font-calendar text-sm font-semibold uppercase tracking-wide"
                 style={{
                   color: i >= 5 ? PASTEL.coral : monthTheme.dark,
                 }}
@@ -656,24 +651,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           </motion.div>
         </div>
 
-        {!isOnCurrentMonth && (
-          <div
-            className="shrink-0 flex justify-center px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-            style={{ backgroundColor: PASTEL.calendarPaper }}
-          >
-            <button
-              type="button"
-              onClick={goToToday}
-              className="min-h-10 px-5 rounded-full text-base font-semibold active:opacity-80"
-              style={{
-                color: monthTheme.dark,
-                backgroundColor: withAlpha(monthTheme.base, 0.18),
-              }}
-            >
-              I dag
-            </button>
-          </div>
-        )}
         </div>
 
 
@@ -788,7 +765,7 @@ const MonthHeaderPanel = ({
   const title = (
     <div className="flex w-full items-stretch gap-2.5 min-w-0">
       <h2
-        className="font-display min-w-0 flex-1 truncate text-[clamp(2.75rem,13vw,3.55rem)] font-black capitalize leading-[0.88] tracking-tight"
+        className="font-calendar min-w-0 flex-1 truncate text-[clamp(2.75rem,13vw,3.55rem)] font-black capitalize leading-[0.88] tracking-tighter"
         style={{ color: textColor }}
       >
         {monthLabel}
@@ -799,7 +776,7 @@ const MonthHeaderPanel = ({
         aria-hidden
       />
       <span
-        className="font-display shrink-0 self-center text-base font-extrabold tabular-nums leading-none"
+        className="font-calendar shrink-0 self-center text-base font-black tabular-nums leading-none"
         style={{
           color: textColor,
           writingMode: 'vertical-rl',
@@ -894,8 +871,15 @@ const MonthPanel = ({
       style={{ width: width || '33.333%' }}
     >
       <div className="flex flex-col flex-1 min-h-0">
-        {weeks.map((weekDays, weekIndex) => {
+        {weeks.map((weekDays) => {
           const weekNum = getISOWeek(weekDays[0]);
+          const weekLaneCount = Math.min(
+            MAX_SPAN_LANES,
+            weekDays.reduce((max, day) => {
+              const segs = spanByDate.get(format(day, 'yyyy-MM-dd')) || [];
+              return Math.max(max, maxSpanLane(segs) + 1);
+            }, 0),
+          );
           return (
             <div
               key={format(weekDays[0], 'yyyy-MM-dd')}
@@ -935,6 +919,7 @@ const MonthPanel = ({
                     showRightBorder={dayIndex < 6}
                     weekNumber={dayIndex === 0 ? weekNum : undefined}
                     weekNumberColor={weekInk}
+                    weekLaneCount={weekLaneCount}
                   />
                 );
               })}
@@ -973,6 +958,8 @@ interface DayCellProps {
   /** ISO week number drawn tiny above Monday so it takes no column */
   weekNumber?: number;
   weekNumberColor?: string;
+  /** Shared span-lane count for the week so bars stay on one level */
+  weekLaneCount?: number;
 }
 
 /** Max single-day marks shown before +N overflow */
@@ -1051,6 +1038,7 @@ const DayCell = ({
   showRightBorder = false,
   weekNumber,
   weekNumberColor,
+  weekLaneCount = 0,
 }: DayCellProps) => {
   const { dateLocale } = useLocale();
   const dayAriaLabel = format(day, 'EEEE d. MMMM yyyy', { locale: dateLocale });
@@ -1068,8 +1056,8 @@ const DayCell = ({
   };
 
   const { rows, overflow } = packEventRows(dayEvents, MAX_VISIBLE_MARKS);
-  const laneCount = Math.max(maxSpanLane(spanSegments) + 1, 0);
   const spanByLane = new Map(spanSegments.map((s) => [s.lane, s]));
+  const reservedLanes = Math.max(weekLaneCount, 0);
   const dateInk = !inMonth
     ? withAlpha(PASTEL.ink, 0.28)
     : weekend
@@ -1143,7 +1131,7 @@ const DayCell = ({
       {...longPressHandlers}
       onClick={handleClick}
       aria-label={dayAriaLabel}
-      className={`relative flex flex-col items-stretch justify-start pt-1 pb-1 px-0.5 min-h-0 h-full overflow-hidden font-display ${
+      className={`relative flex flex-col items-stretch justify-start pt-1 pb-1 px-0.5 min-h-0 h-full overflow-hidden ${
         isHighlighted ? 'ring-2 ring-inset ring-primary/40' : ''
       }`}
       style={{
@@ -1152,7 +1140,7 @@ const DayCell = ({
     >
       {weekNumber != null && (
         <span
-          className="pointer-events-none absolute left-1 top-0.5 z-[2] select-none font-display text-[10px] font-bold tabular-nums leading-none"
+          className="pointer-events-none absolute left-1 top-0.5 z-[2] select-none font-digits text-[10px] font-medium tabular-nums leading-none"
           style={{ color: weekNumberColor }}
           aria-hidden
         >
@@ -1160,78 +1148,76 @@ const DayCell = ({
         </span>
       )}
       <span
-        className={`mx-auto w-7 h-7 shrink-0 flex items-center justify-center rounded-full font-display text-base font-bold tabular-nums leading-none ${
-          today ? 'border-[1.5px] border-primary text-primary' : ''
+        className={`mx-auto w-7 h-7 shrink-0 flex items-center justify-center rounded-full font-digits text-base font-light tabular-nums leading-none ${
+          today ? 'border-[1.5px] border-primary text-primary font-medium' : ''
         } ${selected && !today ? 'bg-primary/15' : ''}`}
         style={{ color: today ? undefined : dateInk }}
       >
         {format(day, 'd')}
       </span>
 
-      {(laneCount > 0 || rows.length > 0 || overflow > 0) && (
-        <div
-          className="mt-0.5 w-full flex flex-col justify-end gap-0.5 min-h-0 flex-1 px-0 z-[1] transition-opacity duration-500 ease-out"
-          style={{ opacity: marksVisible ? 1 : 0 }}
-        >
-          {laneCount > 0 && (
-            <div className="w-full flex flex-col gap-[3px] mt-auto mb-0.5">
-              {Array.from({ length: Math.min(laneCount, MAX_SPAN_LANES) }, (_, lane) => {
-                const seg = spanByLane.get(lane);
-                if (!seg) {
-                  return <div key={`lane-${lane}`} className={`${SPAN_ROW_H} w-full`} aria-hidden />;
-                }
-                const segEvent = seg.event as DisplayEvent;
-                const isOverlay = !!segEvent.isOverlay;
-                const isWorkBlock = !!segEvent.isWorkBlock;
-                const member = isOverlay || isWorkBlock ? undefined : getMemberForEvent(seg.event);
-                const visuals = isWorkBlock
-                  ? WORK_BLOCK_MARK
-                  : isOverlay
-                    ? OVERLAY_MARK
-                    : resolveCategoryVisuals(seg.event.category, getMemberColorMap(member));
-                const evHighlighted = highlight && highlight.eventId === seg.event.id;
+      <div
+        className="mt-0.5 w-full flex flex-col gap-0.5 min-h-0 flex-1 px-0 z-[1] transition-opacity duration-500 ease-out"
+        style={{ opacity: marksVisible ? 1 : 0 }}
+      >
+        {reservedLanes > 0 && (
+          <div className="w-full flex flex-col gap-[3px] shrink-0">
+            {Array.from({ length: reservedLanes }, (_, lane) => {
+              const seg = spanByLane.get(lane);
+              if (!seg) {
+                return <div key={`lane-${lane}`} className={`${SPAN_ROW_H} w-full`} aria-hidden />;
+              }
+              const segEvent = seg.event as DisplayEvent;
+              const isOverlay = !!segEvent.isOverlay;
+              const isWorkBlock = !!segEvent.isWorkBlock;
+              const member = isOverlay || isWorkBlock ? undefined : getMemberForEvent(seg.event);
+              const visuals = isWorkBlock
+                ? WORK_BLOCK_MARK
+                : isOverlay
+                  ? OVERLAY_MARK
+                  : resolveCategoryVisuals(seg.event.category, getMemberColorMap(member));
+              const evHighlighted = highlight && highlight.eventId === seg.event.id;
 
-                return (
-                  <div
-                    key={seg.event.id}
-                    title={seg.event.title}
-                    className={`relative ${SPAN_ROW_H} w-full`}
-                  >
-                    <div
-                      aria-hidden
-                      className={`absolute inset-y-0 left-0 right-0 ${
-                        seg.isStart ? SPAN_ROUND_START : ''
-                      } ${seg.isEnd ? SPAN_ROUND_END : ''} ${
-                        evHighlighted ? 'ring-1 ring-primary/40' : ''
-                      }`}
-                      style={{
-                        backgroundColor: visuals.soft,
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {(rows.length > 0 || overflow > 0) && (
-            <div className="w-full flex flex-col items-center gap-0.5 mt-auto">
-              {rows.map((row, i) => (
+              return (
                 <div
-                  key={row.map((e) => e.id).join('-') || i}
-                  className="w-full flex flex-col items-center"
+                  key={seg.event.id}
+                  title={seg.event.title}
+                  className={`relative ${SPAN_ROW_H} w-full`}
                 >
-                  {row.map((ev) => renderEventMark(ev))}
+                  <div
+                    aria-hidden
+                    className={`absolute inset-y-0 left-0 right-0 ${
+                      seg.isStart ? SPAN_ROUND_START : ''
+                    } ${seg.isEnd ? SPAN_ROUND_END : ''} ${
+                      evHighlighted ? 'ring-1 ring-primary/40' : ''
+                    }`}
+                    style={{
+                      backgroundColor: visuals.soft,
+                    }}
+                  />
                 </div>
-              ))}
-              {overflow > 0 && (
-                <div className="text-sm text-muted-foreground text-center font-semibold leading-none shrink-0">
-                  +{overflow}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+        {(rows.length > 0 || overflow > 0) && (
+          <div className="w-full flex flex-col items-center gap-0.5 mt-auto">
+            {rows.map((row, i) => (
+              <div
+                key={row.map((e) => e.id).join('-') || i}
+                className="w-full flex flex-col items-center"
+              >
+                {row.map((ev) => renderEventMark(ev))}
+              </div>
+            ))}
+            {overflow > 0 && (
+              <div className="font-digits text-sm text-muted-foreground text-center font-medium tabular-nums leading-none shrink-0">
+                +{overflow}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </button>
   );
 };

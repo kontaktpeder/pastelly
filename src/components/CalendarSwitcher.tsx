@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, Settings } from 'lucide-react';
+import { BriefcaseBusiness, ChevronDown, Home, Settings } from 'lucide-react';
 import { calendarKindLabelLocalized, resolveCalendarKind } from '@/lib/calendarKinds';
 import { useLocale } from '@/hooks/useLocale';
 import type { CalendarMembership } from '@/hooks/useCurrentHouseholdContext';
@@ -23,9 +23,9 @@ const CalendarSwitcher = ({
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const canSwitch = memberships.length > 1;
-
-  const homes = memberships.filter((m) => resolveCalendarKind(m.household) === 'home');
-  const works = memberships.filter((m) => resolveCalendarKind(m.household) === 'work');
+  const kind = resolveCalendarKind(household);
+  const KindIcon = kind === 'work' ? BriefcaseBusiness : Home;
+  const kindLabel = calendarKindLabelLocalized(household, t);
 
   return (
     <div className="relative min-w-0 flex-1">
@@ -33,9 +33,10 @@ const CalendarSwitcher = ({
         <button
           type="button"
           onClick={() => canSwitch && setOpen((v) => !v)}
-          className={`flex items-center gap-2 min-w-0 max-w-full text-left ${
+          className={`flex items-center gap-1.5 shrink-0 ${
             canSwitch ? 'cursor-pointer' : 'cursor-default'
           }`}
+          aria-label={kindLabel}
           aria-expanded={canSwitch ? open : undefined}
           aria-haspopup={canSwitch ? 'listbox' : undefined}
         >
@@ -58,24 +59,19 @@ const CalendarSwitcher = ({
               />
             </span>
           )}
-          <span className="min-w-0">
-            <span className="block font-display text-lg font-extrabold tracking-tight truncate leading-tight">{household.name}</span>
-            <span className="block font-display text-[10px] font-semibold text-muted-foreground leading-tight">
-              {calendarKindLabelLocalized(household, t)}
-            </span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl text-foreground/80">
+            <KindIcon size={22} strokeWidth={2.25} aria-hidden />
           </span>
         </button>
 
-        {!canSwitch && (
-          <button
-            type="button"
-            onClick={() => onOpenSettings(household.id)}
-            aria-label={t('profile.settingsThis')}
-            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground/35 hover:text-muted-foreground/70 hover:bg-muted/50 transition-colors"
-          >
-            <Settings size={15} strokeWidth={2} />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => onOpenSettings(household.id)}
+          aria-label={t('profile.settingsThis')}
+          className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground/35 hover:text-muted-foreground/70 hover:bg-muted/50 transition-colors"
+        >
+          <Settings size={15} strokeWidth={2} />
+        </button>
       </div>
 
       {open && canSwitch && (
@@ -90,46 +86,28 @@ const CalendarSwitcher = ({
             className="absolute left-0 top-full mt-2 z-50 w-[min(100vw-2.5rem,18rem)] rounded-2xl border border-border bg-background shadow-lg p-2"
             role="listbox"
           >
-            {homes.length > 0 && (
-              <div className={works.length > 0 ? 'mb-1' : undefined}>
-                {homes.map((m) => (
-                  <SwitcherRow
-                    key={m.household_id}
-                    name={m.household.name}
-                    active={m.household_id === household.id}
-                    settingsLabel={t('profile.settingsThis')}
-                    onSelect={() => {
-                      onSelect(m.household_id);
-                      setOpen(false);
-                    }}
-                    onSettings={() => {
-                      setOpen(false);
-                      onOpenSettings(m.household_id);
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-            {works.length > 0 && (
-              <div>
-                {works.map((m) => (
-                  <SwitcherRow
-                    key={m.household_id}
-                    name={m.household.name}
-                    active={m.household_id === household.id}
-                    settingsLabel={t('profile.settingsThis')}
-                    onSelect={() => {
-                      onSelect(m.household_id);
-                      setOpen(false);
-                    }}
-                    onSettings={() => {
-                      setOpen(false);
-                      onOpenSettings(m.household_id);
-                    }}
-                  />
-                ))}
-              </div>
-            )}
+            {memberships.map((m) => {
+              const rowKind = resolveCalendarKind(m.household);
+              const RowIcon = rowKind === 'work' ? BriefcaseBusiness : Home;
+              return (
+                <SwitcherRow
+                  key={m.household_id}
+                  name={m.household.name}
+                  kindLabel={calendarKindLabelLocalized(m.household, t)}
+                  Icon={RowIcon}
+                  active={m.household_id === household.id}
+                  settingsLabel={t('profile.settingsThis')}
+                  onSelect={() => {
+                    onSelect(m.household_id);
+                    setOpen(false);
+                  }}
+                  onSettings={() => {
+                    setOpen(false);
+                    onOpenSettings(m.household_id);
+                  }}
+                />
+              );
+            })}
           </div>
         </>
       )}
@@ -139,12 +117,16 @@ const CalendarSwitcher = ({
 
 function SwitcherRow({
   name,
+  kindLabel,
+  Icon,
   active,
   settingsLabel,
   onSelect,
   onSettings,
 }: {
   name: string;
+  kindLabel: string;
+  Icon: typeof Home;
   active: boolean;
   settingsLabel: string;
   onSelect: () => void;
@@ -161,11 +143,17 @@ function SwitcherRow({
       <button
         type="button"
         onClick={onSelect}
-        className={`min-w-0 flex-1 text-left rounded-xl px-3 py-2.5 text-sm truncate transition-colors ${
+        className={`min-w-0 flex-1 text-left rounded-xl px-3 py-2.5 transition-colors ${
           active ? 'font-semibold text-foreground' : 'text-foreground font-medium'
         }`}
       >
-        {name}
+        <span className="flex items-center gap-2 min-w-0">
+          <Icon size={18} strokeWidth={2.2} className="shrink-0 opacity-70" aria-hidden />
+          <span className="min-w-0">
+            <span className="block truncate text-sm">{name}</span>
+            <span className="block text-[11px] text-muted-foreground">{kindLabel}</span>
+          </span>
+        </span>
       </button>
       <button
         type="button"
