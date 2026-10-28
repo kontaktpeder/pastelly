@@ -39,7 +39,7 @@ const MONTH_COLORS = [
   PASTEL.coral, // Jan — coral (#FF7E6C)
   '#5c30ff', // Feb
   '#09a953', // Mar
-  '#28b8a8', // Apr — darker turquoise
+  '#40e0d0', // Apr — light turquoise
   '#D63D7A', // May — deeper Bubble-Gum
   '#0212ee', // Jun
   '#a260ff', // Jul
@@ -165,14 +165,10 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
 }
 
-/** Turquoise sheet under January coral chrome (trial vs cream paper). */
-const JANUARY_PAPER = '#40e0d0';
-
 /** Calendar chrome uses `base` as-is; year chips keep a soft wash of the same hue. */
 export function getMonthTheme(date: Date): MonthTheme {
-  const month = date.getMonth();
-  const base = MONTH_COLORS[month]!;
-  const paper = month === 0 ? JANUARY_PAPER : PASTEL.calendarPaper;
+  const base = MONTH_COLORS[date.getMonth()]!;
+  const paper = PASTEL.calendarPaper;
   const light = mix(base, paper, 0.35);
   const dark = base;
   const textOnStrong = relativeLuma(base) > 0.62 ? PASTEL.ink : '#FFFFFF';
