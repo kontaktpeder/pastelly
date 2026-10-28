@@ -39,13 +39,13 @@ const MONTH_COLORS = [
   '#876029', // Mar — Dry Earth (was pale Peach Frost)
   '#2A6F96', // Apr — deeper Blue Berry
   '#D63D7A', // May — deeper Bubble-Gum
-  '#5A4018', // Jun — deeper Dry Earth
+  '#0212ee', // Jun
   '#4A1530', // Jul — deeper Grape Juice
   '#6D1F42', // Aug — Grape Juice (was pale Lilacs)
   '#B8860B', // Sep — deep butter gold (was pale Butter Yellow)
   '#3A6A95', // Oct — deep iced blue (was pale Iced Blue)
   '#C44E1A', // Nov — deeper Blood Orange
-  '#5C5A12', // Dec — deep olive (was pale Olive Green)
+  '#d20001', // Dec
 ];
 
 function clamp(v: number, min = 0, max = 255) {
