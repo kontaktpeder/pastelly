@@ -35,12 +35,12 @@ export const PASTEL = {
  */
 const MONTH_COLORS = [
   '#25533F', // Jan — Forest (was pale Tea Green)
-  '#1A3D2E', // Feb — deeper Forest
+  '#5c30ff', // Feb
   '#876029', // Mar — Dry Earth (was pale Peach Frost)
   '#2A6F96', // Apr — deeper Blue Berry
   '#D63D7A', // May — deeper Bubble-Gum
   '#0212ee', // Jun
-  '#4A1530', // Jul — deeper Grape Juice
+  '#f6bc3f', // Jul
   '#6D1F42', // Aug — Grape Juice (was pale Lilacs)
   '#B8860B', // Sep — deep butter gold (was pale Butter Yellow)
   '#3A6A95', // Oct — deep iced blue (was pale Iced Blue)
