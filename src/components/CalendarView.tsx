@@ -558,7 +558,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           className="relative shrink-0 overflow-hidden"
           style={{ backgroundColor: PASTEL.calendarPaper }}
         >
-          <div className="relative h-[3.65rem] overflow-hidden">
+          <div className="relative h-[5.25rem] overflow-hidden">
             <motion.div
               className="absolute top-0 bottom-0 flex will-change-transform"
               style={{
@@ -782,20 +782,20 @@ const MonthHeaderPanel = ({
   onTitleClick?: () => void;
 }) => {
   const title = (
-    <div className="flex w-full items-stretch gap-2.5 min-w-0">
+    <div className="flex w-full min-w-0 items-center gap-2.5">
       <h2
-        className="font-calendar min-w-0 flex-1 truncate text-[clamp(2.75rem,13vw,3.55rem)] font-black capitalize leading-[0.88] tracking-tighter"
+        className="font-calendar min-w-0 flex-1 text-[clamp(2.5rem,11vw,3.25rem)] font-black capitalize leading-none tracking-tighter"
         style={{ color: textColor }}
       >
         {monthLabel}
       </h2>
       <span
-        className="w-px shrink-0 self-stretch my-1"
+        className="h-10 w-px shrink-0"
         style={{ backgroundColor: lineColor }}
         aria-hidden
       />
       <span
-        className="font-calendar shrink-0 self-center text-base font-black tabular-nums leading-none"
+        className="font-calendar shrink-0 text-base font-black tabular-nums leading-none"
         style={{
           color: textColor,
           writingMode: 'vertical-rl',
@@ -809,7 +809,7 @@ const MonthHeaderPanel = ({
 
   return (
     <div
-      className="relative flex h-full shrink-0 items-end px-3 pb-0.5"
+      className="relative flex h-full shrink-0 items-center px-3 py-2"
       style={{ width: width || '33.333%' }}
     >
       {onTitleClick ? (
