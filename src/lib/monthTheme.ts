@@ -10,6 +10,8 @@ export type MonthTheme = {
   gradient: string;
   /** Calendar sheet background for this month */
   paper: string;
+  /** Hard offset shadow for pale chrome (e.g. July yellow on cream) */
+  chromeShadow?: string;
 };
 
 /**
@@ -165,14 +167,19 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
 }
 
+/** Hard bottom-right shadow so July yellow reads on cream. */
+const JULY_CHROME_SHADOW = `3px 3px 0 ${PASTEL.ink}`;
+
 /** Calendar chrome uses `base` as-is; year chips keep a soft wash of the same hue. */
 export function getMonthTheme(date: Date): MonthTheme {
-  const base = MONTH_COLORS[date.getMonth()]!;
+  const month = date.getMonth();
+  const base = MONTH_COLORS[month]!;
   const paper = PASTEL.calendarPaper;
   const light = mix(base, paper, 0.35);
   const dark = base;
   const textOnStrong = relativeLuma(base) > 0.62 ? PASTEL.ink : '#FFFFFF';
   const textOnLight = base;
   const gradient = light;
-  return { base, light, dark, textOnStrong, textOnLight, gradient, paper };
+  const chromeShadow = month === 6 ? JULY_CHROME_SHADOW : undefined;
+  return { base, light, dark, textOnStrong, textOnLight, gradient, paper, chromeShadow };
 }

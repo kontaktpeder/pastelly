@@ -578,6 +578,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                     textColor={theme.base}
                     lineColor={theme.base}
                     paperColor={theme.paper}
+                    textShadow={theme.chromeShadow}
                     onTitleClick={i === WINDOW ? openYearView : undefined}
                   />
                 );
@@ -598,6 +599,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                   color: isSunday
                     ? sundayAccentForMonth(currentDate.getMonth())
                     : monthTheme.base,
+                  textShadow: isSunday ? undefined : monthTheme.chromeShadow,
                 }}
               >
                 {d}
@@ -670,6 +672,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
             style={{
               color: monthTheme.base,
               backgroundColor: withAlpha(monthTheme.base, 0.16),
+              textShadow: monthTheme.chromeShadow,
             }}
           >
             {eventsHidden ? t('common.showEvents') : t('common.hideEvents')}
@@ -779,6 +782,7 @@ const MonthHeaderPanel = ({
   textColor,
   lineColor,
   paperColor,
+  textShadow,
   onTitleClick,
 }: {
   width: number;
@@ -787,13 +791,14 @@ const MonthHeaderPanel = ({
   textColor: string;
   lineColor: string;
   paperColor: string;
+  textShadow?: string;
   onTitleClick?: () => void;
 }) => {
   const title = (
     <div className="flex w-full min-w-0 items-center gap-3">
       <h2
         className="font-calendar min-w-0 flex-1 text-[clamp(2.85rem,12.5vw,3.75rem)] font-black capitalize leading-none tracking-wide"
-        style={{ color: textColor }}
+        style={{ color: textColor, textShadow }}
       >
         {monthLabel}
       </h2>
@@ -806,6 +811,7 @@ const MonthHeaderPanel = ({
         className="font-calendar shrink-0 text-lg font-black tabular-nums leading-none tracking-wide"
         style={{
           color: textColor,
+          textShadow,
           writingMode: 'vertical-rl',
           textOrientation: 'mixed',
         }}
@@ -1087,6 +1093,7 @@ const DayCell = ({
   const reservedLanes = Math.max(weekLaneCount, 0);
   const accent = isSunday ? sundayAccentForDate(day) : monthTheme.base;
   const dateInk = !inMonth ? withAlpha(accent, 0.32) : accent;
+  const dateShadow = !isSunday && inMonth ? monthTheme.chromeShadow : undefined;
 
   const renderEventMark = (ev: DisplayEvent) => {
     const evHighlighted = highlight && highlight.eventId === ev.id;
@@ -1165,7 +1172,7 @@ const DayCell = ({
       {weekNumber != null && (
         <span
           className="pointer-events-none absolute left-1 top-0.5 z-[2] select-none font-digits text-[10px] font-semibold tabular-nums leading-none"
-          style={{ color: weekNumberColor }}
+          style={{ color: weekNumberColor, textShadow: monthTheme.chromeShadow }}
           aria-hidden
         >
           {weekNumber}
@@ -1175,7 +1182,7 @@ const DayCell = ({
         className={`mx-auto w-9 h-9 shrink-0 flex items-center justify-center rounded-full font-digits text-xl font-bold tabular-nums leading-none ${
           today ? 'border-[1.5px] border-primary text-primary font-extrabold' : ''
         } ${selected && !today ? 'bg-primary/15' : ''}`}
-        style={{ color: today ? undefined : dateInk }}
+        style={{ color: today ? undefined : dateInk, textShadow: today ? undefined : dateShadow }}
       >
         {format(day, 'd')}
       </span>
