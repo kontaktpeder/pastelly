@@ -93,12 +93,6 @@ const Index = () => {
     [memberships],
   );
 
-  const stackIndex = useMemo(() => {
-    if (!household) return 0;
-    const idx = orderedMemberships.findIndex((m) => m.household_id === household.id);
-    return idx >= 0 ? idx : 0;
-  }, [orderedMemberships, household]);
-
   const selectCalendar = useCallback(
     (id: string, direction?: number) => {
       if (!household || id === household.id || switchingRef.current) return;
@@ -357,7 +351,6 @@ const Index = () => {
         <CalendarSwitcher
           household={household}
           memberships={orderedMemberships}
-          stackIndex={stackIndex}
           onSelect={(id) => selectCalendar(id)}
           onOpenSettings={(id) => {
             if (id !== household.id) selectCalendar(id);

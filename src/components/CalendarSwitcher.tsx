@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BriefcaseBusiness, ChevronDown, Home, Settings, UserRound } from 'lucide-react';
+import { BriefcaseBusiness, Home, Settings, UserRound } from 'lucide-react';
 import { calendarKindLabelLocalized, resolveCalendarKind } from '@/lib/calendarKinds';
 import { useLocale } from '@/hooks/useLocale';
 import type { CalendarMembership } from '@/hooks/useCurrentHouseholdContext';
@@ -8,7 +8,6 @@ import type { Household } from '@/hooks/useHousehold';
 interface CalendarSwitcherProps {
   household: Household;
   memberships: CalendarMembership[];
-  stackIndex?: number;
   onSelect: (householdId: string) => void;
   onOpenSettings: (householdId: string) => void;
   onOpenAccount: () => void;
@@ -17,14 +16,12 @@ interface CalendarSwitcherProps {
 const CalendarSwitcher = ({
   household,
   memberships,
-  stackIndex = 0,
   onSelect,
   onOpenSettings,
   onOpenAccount,
 }: CalendarSwitcherProps) => {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
-  const canSwitch = memberships.length > 1;
   const kind = resolveCalendarKind(household);
   const KindIcon = kind === 'work' ? BriefcaseBusiness : Home;
   const kindLabel = calendarKindLabelLocalized(household, t);
@@ -34,33 +31,12 @@ const CalendarSwitcher = ({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 shrink-0 cursor-pointer"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-foreground/80 cursor-pointer"
         aria-label={kindLabel}
         aria-expanded={open}
         aria-haspopup="listbox"
       >
-        {canSwitch && (
-          <span className="flex items-center gap-1.5 shrink-0 self-center" aria-hidden>
-            <span className="flex flex-col gap-1">
-              {memberships.map((m, i) => (
-                <span
-                  key={m.household_id}
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    i === stackIndex ? 'bg-foreground/70' : 'bg-border'
-                  }`}
-                />
-              ))}
-            </span>
-            <ChevronDown
-              size={16}
-              strokeWidth={2.25}
-              className={`text-muted-foreground transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
-            />
-          </span>
-        )}
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl text-foreground/80">
-          <KindIcon size={22} strokeWidth={2.25} aria-hidden />
-        </span>
+        <KindIcon size={22} strokeWidth={2.25} aria-hidden />
       </button>
 
       {open && (
