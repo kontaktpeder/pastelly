@@ -587,7 +587,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         </div>
 
         <div className="relative shrink-0" style={{ backgroundColor: monthTheme.paper }}>
-          <div className="grid grid-cols-7 w-full pb-1 pt-0.5">
+          <div className="grid grid-cols-7 w-full pb-1.5 pt-1">
               {weekdayLabels.map((d, i) => {
               const isSunday = i === 6;
               return (
@@ -660,7 +660,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         </div>
 
         <div
-          className="shrink-0 flex justify-center px-4 pt-1.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]"
+          className="shrink-0 flex justify-center px-4 pt-2.5 pb-[max(0.85rem,env(safe-area-inset-bottom))]"
           style={{ backgroundColor: monthTheme.paper }}
         >
           <button
@@ -997,7 +997,7 @@ const CAL_ICON_STROKE = 2.2;
 /** Single-day mark: round chip; flex box centers the SVG */
 const DAY_PILL =
   'h-[1.15rem] w-[1.15rem] rounded-full inline-flex items-center justify-center shrink-0 leading-none overflow-hidden';
-const SPAN_ROW_H = 'h-[0.7rem]';
+const SPAN_ROW_H = 'h-[0.55rem]';
 /** Multi-day rail ends — soft round like the reference calendar */
 const SPAN_ROUND_START = 'rounded-l-full';
 const SPAN_ROUND_END = 'rounded-r-full';
@@ -1155,7 +1155,7 @@ const DayCell = ({
       {...longPressHandlers}
       onClick={handleClick}
       aria-label={dayAriaLabel}
-      className={`relative flex flex-col items-stretch justify-start pt-1 pb-1 px-0.5 min-h-0 h-full overflow-hidden ${
+      className={`relative flex flex-col items-stretch justify-start pt-0.5 pb-0 px-0.5 min-h-0 h-full overflow-hidden ${
         isHighlighted ? 'ring-2 ring-inset ring-primary/40' : ''
       }`}
       style={{
@@ -1172,8 +1172,8 @@ const DayCell = ({
         </span>
       )}
       <span
-        className={`mx-auto w-7 h-7 shrink-0 flex items-center justify-center rounded-full font-digits text-base font-semibold tabular-nums leading-none ${
-          today ? 'border-[1.5px] border-primary text-primary font-bold' : ''
+        className={`mx-auto w-9 h-9 shrink-0 flex items-center justify-center rounded-full font-digits text-xl font-bold tabular-nums leading-none ${
+          today ? 'border-[1.5px] border-primary text-primary font-extrabold' : ''
         } ${selected && !today ? 'bg-primary/15' : ''}`}
         style={{ color: today ? undefined : dateInk }}
       >
@@ -1181,7 +1181,7 @@ const DayCell = ({
       </span>
 
       <div
-        className="mt-0.5 w-full flex flex-col gap-0.5 min-h-0 flex-1 px-0 z-[1] transition-opacity duration-500 ease-out"
+        className="mt-0 w-full flex flex-col gap-px min-h-0 flex-1 px-0 z-[1] transition-opacity duration-500 ease-out"
         style={{ opacity: marksVisible ? 1 : 0 }}
       >
         {reservedLanes > 0 && (
