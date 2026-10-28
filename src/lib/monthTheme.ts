@@ -37,12 +37,12 @@ export const PASTEL = {
  */
 const MONTH_COLORS = [
   '#a10b56', // Jan
-  '#5c30ff', // Feb
+  '#a260ff', // Feb — was July
   '#09a953', // Mar
   '#40e0d0', // Apr — light turquoise
   '#FA008A', // May — Pantone 17-2435 TN Pink Glo
   '#0212ee', // Jun
-  '#a260ff', // Jul
+  '#ffcd54', // Jul
   '#9db812', // Aug
   '#6b270d', // Sep
   '#ff7b30', // Oct
