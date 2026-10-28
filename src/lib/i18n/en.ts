@@ -14,6 +14,8 @@ export const en: Record<MessageKey, string> = {
   'common.required': 'Required',
   'common.back': 'Back',
   'common.undo': 'Undo',
+  'common.hideEvents': 'Hide activities',
+  'common.showEvents': 'Show activities',
 
   'locale.app': 'App language',
   'locale.appHint': 'Applies to sign-in and profile. Calendar language under “This calendar” controls text inside the calendar.',
