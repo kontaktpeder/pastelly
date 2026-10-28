@@ -168,7 +168,7 @@ export function withAlpha(hex: string, alpha: number): string {
 }
 
 /** Hard bottom-right shadow so July yellow reads on cream. */
-const JULY_CHROME_SHADOW = `3px 3px 0 ${PASTEL.ink}`;
+const JULY_CHROME_SHADOW = '1px 1px 1.5px rgba(58, 42, 56, 0.35)';
 
 /** Calendar chrome uses `base` as-is; year chips keep a soft wash of the same hue. */
 export function getMonthTheme(date: Date): MonthTheme {
