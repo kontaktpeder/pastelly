@@ -13,6 +13,8 @@ export const nb = {
   'common.required': 'Obligatorisk',
   'common.back': 'Tilbake',
   'common.undo': 'Angre',
+  'common.hideEvents': 'Skjul aktiviteter',
+  'common.showEvents': 'Vis aktiviteter',
 
   // locales
   'locale.app': 'App-språk',

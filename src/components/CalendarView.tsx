@@ -160,7 +160,7 @@ function buildMonthDays(monthDate: Date): Date[] {
 }
 
 const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, selectedDate, onCurrentDateChange, onSelectDate, onCreateEvent, onImportForDate, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
-  const { dateLocale } = useLocale();
+  const { dateLocale, t } = useLocale();
   const weekdayLabels = useMemo(() => {
     const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
     return Array.from({ length: 7 }, (_, i) =>
@@ -250,6 +250,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
   // Hold marks empty only until first ready paint — avoid blanking on month swipe when cache hits.
   const [marksVisible, setMarksVisible] = useState(false);
+  /** Temporary design toggle — hide bars and day marks while polishing the grid. */
+  const [eventsHidden, setEventsHidden] = useState(true);
   const events = monthFetched || monthError ? (eventsRaw ?? []) : [];
   const overlayEvents = overlayFetched || overlayError ? (overlayRaw ?? []) : [];
   const {
@@ -642,13 +644,30 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                   onPressLock={lockStripForPress}
                   onPressUnlock={unlockStripForPress}
                   getMemberForEvent={getMemberForEvent}
-                  marksVisible={marksVisible}
+                  marksVisible={marksVisible && !eventsHidden}
                   selectedDateStr={selectedDateStr}
                   showSelection={!isMobile}
                 />
               );
             })}
           </motion.div>
+        </div>
+
+        <div
+          className="shrink-0 flex justify-center px-4 pt-1.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]"
+          style={{ backgroundColor: PASTEL.calendarPaper }}
+        >
+          <button
+            type="button"
+            onClick={() => setEventsHidden((v) => !v)}
+            className="min-h-9 px-4 rounded-full text-sm font-semibold active:opacity-80"
+            style={{
+              color: monthTheme.base,
+              backgroundColor: withAlpha(monthTheme.base, 0.16),
+            }}
+          >
+            {eventsHidden ? t('common.showEvents') : t('common.hideEvents')}
+          </button>
         </div>
 
         </div>
