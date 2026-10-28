@@ -34,7 +34,7 @@ export const PASTEL = {
  * counterparts so cream paper keeps strong contrast; the rest deepened too.
  */
 const MONTH_COLORS = [
-  '#25533F', // Jan — Forest (was pale Tea Green)
+  '#40e0d0', // Jan
   '#5c30ff', // Feb
   '#09a953', // Mar
   '#2A6F96', // Apr — deeper Blue Berry
