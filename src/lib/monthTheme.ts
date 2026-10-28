@@ -36,7 +36,7 @@ export const PASTEL = {
  * counterparts so cream paper keeps strong contrast; the rest deepened too.
  */
 const MONTH_COLORS = [
-  '#FF54A7', // Jan — Pantone 16-2130 TN Knockout Pink
+  '#550000', // Jan
   '#5c30ff', // Feb
   '#09a953', // Mar
   '#40e0d0', // Apr — light turquoise
