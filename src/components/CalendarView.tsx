@@ -556,7 +556,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         {/* Month title + year strip — peeks with the day grid */}
         <div
           className="relative shrink-0 overflow-hidden"
-          style={{ backgroundColor: PASTEL.calendarPaper }}
+          style={{ backgroundColor: monthTheme.paper }}
         >
           <div className="relative h-[5.75rem] overflow-hidden">
             <motion.div
@@ -577,6 +577,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                     yearLabel={format(date, 'yyyy')}
                     textColor={theme.base}
                     lineColor={theme.base}
+                    paperColor={theme.paper}
                     onTitleClick={i === WINDOW ? openYearView : undefined}
                   />
                 );
@@ -585,7 +586,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           </div>
         </div>
 
-        <div className="relative shrink-0" style={{ backgroundColor: PASTEL.calendarPaper }}>
+        <div className="relative shrink-0" style={{ backgroundColor: monthTheme.paper }}>
           <div className="grid grid-cols-7 w-full pb-1 pt-0.5">
               {weekdayLabels.map((d, i) => {
               const isSunday = i === 6;
@@ -610,7 +611,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         <div
           ref={trackRef}
           className="relative flex-1 min-h-0 overflow-hidden select-none calendar-gesture-surface"
-          style={{ backgroundColor: PASTEL.calendarPaper }}
+          style={{ backgroundColor: monthTheme.paper }}
         >
           <motion.div
             className="absolute top-0 bottom-0 flex will-change-transform"
@@ -660,7 +661,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
         <div
           className="shrink-0 flex justify-center px-4 pt-1.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]"
-          style={{ backgroundColor: PASTEL.calendarPaper }}
+          style={{ backgroundColor: monthTheme.paper }}
         >
           <button
             type="button"
@@ -777,6 +778,7 @@ const MonthHeaderPanel = ({
   yearLabel,
   textColor,
   lineColor,
+  paperColor,
   onTitleClick,
 }: {
   width: number;
@@ -784,6 +786,7 @@ const MonthHeaderPanel = ({
   yearLabel: string;
   textColor: string;
   lineColor: string;
+  paperColor: string;
   onTitleClick?: () => void;
 }) => {
   const title = (
@@ -815,7 +818,7 @@ const MonthHeaderPanel = ({
   return (
     <div
       className="relative flex h-full shrink-0 items-center px-2.5 py-2"
-      style={{ width: width || '33.333%' }}
+      style={{ width: width || '33.333%', backgroundColor: paperColor }}
     >
       {onTitleClick ? (
         <button type="button" onClick={onTitleClick} className="w-full min-w-0 text-left active:opacity-80">
@@ -892,7 +895,7 @@ const MonthPanel = ({
       className={`flex flex-col h-full min-h-0 shrink-0 pt-0 pb-[max(0.25rem,env(safe-area-inset-bottom))] ${
         interactive ? '' : 'pointer-events-none'
       }`}
-      style={{ width: width || '33.333%' }}
+      style={{ width: width || '33.333%', backgroundColor: monthTheme.paper }}
     >
       <div className="flex flex-col flex-1 min-h-0">
         {weeks.map((weekDays) => {
@@ -1274,13 +1277,17 @@ const YearView = ({ year, onSelectMonth, onBack, onChangeYear }: { year: number;
                 isCurrentMonth ? 'ring-2 ring-offset-2' : ''
               }`}
               style={{
-                backgroundColor: theme.base,
+                backgroundColor:
+                  theme.paper !== PASTEL.calendarPaper ? theme.paper : theme.base,
                 ...(isCurrentMonth ? { ringColor: theme.dark, borderColor: theme.dark } : {}),
               }}
             >
               <span
                 className="font-calendar text-3xl font-black capitalize tracking-wide"
-                style={{ color: PASTEL.calendarPaper }}
+                style={{
+                  color:
+                    theme.paper !== PASTEL.calendarPaper ? theme.base : PASTEL.calendarPaper,
+                }}
               >
                 {format(new Date(year, m, 1), 'MMM', { locale: dateLocale })}
               </span>
