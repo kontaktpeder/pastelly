@@ -34,10 +34,10 @@ export const PASTEL = {
  * counterparts so cream paper keeps strong contrast; the rest deepened too.
  */
 const MONTH_COLORS = [
-  '#40e0d0', // Jan
+  '#0a6b63', // Jan
   '#5c30ff', // Feb
   '#09a953', // Mar
-  '#ffcd54', // Apr
+  '#9a6b00', // Apr
   '#D63D7A', // May — deeper Bubble-Gum
   '#0212ee', // Jun
   '#a260ff', // Jul
