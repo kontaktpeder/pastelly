@@ -40,8 +40,8 @@ const MONTH_COLORS = [
   '#2A6F96', // Apr — deeper Blue Berry
   '#D63D7A', // May — deeper Bubble-Gum
   '#0212ee', // Jun
-  '#f8b936', // Jul
-  '#c0f126', // Aug
+  '#d49218', // Jul
+  '#9db812', // Aug
   '#6b270d', // Sep
   '#ff7b30', // Oct
   '#2c9fc7', // Nov
