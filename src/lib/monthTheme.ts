@@ -8,6 +8,8 @@ export type MonthTheme = {
   /** Label on the soft calendar month wash */
   textOnLight: string;
   gradient: string;
+  /** Calendar sheet background for this month */
+  paper: string;
 };
 
 /**
@@ -163,13 +165,18 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
 }
 
+/** Turquoise sheet under January coral chrome (trial vs cream paper). */
+const JANUARY_PAPER = '#40e0d0';
+
 /** Calendar chrome uses `base` as-is; year chips keep a soft wash of the same hue. */
 export function getMonthTheme(date: Date): MonthTheme {
-  const base = MONTH_COLORS[date.getMonth()]!;
-  const light = mix(base, PASTEL.calendarPaper, 0.35);
+  const month = date.getMonth();
+  const base = MONTH_COLORS[month]!;
+  const paper = month === 0 ? JANUARY_PAPER : PASTEL.calendarPaper;
+  const light = mix(base, paper, 0.35);
   const dark = base;
   const textOnStrong = relativeLuma(base) > 0.62 ? PASTEL.ink : '#FFFFFF';
   const textOnLight = base;
   const gradient = light;
-  return { base, light, dark, textOnStrong, textOnLight, gradient };
+  return { base, light, dark, textOnStrong, textOnLight, gradient, paper };
 }
