@@ -40,11 +40,11 @@ const MONTH_COLORS = [
   '#2A6F96', // Apr — deeper Blue Berry
   '#D63D7A', // May — deeper Bubble-Gum
   '#0212ee', // Jun
-  '#f6bc3f', // Jul
-  '#6D1F42', // Aug — Grape Juice (was pale Lilacs)
+  '#f8b936', // Jul
+  '#c0f126', // Aug
   '#6b270d', // Sep
   '#ff7b30', // Oct
-  '#ff00ff', // Nov
+  '#2c9fc7', // Nov
   '#d20001', // Dec
 ];
 
