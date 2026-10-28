@@ -334,7 +334,8 @@ const Index = () => {
   const canSwipeStack = orderedMemberships.length > 1;
 
   const showBootVeil = bootPhase === 'covering' || bootPhase === 'revealing';
-  const shellPaper = useMemo(() => getMonthTheme(focusedDate).paper, [focusedDate]);
+  // Not a hook — must stay after early returns above (React #310).
+  const shellPaper = getMonthTheme(focusedDate).paper;
 
   return (
     <LocaleProvider calendarLocale={(household as any).locale}>
