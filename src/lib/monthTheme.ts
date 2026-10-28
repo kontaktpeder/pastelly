@@ -34,7 +34,7 @@ export const PASTEL = {
  * counterparts so cream paper keeps strong contrast; the rest deepened too.
  */
 const MONTH_COLORS = [
-  '#40e0d0', // Jan
+  PASTEL.coral, // Jan — coral (#FF7E6C)
   '#5c30ff', // Feb
   '#09a953', // Mar
   '#ffcd54', // Apr
