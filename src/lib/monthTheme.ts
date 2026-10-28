@@ -23,6 +23,8 @@ export const PASTEL = {
   blush: "#FFA0B8",
   /** Clean white — pastels read clearer than on warm cream */
   paper: "#FFFFFF",
+  /** Soft calendar wash behind the month grid */
+  calendarPaper: "#FDF9F2",
   ink: "#3A2A38",
 } as const;
 
