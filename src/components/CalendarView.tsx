@@ -1273,7 +1273,10 @@ const YearView = ({ year, onSelectMonth, onBack, onChangeYear }: { year: number;
                 ...(isCurrentMonth ? { ringColor: theme.dark, borderColor: theme.dark } : {}),
               }}
             >
-              <span className="text-lg font-bold capitalize" style={{ color: theme.textOnStrong }}>
+              <span
+                className="font-calendar text-2xl font-black capitalize tracking-tight"
+                style={{ color: PASTEL.calendarPaper }}
+              >
                 {format(new Date(year, m, 1), 'MMM', { locale: dateLocale })}
               </span>
             </button>
