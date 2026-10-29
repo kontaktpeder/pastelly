@@ -771,8 +771,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
 /* ---------- Peeking month header panel ---------- */
 
-/** Probe size for width fitting; final size = probe × (slot / measured). */
+/** Probe size for width/height fitting. */
 const HEADER_FIT_PROBE_PX = 100;
+/** Reserved column for the vertical year (house sits further right via pr-14). */
+const HEADER_YEAR_COL_PX = 30;
 
 const MonthHeaderPanel = ({
   width,
@@ -790,56 +792,86 @@ const MonthHeaderPanel = ({
   onTitleClick?: () => void;
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
-  const slotRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLHeadingElement>(null);
-  const [fontPx, setFontPx] = useState(56);
+  const monthRef = useRef<HTMLHeadingElement>(null);
+  const yearRef = useRef<HTMLSpanElement>(null);
+  const [monthPx, setMonthPx] = useState(48);
+  const [yearPx, setYearPx] = useState(14);
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
-    const slot = slotRef.current;
-    const measure = measureRef.current;
-    if (!panel || !slot || !measure) return;
+    const monthEl = monthRef.current;
+    const yearEl = yearRef.current;
+    if (!panel || !monthEl || !yearEl) return;
 
     const fit = () => {
-      const availableW = slot.clientWidth;
-      const availableH = panel.clientHeight - 10;
-      if (availableW <= 0) return;
-      // Fit the month name alone to the width beside the vertical year.
-      measure.style.fontSize = `${HEADER_FIT_PROBE_PX}px`;
-      const needed = measure.scrollWidth;
-      if (needed <= 0) return;
-      let next = HEADER_FIT_PROBE_PX * (availableW / needed);
-      // Also keep within the header height so long names aren't clipped.
-      if (availableH > 0) {
-        next = Math.min(next, availableH * 0.9);
-      }
-      setFontPx(Math.min(88, Math.max(28, next)));
+      const panelW = panel.clientWidth;
+      const panelH = panel.clientHeight;
+      if (panelW <= 0 || panelH <= 0) return;
+
+      // px-3 (12) + pr-14 (56) + year column — month gets the rest.
+      const sidePad = 12 + 56;
+      const monthAvailW = Math.max(panelW - sidePad - HEADER_YEAR_COL_PX, 1);
+      const monthAvailH = Math.max(panelH - 8, 1);
+
+      monthEl.style.fontSize = `${HEADER_FIT_PROBE_PX}px`;
+      const monthNeedW = monthEl.scrollWidth;
+      if (monthNeedW <= 0) return;
+
+      // Full month name must fit — scale down long names like «September» / «Februar».
+      let nextMonth = HEADER_FIT_PROBE_PX * (monthAvailW / monthNeedW) * 0.96;
+      nextMonth = Math.min(nextMonth, monthAvailH * 0.95);
+      nextMonth = Math.max(20, nextMonth);
+      monthEl.style.fontSize = `${nextMonth}px`;
+      setMonthPx(nextMonth);
+
+      // Vertical year: same visual height as the month letters, hard-right in its column.
+      yearEl.style.fontSize = `${HEADER_FIT_PROBE_PX}px`;
+      const yearNeedH = yearEl.scrollHeight;
+      const nextYear =
+        yearNeedH > 0
+          ? HEADER_FIT_PROBE_PX * (nextMonth / yearNeedH)
+          : nextMonth * 0.26;
+      setYearPx(Math.max(9, nextYear));
     };
 
-    fit();
-    const ro = new ResizeObserver(fit);
+    const run = () => {
+      fit();
+      void document.fonts?.ready?.then(() => {
+        fit();
+        requestAnimationFrame(fit);
+      });
+    };
+    run();
+    const ro = new ResizeObserver(() => fit());
     ro.observe(panel);
-    ro.observe(slot);
     return () => ro.disconnect();
   }, [monthLabel, yearLabel, width]);
 
   const title = (
-    <div className="flex h-full w-full min-w-0 items-end gap-2.5">
-      <div ref={slotRef} className="flex min-h-0 min-w-0 flex-1 items-end overflow-hidden">
-        <h2
-          ref={measureRef}
-          className="m-0 w-max max-w-none whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
-          style={{ color: textColor, fontSize: fontPx }}
-        >
-          {monthLabel}
-        </h2>
-      </div>
-      <span
-        className="mb-0.5 shrink-0 font-calendar text-base font-black tabular-nums leading-none tracking-tight"
+    <div className="relative h-full w-full min-w-0">
+      <h2
+        ref={monthRef}
+        className="absolute bottom-0 left-0 m-0 whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
         style={{
           color: textColor,
+          fontSize: monthPx,
+          maxWidth: `calc(100% - ${HEADER_YEAR_COL_PX}px)`,
+        }}
+      >
+        {monthLabel}
+      </h2>
+      <span
+        ref={yearRef}
+        className="absolute bottom-0 right-0 font-calendar font-black tabular-nums leading-none tracking-tight"
+        style={{
+          color: textColor,
+          fontSize: yearPx,
           writingMode: 'vertical-rl',
           textOrientation: 'mixed',
+          height: monthPx,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
         {yearLabel}
@@ -854,7 +886,7 @@ const MonthHeaderPanel = ({
       style={{ width: width || '33.333%', backgroundColor: paperColor }}
     >
       {onTitleClick ? (
-        <button type="button" onClick={onTitleClick} className="h-full w-full min-w-0 text-left active:opacity-80">
+        <button type="button" onClick={onTitleClick} className="relative h-full w-full min-w-0 text-left active:opacity-80">
           {title}
         </button>
       ) : (
