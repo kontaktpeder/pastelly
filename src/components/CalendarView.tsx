@@ -558,7 +558,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           className="relative shrink-0 overflow-hidden pt-[max(0.35rem,env(safe-area-inset-top))]"
           style={{ backgroundColor: monthTheme.paper }}
         >
-          <div className="relative h-[6.75rem] overflow-hidden">
+          <div className="relative h-[7.25rem] overflow-hidden">
             <motion.div
               className="absolute top-0 bottom-0 flex will-change-transform"
               style={{
@@ -789,60 +789,72 @@ const MonthHeaderPanel = ({
   paperColor: string;
   onTitleClick?: () => void;
 }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLHeadingElement>(null);
   const [fontPx, setFontPx] = useState(56);
 
   useLayoutEffect(() => {
+    const panel = panelRef.current;
     const slot = slotRef.current;
     const measure = measureRef.current;
-    if (!slot || !measure) return;
+    if (!panel || !slot || !measure) return;
 
     const fit = () => {
-      const available = slot.clientWidth;
-      if (available <= 0) return;
-      // Measure at a fixed probe size, then scale so the row fills the slot.
+      const availableW = slot.clientWidth;
+      const availableH = panel.clientHeight - 10;
+      if (availableW <= 0) return;
+      // Fit the month name alone to the width beside the vertical year.
       measure.style.fontSize = `${HEADER_FIT_PROBE_PX}px`;
       const needed = measure.scrollWidth;
       if (needed <= 0) return;
-      const next = HEADER_FIT_PROBE_PX * (available / needed);
-      // Keep chrome readable across Mai → September.
-      setFontPx(Math.min(78, Math.max(34, next)));
+      let next = HEADER_FIT_PROBE_PX * (availableW / needed);
+      // Also keep within the header height so long names aren't clipped.
+      if (availableH > 0) {
+        next = Math.min(next, availableH * 0.9);
+      }
+      setFontPx(Math.min(88, Math.max(28, next)));
     };
 
     fit();
     const ro = new ResizeObserver(fit);
+    ro.observe(panel);
     ro.observe(slot);
     return () => ro.disconnect();
   }, [monthLabel, yearLabel, width]);
 
   const title = (
-    <div ref={slotRef} className="w-full min-w-0 overflow-hidden">
-      <div
-        ref={measureRef}
-        className="inline-flex w-max max-w-none items-baseline gap-[0.18em] whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
-        style={{
-          color: textColor,
-          fontSize: fontPx,
-        }}
-      >
-        <h2 className="m-0 p-0 font-[inherit] text-[1em] leading-none tracking-[inherit]">
+    <div className="flex h-full w-full min-w-0 items-end gap-2.5">
+      <div ref={slotRef} className="flex min-h-0 min-w-0 flex-1 items-end overflow-hidden">
+        <h2
+          ref={measureRef}
+          className="m-0 w-max max-w-none whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
+          style={{ color: textColor, fontSize: fontPx }}
+        >
           {monthLabel}
         </h2>
-        <span className="tabular-nums text-[0.38em] font-black leading-none tracking-tight">
-          {yearLabel}
-        </span>
       </div>
+      <span
+        className="mb-0.5 shrink-0 font-calendar text-base font-black tabular-nums leading-none tracking-tight"
+        style={{
+          color: textColor,
+          writingMode: 'vertical-rl',
+          textOrientation: 'mixed',
+        }}
+      >
+        {yearLabel}
+      </span>
     </div>
   );
 
   return (
     <div
-      className="relative flex h-full shrink-0 items-end px-3 pb-1.5 pr-14"
+      ref={panelRef}
+      className="relative flex h-full shrink-0 items-stretch px-3 pb-1.5 pr-14"
       style={{ width: width || '33.333%', backgroundColor: paperColor }}
     >
       {onTitleClick ? (
-        <button type="button" onClick={onTitleClick} className="w-full min-w-0 text-left active:opacity-80">
+        <button type="button" onClick={onTitleClick} className="h-full w-full min-w-0 text-left active:opacity-80">
           {title}
         </button>
       ) : (
