@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect, type Dispatch, type SetStateAction } from 'react';
 import { motion, AnimatePresence, useMotionValue, animate, type PanInfo } from 'framer-motion';
-import { format, startOfMonth, endOfMonth, startOfWeek, eachDayOfInterval, isToday, isSameMonth, addMonths, getISOWeek, addDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, eachDayOfInterval, isToday, isSameMonth, addMonths, getISOWeek, addDays, type Locale } from 'date-fns';
 import { useEventsForMonth, type Event } from '@/hooks/useEvents';
 import {
   mergeEventsWithOverlays,
@@ -157,6 +157,13 @@ function buildMonthDays(monthDate: Date): Date[] {
   // Always 6 week rows so grid lines align when swiping between months.
   const calEnd = addDays(calStart, 6 * 7 - 1);
   return eachDayOfInterval({ start: calStart, end: calEnd });
+}
+
+/** Short months stay full; long names use MMM so header type can stay large. */
+function formatMonthHeaderLabel(date: Date, locale: Locale): string {
+  const full = format(date, 'MMMM', { locale });
+  if (full.length <= 5) return full;
+  return format(date, 'MMM', { locale });
 }
 
 const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, selectedDate, onCurrentDateChange, onSelectDate, onCreateEvent, onImportForDate, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
@@ -580,7 +587,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                   <MonthHeaderPanel
                     key={`${date.getFullYear()}-${date.getMonth()}`}
                     width={pageWidth}
-                    monthLabel={format(date, 'MMMM', { locale: dateLocale })}
+                    monthLabel={formatMonthHeaderLabel(date, dateLocale)}
                     yearLabel={format(date, 'yyyy')}
                     textColor={theme.base}
                     paperColor={theme.paper}
