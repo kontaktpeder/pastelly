@@ -347,26 +347,27 @@ const Index = () => {
         style={{ backgroundColor: shellPaper }}
       >
       <header
-        className="flex items-center justify-end gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-0.5 z-10"
-        style={{ backgroundColor: shellPaper }}
+        className="pointer-events-none absolute right-0 top-0 z-20 flex items-start justify-end gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))]"
       >
-        <CalendarSwitcher
-          household={household}
-          memberships={orderedMemberships}
-          onSelect={(id) => selectCalendar(id)}
-          onOpenSettings={(id) => {
-            if (id !== household.id) selectCalendar(id);
-            // Defer sheet open so calendar switch paint isn't blocked (esp. Android)
-            window.requestAnimationFrame(() => {
-              tryOpenSheet(() => setProfileMode('calendar'));
-            });
-          }}
-          onOpenAccount={() => {
-            window.requestAnimationFrame(() => {
-              tryOpenSheet(() => setProfileMode('account'));
-            });
-          }}
-        />
+        <div className="pointer-events-auto">
+          <CalendarSwitcher
+            household={household}
+            memberships={orderedMemberships}
+            onSelect={(id) => selectCalendar(id)}
+            onOpenSettings={(id) => {
+              if (id !== household.id) selectCalendar(id);
+              // Defer sheet open so calendar switch paint isn't blocked (esp. Android)
+              window.requestAnimationFrame(() => {
+                tryOpenSheet(() => setProfileMode('calendar'));
+              });
+            }}
+            onOpenAccount={() => {
+              window.requestAnimationFrame(() => {
+                tryOpenSheet(() => setProfileMode('account'));
+              });
+            }}
+          />
+        </div>
       </header>
 
       <main

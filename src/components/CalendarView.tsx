@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect, type Dispatch, type SetStateAction } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect, type Dispatch, type SetStateAction } from 'react';
 import { motion, AnimatePresence, useMotionValue, animate, type PanInfo } from 'framer-motion';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isSameMonth, addMonths, getISOWeek, addDays } from 'date-fns';
 import { useEventsForMonth, type Event } from '@/hooks/useEvents';
@@ -555,10 +555,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         <div className={`flex flex-col h-full min-h-0 ${showYear ? 'invisible pointer-events-none' : ''}`}>
         {/* Month title + year strip — peeks with the day grid */}
         <div
-          className="relative shrink-0 overflow-hidden"
+          className="relative shrink-0 overflow-hidden pt-[max(0.35rem,env(safe-area-inset-top))]"
           style={{ backgroundColor: monthTheme.paper }}
         >
-          <div className="relative h-[5.75rem] overflow-hidden">
+          <div className="relative h-[6.75rem] overflow-hidden">
             <motion.div
               className="absolute top-0 bottom-0 flex will-change-transform"
               style={{
@@ -576,7 +576,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                     monthLabel={format(date, 'MMMM', { locale: dateLocale })}
                     yearLabel={format(date, 'yyyy')}
                     textColor={theme.base}
-                    lineColor={theme.base}
                     paperColor={theme.paper}
                     onTitleClick={i === WINDOW ? openYearView : undefined}
                   />
@@ -772,12 +771,14 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
 /* ---------- Peeking month header panel ---------- */
 
+/** Probe size for width fitting; final size = probe × (slot / measured). */
+const HEADER_FIT_PROBE_PX = 100;
+
 const MonthHeaderPanel = ({
   width,
   monthLabel,
   yearLabel,
   textColor,
-  lineColor,
   paperColor,
   onTitleClick,
 }: {
@@ -785,39 +786,59 @@ const MonthHeaderPanel = ({
   monthLabel: string;
   yearLabel: string;
   textColor: string;
-  lineColor: string;
   paperColor: string;
   onTitleClick?: () => void;
 }) => {
+  const slotRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [fontPx, setFontPx] = useState(56);
+
+  useLayoutEffect(() => {
+    const slot = slotRef.current;
+    const measure = measureRef.current;
+    if (!slot || !measure) return;
+
+    const fit = () => {
+      const available = slot.clientWidth;
+      if (available <= 0) return;
+      // Measure at a fixed probe size, then scale so the row fills the slot.
+      measure.style.fontSize = `${HEADER_FIT_PROBE_PX}px`;
+      const needed = measure.scrollWidth;
+      if (needed <= 0) return;
+      const next = HEADER_FIT_PROBE_PX * (available / needed);
+      // Keep chrome readable across Mai → September.
+      setFontPx(Math.min(78, Math.max(34, next)));
+    };
+
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(slot);
+    return () => ro.disconnect();
+  }, [monthLabel, yearLabel, width]);
+
   const title = (
-    <div className="flex w-full min-w-0 items-center gap-3">
-      <h2
-        className="font-calendar min-w-0 flex-1 text-[clamp(2.85rem,12.5vw,3.75rem)] font-black capitalize leading-none tracking-wide"
-        style={{ color: textColor }}
-      >
-        {monthLabel}
-      </h2>
-      <span
-        className="h-11 w-px shrink-0"
-        style={{ backgroundColor: lineColor }}
-        aria-hidden
-      />
-      <span
-        className="font-calendar shrink-0 text-lg font-black tabular-nums leading-none tracking-wide"
+    <div ref={slotRef} className="w-full min-w-0 overflow-hidden">
+      <div
+        ref={measureRef}
+        className="inline-flex w-max max-w-none items-baseline gap-[0.18em] whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
         style={{
           color: textColor,
-          writingMode: 'vertical-rl',
-          textOrientation: 'mixed',
+          fontSize: fontPx,
         }}
       >
-        {yearLabel}
-      </span>
+        <h2 className="m-0 p-0 font-[inherit] text-[1em] leading-none tracking-[inherit]">
+          {monthLabel}
+        </h2>
+        <span className="tabular-nums text-[0.38em] font-black leading-none tracking-tight">
+          {yearLabel}
+        </span>
+      </div>
     </div>
   );
 
   return (
     <div
-      className="relative flex h-full shrink-0 items-center px-2.5 py-2"
+      className="relative flex h-full shrink-0 items-end px-3 pb-1.5 pr-14"
       style={{ width: width || '33.333%', backgroundColor: paperColor }}
     >
       {onTitleClick ? (
