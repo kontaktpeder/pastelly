@@ -159,17 +159,41 @@ function buildMonthDays(monthDate: Date): Date[] {
   return eachDayOfInterval({ start: calStart, end: calEnd });
 }
 
+/**
+ * Optical gap before the custom period, keyed by abbreviated stem (nb/en).
+ * Tuned for Montserrat Black + tracking-tighter so the dot sits close without colliding.
+ */
+const MONTH_DOT_GAP_EM: Record<string, number> = {
+  jan: 0.08,
+  feb: 0.1,
+  aug: 0.04,
+  sep: 0.07,
+  sept: 0.07,
+  okt: 0.1,
+  oct: 0.1,
+  nov: 0.08,
+  des: 0.1,
+  dec: 0.1,
+};
+
+function monthDotGapEm(label: string): number {
+  const key = label.replace(/\.+$/u, '').trim().toLowerCase();
+  return MONTH_DOT_GAP_EM[key] ?? 0.1;
+}
+
 /** Short months stay full; long names use MMM so header type can stay large. */
 function formatMonthHeaderLabel(
   date: Date,
   locale: Locale,
-): { label: string; showDot: boolean } {
+): { label: string; showDot: boolean; dotGapEm: number } {
   const full = format(date, 'MMMM', { locale });
-  if (full.length <= 5) return { label: full, showDot: false };
+  if (full.length <= 5) return { label: full, showDot: false, dotGapEm: 0 };
   // Strip locale periods; render a smaller custom dot in the header.
+  const label = format(date, 'MMM', { locale }).replace(/\.+$/u, '');
   return {
-    label: format(date, 'MMM', { locale }).replace(/\.+$/u, ''),
+    label,
     showDot: true,
+    dotGapEm: monthDotGapEm(label),
   };
 }
 
@@ -597,6 +621,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                     width={pageWidth}
                     monthLabel={monthHeader.label}
                     monthDot={monthHeader.showDot}
+                    monthDotGapEm={monthHeader.dotGapEm}
                     yearLabel={format(date, 'yyyy')}
                     textColor={theme.base}
                     paperColor={theme.paper}
@@ -815,6 +840,7 @@ const MonthHeaderPanel = ({
   width,
   monthLabel,
   monthDot = false,
+  monthDotGapEm = 0.1,
   yearLabel,
   textColor,
   paperColor,
@@ -824,6 +850,8 @@ const MonthHeaderPanel = ({
   monthLabel: string;
   /** Smaller custom period for abbreviated month names. */
   monthDot?: boolean;
+  /** Per-abbreviation optical gap before the period (em). */
+  monthDotGapEm?: number;
   yearLabel: string;
   textColor: string;
   paperColor: string;
@@ -895,7 +923,7 @@ const MonthHeaderPanel = ({
     ro.observe(panel);
     ro.observe(slot);
     return () => ro.disconnect();
-  }, [monthLabel, monthDot, yearLabel, width]);
+  }, [monthLabel, monthDot, monthDotGapEm, yearLabel, width]);
 
   const title = (
     <div className="flex h-full w-full min-w-0 items-end gap-2.5">
@@ -912,7 +940,7 @@ const MonthHeaderPanel = ({
               className="font-[inherit] font-bold leading-none"
               style={{
                 fontSize: '0.62em',
-                marginLeft: '0.22em',
+                marginLeft: `${monthDotGapEm}em`,
                 verticalAlign: 'baseline',
               }}
             >
