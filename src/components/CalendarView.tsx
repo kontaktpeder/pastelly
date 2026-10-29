@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect, type Dispatch, type SetStateAction } from 'react';
 import { motion, AnimatePresence, useMotionValue, animate, type PanInfo } from 'framer-motion';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isSameMonth, addMonths, getISOWeek, addDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, eachDayOfInterval, isToday, isSameMonth, addMonths, getISOWeek, addDays } from 'date-fns';
 import { useEventsForMonth, type Event } from '@/hooks/useEvents';
 import {
   mergeEventsWithOverlays,
@@ -11,7 +11,7 @@ import {
 import { mergeWorkBlocks, useWorkScheduleBlocks, WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
 import { resolveCategoryVisuals, getMemberColorMap, categoryMarkFill } from '@/lib/categoryPresentation';
 import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
-import { getMonthTheme, PASTEL, sundayAccentForDate, sundayAccentForMonth, withAlpha } from '@/lib/monthTheme';
+import { getMonthTheme, PASTEL, sundayAccentForMonth, withAlpha } from '@/lib/monthTheme';
 import {
   buildSpanSegmentsByDate,
   isMultiDayEvent,
@@ -153,9 +153,9 @@ function eventsForMonth(
 
 function buildMonthDays(monthDate: Date): Date[] {
   const monthStart = startOfMonth(monthDate);
-  const monthEnd = endOfMonth(monthDate);
   const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  // Always 6 week rows so grid lines align when swiping between months.
+  const calEnd = addDays(calStart, 6 * 7 - 1);
   return eachDayOfInterval({ start: calStart, end: calEnd });
 }
 
@@ -951,7 +951,6 @@ const MonthPanel = ({
                     spanSegments={spanSegments}
                     inMonth={inMonth}
                     today={isToday(day)}
-                    isSunday={day.getDay() === 0}
                     isHighlighted={!!(highlight && highlight.dateStr === dateStr)}
                     monthTheme={monthTheme}
                     members={members}
@@ -988,7 +987,6 @@ interface DayCellProps {
   spanSegments: SpanSegment[];
   inMonth: boolean;
   today: boolean;
-  isSunday: boolean;
   isHighlighted: boolean;
   monthTheme: ReturnType<typeof getMonthTheme>;
   members: HouseholdMember[];
@@ -1070,7 +1068,6 @@ const DayCell = ({
   spanSegments,
   inMonth,
   today,
-  isSunday,
   isHighlighted,
   monthTheme,
   members: _members,
@@ -1106,7 +1103,7 @@ const DayCell = ({
   const { rows, overflow } = packEventRows(dayEvents, MAX_VISIBLE_MARKS);
   const spanByLane = new Map(spanSegments.map((s) => [s.lane, s]));
   const reservedLanes = Math.max(weekLaneCount, 0);
-  const accent = isSunday ? sundayAccentForDate(day) : monthTheme.base;
+  const accent = monthTheme.base;
   const dateInk = !inMonth ? withAlpha(accent, 0.32) : accent;
 
   const renderEventMark = (ev: DisplayEvent) => {
@@ -1294,21 +1291,16 @@ const YearView = ({ year, onSelectMonth, onBack, onChangeYear }: { year: number;
               key={m}
               type="button"
               onClick={() => onSelectMonth(m)}
-              className={`rounded-2xl py-5 text-center transition-all duration-200 ${
-                isCurrentMonth ? 'ring-2 ring-offset-2' : ''
-              }`}
-              style={{
-                backgroundColor:
-                  theme.paper !== PASTEL.calendarPaper ? theme.paper : theme.base,
-                ...(isCurrentMonth ? { ringColor: theme.dark, borderColor: theme.dark } : {}),
-              }}
+              className="rounded-2xl py-5 text-center transition-all duration-200"
+              style={
+                isCurrentMonth
+                  ? { boxShadow: `0 0 0 2px ${theme.base}` }
+                  : undefined
+              }
             >
               <span
                 className="font-calendar text-3xl font-black capitalize tracking-wide"
-                style={{
-                  color:
-                    theme.paper !== PASTEL.calendarPaper ? theme.base : PASTEL.calendarPaper,
-                }}
+                style={{ color: theme.base }}
               >
                 {format(new Date(year, m, 1), 'MMM', { locale: dateLocale })}
               </span>
