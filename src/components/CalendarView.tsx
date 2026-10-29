@@ -909,11 +909,11 @@ const MonthHeaderPanel = ({
           {monthDot ? (
             <span
               aria-hidden
-              className="inline-block font-[inherit] font-black leading-none"
+              className="inline-block font-[inherit] font-bold leading-none"
               style={{
-                fontSize: '0.32em',
-                marginLeft: '0.06em',
-                transform: 'translateY(-0.08em)',
+                fontSize: '0.48em',
+                marginLeft: '0.2em',
+                transform: 'translateY(-0.12em)',
               }}
             >
               .
