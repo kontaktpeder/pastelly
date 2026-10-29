@@ -790,8 +790,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
 /* ---------- Peeking month header panel ---------- */
 
-/** Probe size for width/height fitting. */
+/** Probe size for month width fitting. */
 const HEADER_FIT_PROBE_PX = 100;
+/** Fixed trailing column for divider + vertical year (house uses pr-14 outside). */
+const HEADER_YEAR_COL_PX = 36;
 
 const MonthHeaderPanel = ({
   width,
@@ -822,11 +824,18 @@ const MonthHeaderPanel = ({
     const yearEl = yearRef.current;
     if (!panel || !slot || !monthEl || !yearEl) return;
 
+    const verticalBlockHeight = (el: HTMLElement) => {
+      const rect = el.getBoundingClientRect();
+      // For vertical-rl, the long axis is height; fall back to max metrics.
+      return Math.max(rect.height, el.scrollHeight, el.scrollWidth, 1);
+    };
+
     const fit = () => {
       const monthAvailW = slot.clientWidth;
       const monthAvailH = Math.max(panel.clientHeight - 10, 1);
       if (monthAvailW <= 0) return;
 
+      // 1) Month alone → fit width (and cap to header height).
       monthEl.style.fontSize = `${HEADER_FIT_PROBE_PX}px`;
       const monthNeedW = monthEl.scrollWidth;
       if (monthNeedW <= 0) return;
@@ -837,14 +846,22 @@ const MonthHeaderPanel = ({
       monthEl.style.fontSize = `${nextMonth}px`;
       setMonthPx(nextMonth);
 
-      // Vertical year block height matches month letters — no fixed height that clips digits.
+      // 2) Year alone → size so the vertical stack equals month letter height.
+      // Do NOT use scrollHeight alone (broken under writing-mode); measure the box.
       yearEl.style.fontSize = `${HEADER_FIT_PROBE_PX}px`;
-      const yearNeedH = yearEl.scrollHeight;
-      const nextYear =
-        yearNeedH > 0
-          ? HEADER_FIT_PROBE_PX * (nextMonth / yearNeedH) * 0.98
-          : nextMonth * 0.26;
-      setYearPx(Math.max(10, nextYear));
+      const yearNeedLong = verticalBlockHeight(yearEl);
+      let nextYear = HEADER_FIT_PROBE_PX * (nextMonth / yearNeedLong) * 0.98;
+      // Guard: 4 digits must never get near month font-size (that was the clip bug).
+      nextYear = Math.min(nextYear, nextMonth / Math.max(yearLabel.length, 1) * 1.05);
+      nextYear = Math.max(10, nextYear);
+      yearEl.style.fontSize = `${nextYear}px`;
+      const yearGot = verticalBlockHeight(yearEl);
+      if (yearGot > 1) {
+        nextYear = nextYear * (nextMonth / yearGot);
+        nextYear = Math.min(nextYear, nextMonth / Math.max(yearLabel.length, 1) * 1.05);
+        nextYear = Math.max(10, nextYear);
+      }
+      setYearPx(nextYear);
     };
 
     const run = () => {
@@ -863,7 +880,7 @@ const MonthHeaderPanel = ({
 
   const title = (
     <div className="flex h-full w-full min-w-0 items-end gap-2.5">
-      <div ref={slotRef} className="min-w-0 flex-1 self-stretch flex items-end overflow-hidden">
+      <div ref={slotRef} className="flex min-h-0 min-w-0 flex-1 items-end overflow-hidden">
         <h2
           ref={monthRef}
           className="m-0 whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
@@ -872,23 +889,28 @@ const MonthHeaderPanel = ({
           {monthLabel}
         </h2>
       </div>
-      <span
-        className="w-px shrink-0 self-end"
-        style={{ height: monthPx, backgroundColor: textColor, opacity: 0.9 }}
-        aria-hidden
-      />
-      <span
-        ref={yearRef}
-        className="shrink-0 self-end font-calendar font-black tabular-nums leading-none tracking-tight"
-        style={{
-          color: textColor,
-          fontSize: yearPx,
-          writingMode: 'vertical-rl',
-          textOrientation: 'mixed',
-        }}
+      <div
+        className="flex shrink-0 items-end gap-2"
+        style={{ width: HEADER_YEAR_COL_PX }}
       >
-        {yearLabel}
-      </span>
+        <span
+          className="w-px shrink-0"
+          style={{ height: monthPx, backgroundColor: textColor, opacity: 0.9 }}
+          aria-hidden
+        />
+        <span
+          ref={yearRef}
+          className="font-calendar font-black tabular-nums leading-none tracking-tight"
+          style={{
+            color: textColor,
+            fontSize: yearPx,
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed',
+          }}
+        >
+          {yearLabel}
+        </span>
+      </div>
     </div>
   );
 
