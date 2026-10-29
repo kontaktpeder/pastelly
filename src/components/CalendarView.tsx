@@ -163,7 +163,8 @@ function buildMonthDays(monthDate: Date): Date[] {
 function formatMonthHeaderLabel(date: Date, locale: Locale): string {
   const full = format(date, 'MMMM', { locale });
   if (full.length <= 5) return full;
-  return format(date, 'MMM', { locale });
+  // Strip locale periods ("Aug.") — the dot is oversized in black display type and clips.
+  return format(date, 'MMM', { locale }).replace(/\.+$/u, '');
 }
 
 const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, selectedDate, onCurrentDateChange, onSelectDate, onCreateEvent, onImportForDate, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
@@ -887,7 +888,7 @@ const MonthHeaderPanel = ({
 
   const title = (
     <div className="flex h-full w-full min-w-0 items-end gap-2.5">
-      <div ref={slotRef} className="flex min-h-0 min-w-0 flex-1 items-end overflow-hidden">
+      <div ref={slotRef} className="flex min-h-0 min-w-0 flex-1 items-end overflow-visible">
         <h2
           ref={monthRef}
           className="m-0 whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
@@ -896,13 +897,14 @@ const MonthHeaderPanel = ({
           {monthLabel}
         </h2>
       </div>
+      {/* Column matches month letter height; year is centered on the divider. */}
       <div
-        className="flex shrink-0 items-end gap-2"
-        style={{ width: HEADER_YEAR_COL_PX }}
+        className="flex shrink-0 items-center gap-2"
+        style={{ width: HEADER_YEAR_COL_PX, height: monthPx }}
       >
         <span
-          className="w-px shrink-0"
-          style={{ height: monthPx, backgroundColor: textColor, opacity: 0.9 }}
+          className="w-px shrink-0 self-stretch"
+          style={{ backgroundColor: textColor, opacity: 0.9 }}
           aria-hidden
         />
         <span
