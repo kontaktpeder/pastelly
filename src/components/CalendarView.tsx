@@ -87,8 +87,8 @@ const CATEGORY_ORDER: Record<string, number> = {
 };
 
 /** Commit when dragged past this fraction of width, or with enough velocity */
-const COMMIT_RATIO = 0.18;
-const COMMIT_VELOCITY = 380;
+const COMMIT_RATIO = 0.14;
+const COMMIT_VELOCITY = 220;
 /** Vertical stack switch thresholds */
 const STACK_COMMIT_PX = 64;
 const STACK_COMMIT_VELOCITY = 420;
@@ -99,7 +99,7 @@ const MAX_HOPS_PER_SWIPE = 1;
 /** Soft resistance past one page (rubber-band) — avoids hard edge blink */
 const RUBBER = 0.28;
 /** Ignore strip movement until finger travels this far (px) */
-const PAN_ACTIVATE_PX = 14;
+const PAN_ACTIVATE_PX = 6;
 /** Treat gesture as vertical (stack) when |dy| exceeds |dx| by this factor */
 const AXIS_LOCK_RATIO = 1.15;
 
@@ -385,7 +385,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   }, []);
 
   const flingToHops = useCallback(
-    (hops: number) => {
+    (hops: number, velocity = 0) => {
       if (!pageWidth) return;
 
       const clamped = Math.max(-MAX_HOPS_PER_SWIPE, Math.min(MAX_HOPS_PER_SWIPE, hops));
@@ -393,15 +393,21 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
       // Don't flip pointer-events mid-settle — that remounts cells and blinks at the edge
       setPaging(true);
 
-      const settle = {
-        type: 'tween' as const,
-        duration: 0.28,
-        ease: [0.32, 0.72, 0, 1] as [number, number, number, number],
+      // Overdamped spring: keeps the release speed, then lands without bounce.
+      const maxV = pageWidth * 5.5;
+      const snap = {
+        type: 'spring' as const,
+        stiffness: 780,
+        damping: 42,
+        mass: 0.42,
+        velocity: Math.max(-maxV, Math.min(maxV, velocity)),
+        restDelta: 0.4,
+        restSpeed: 50,
       };
 
       if (clamped === 0) {
         animationControlsRef.current = animate(x, 0, {
-          ...settle,
+          ...snap,
           onComplete: () => {
             animatingRef.current = false;
             setPaging(false);
@@ -413,7 +419,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
       // Animate to exact one page, then recenter instantly (new center == old neighbor)
       animationControlsRef.current = animate(x, -clamped * pageWidth, {
-        ...settle,
+        ...snap,
         onComplete: () => {
           setCurrentDate((d) => addMonths(d, clamped));
           x.set(0);
@@ -499,27 +505,28 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
       return;
     }
 
+    const vx = info.velocity.x;
+
     if (!wasPanning) {
-      if (Math.abs(x.get()) > 0.5) flingToHops(0);
+      if (Math.abs(x.get()) > 0.5) flingToHops(0, vx);
       else x.set(0);
       return;
     }
 
     const px = x.get();
-    const vx = info.velocity.x;
     let hops = 0;
 
     const flicked = Math.abs(vx) > COMMIT_VELOCITY;
     const dragged = Math.abs(px) > pageWidth * COMMIT_RATIO;
     if (flicked || dragged) {
-      if (Math.abs(px) > pageWidth * 0.06) {
+      if (Math.abs(px) > pageWidth * 0.04) {
         hops = px < 0 ? 1 : -1;
       } else {
         hops = vx < 0 ? 1 : -1;
       }
     }
 
-    flingToHops(hops);
+    flingToHops(hops, vx);
   };
 
   const handleDayTap = (day: Date) => {
@@ -585,25 +592,37 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           </div>
         </div>
 
-        <div className="relative shrink-0" style={{ backgroundColor: monthTheme.paper }}>
-          <div className="grid grid-cols-7 w-full pb-1.5 pt-1">
-              {weekdayLabels.map((d, i) => {
-              const isSunday = i === 6;
+        <div className="relative h-8 shrink-0 overflow-hidden" style={{ backgroundColor: monthTheme.paper }}>
+          <motion.div
+            className="absolute top-0 bottom-0 flex will-change-transform"
+            style={{
+              x,
+              width: pageWidth ? pageWidth * (WINDOW * 2 + 1) : '500%',
+              left: pageWidth ? -pageWidth * WINDOW : '-200%',
+            }}
+          >
+            {stripDates.map((date) => {
+              const theme = getMonthTheme(date);
+              const sunday = sundayAccentForMonth(date.getMonth());
               return (
-              <div
-                key={`${d}-${i}`}
-                className="text-center font-calendar text-sm font-semibold uppercase tracking-wide"
-                style={{
-                  color: isSunday
-                    ? sundayAccentForMonth(currentDate.getMonth())
-                    : monthTheme.base,
-                }}
-              >
-                {d}
-              </div>
-            );
+                <div
+                  key={`${date.getFullYear()}-${date.getMonth()}-wd`}
+                  className="grid h-full shrink-0 grid-cols-7 items-center"
+                  style={{ width: pageWidth || '20%' }}
+                >
+                  {weekdayLabels.map((d, i) => (
+                    <div
+                      key={`${d}-${i}`}
+                      className="text-center font-calendar text-sm font-semibold uppercase tracking-wide"
+                      style={{ color: i === 6 ? sunday : theme.base }}
+                    >
+                      {d}
+                    </div>
+                  ))}
+                </div>
+              );
             })}
-          </div>
+          </motion.div>
         </div>
 
         {/* Continuous infinite-feel month strip — touch-action:none so Android gets H+V gestures */}
