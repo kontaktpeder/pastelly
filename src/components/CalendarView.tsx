@@ -160,11 +160,17 @@ function buildMonthDays(monthDate: Date): Date[] {
 }
 
 /** Short months stay full; long names use MMM so header type can stay large. */
-function formatMonthHeaderLabel(date: Date, locale: Locale): string {
+function formatMonthHeaderLabel(
+  date: Date,
+  locale: Locale,
+): { label: string; showDot: boolean } {
   const full = format(date, 'MMMM', { locale });
-  if (full.length <= 5) return full;
-  // Strip locale periods ("Aug.") — the dot is oversized in black display type and clips.
-  return format(date, 'MMM', { locale }).replace(/\.+$/u, '');
+  if (full.length <= 5) return { label: full, showDot: false };
+  // Strip locale periods; render a smaller custom dot in the header.
+  return {
+    label: format(date, 'MMM', { locale }).replace(/\.+$/u, ''),
+    showDot: true,
+  };
 }
 
 const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'home', currentDate: controlledDate, selectedDate, onCurrentDateChange, onSelectDate, onCreateEvent, onImportForDate, onEditEvent, onQuickEditEvent, onSwitchCalendar, onSwipeCalendarStack, canSwipeCalendarStack = false, highlight, canSeedWeek = false, onSeedWeek, onReady, showInOtherCalendars = false }: CalendarViewProps) => {
@@ -584,11 +590,13 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
             >
               {stripDates.map((date, i) => {
                 const theme = i === WINDOW ? monthTheme : getMonthTheme(date);
+                const monthHeader = formatMonthHeaderLabel(date, dateLocale);
                 return (
                   <MonthHeaderPanel
                     key={`${date.getFullYear()}-${date.getMonth()}`}
                     width={pageWidth}
-                    monthLabel={formatMonthHeaderLabel(date, dateLocale)}
+                    monthLabel={monthHeader.label}
+                    monthDot={monthHeader.showDot}
                     yearLabel={format(date, 'yyyy')}
                     textColor={theme.base}
                     paperColor={theme.paper}
@@ -806,6 +814,7 @@ const HEADER_YEAR_COL_PX = 36;
 const MonthHeaderPanel = ({
   width,
   monthLabel,
+  monthDot = false,
   yearLabel,
   textColor,
   paperColor,
@@ -813,6 +822,8 @@ const MonthHeaderPanel = ({
 }: {
   width: number;
   monthLabel: string;
+  /** Smaller custom period for abbreviated month names. */
+  monthDot?: boolean;
   yearLabel: string;
   textColor: string;
   paperColor: string;
@@ -884,7 +895,7 @@ const MonthHeaderPanel = ({
     ro.observe(panel);
     ro.observe(slot);
     return () => ro.disconnect();
-  }, [monthLabel, yearLabel, width]);
+  }, [monthLabel, monthDot, yearLabel, width]);
 
   const title = (
     <div className="flex h-full w-full min-w-0 items-end gap-2.5">
@@ -895,6 +906,19 @@ const MonthHeaderPanel = ({
           style={{ color: textColor, fontSize: monthPx }}
         >
           {monthLabel}
+          {monthDot ? (
+            <span
+              aria-hidden
+              className="inline-block font-[inherit] font-black leading-none"
+              style={{
+                fontSize: '0.32em',
+                marginLeft: '0.06em',
+                transform: 'translateY(-0.08em)',
+              }}
+            >
+              .
+            </span>
+          ) : null}
         </h2>
       </div>
       {/* Column matches month letter height; year is centered on the divider. */}
