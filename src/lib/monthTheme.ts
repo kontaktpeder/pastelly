@@ -89,9 +89,30 @@ export function mix(hexA: string, hexB: string, amount: number) {
   );
 }
 
-function relativeLuma(hex: string): number {
-  const { r, g, b } = hexToRgb(hex);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+function channelLuminance(channel: number): number {
+  const s = channel / 255;
+  return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+}
+
+function contrastRatio(a: string, b: string): number {
+  const luma = (hex: string) => {
+    const { r, g, b } = hexToRgb(hex);
+    return 0.2126 * channelLuminance(r) + 0.7152 * channelLuminance(g) + 0.0722 * channelLuminance(b);
+  };
+  const hi = Math.max(luma(a), luma(b));
+  const lo = Math.min(luma(a), luma(b));
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** White when it stays readable, otherwise ink darkened until it clears 4.5:1. */
+function labelOnStrong(fill: string): string {
+  if (contrastRatio(fill, '#FFFFFF') >= 4.5) return '#FFFFFF';
+  if (contrastRatio(fill, PASTEL.ink) >= 4.5) return PASTEL.ink;
+  for (let t = 0.2; t <= 1; t += 0.1) {
+    const next = mix(PASTEL.ink, '#000000', t);
+    if (contrastRatio(fill, next) >= 4.5) return next;
+  }
+  return '#000000';
 }
 
 function rgbToHsl(r: number, g: number, b: number) {
@@ -167,7 +188,7 @@ export function getMonthTheme(date: Date): MonthTheme {
   const paper = PASTEL.calendarPaper;
   const light = mix(base, paper, 0.35);
   const dark = base;
-  const textOnStrong = relativeLuma(base) > 0.62 ? PASTEL.ink : '#FFFFFF';
+  const textOnStrong = labelOnStrong(base);
   const textOnLight = base;
   const gradient = light;
   return { base, light, dark, textOnStrong, textOnLight, gradient, paper };

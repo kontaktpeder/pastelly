@@ -62,6 +62,14 @@ interface CenteredPopupProps {
   className?: string;
   zClassName?: string;
   backdrop?: 'solid' | 'none';
+  /**
+   * Calendar day sheet surface. Other sheets keep the default chrome.
+   * `paper` is the card fill; `accent` colors the grabber.
+   */
+  chrome?: {
+    paper?: string;
+    accent?: string;
+  };
   onExit?: () => void;
   /**
    * Participate in nested sheet stack (default: sheets yes, hug no).
@@ -166,6 +174,7 @@ const CenteredPopup = ({
   backdrop = 'solid',
   onExit,
   nest: nestProp,
+  chrome,
 }: CenteredPopupProps) => {
   const keyboardInset = useKeyboardInset();
   const keyboardOpen = keyboardInset > 24;
@@ -920,11 +929,13 @@ const CenteredPopup = ({
               role="dialog"
               aria-modal={!isRecessed}
               className={cn(
-                'relative flex min-h-0 w-full flex-col overflow-hidden bg-background shadow-soft-lg',
+                'relative flex min-h-0 w-full flex-col overflow-hidden',
+                chrome?.paper ? 'shadow-day-sheet' : 'bg-background shadow-soft-lg',
                 'rounded-t-[1.25rem] rounded-b-none',
                 useSheetLayout ? 'h-full' : 'h-auto max-h-full',
                 className,
               )}
+              style={chrome?.paper ? { backgroundColor: chrome.paper } : undefined}
             >
               <div
                 data-sheet-grabber
@@ -938,7 +949,13 @@ const CenteredPopup = ({
                   aria-label="Dra sheet"
                   tabIndex={-1}
                 >
-                  <span className="block h-1.5 w-12 rounded-full bg-muted-foreground/40" />
+                  <span
+                    className={cn(
+                      'block h-1 w-10 rounded-full',
+                      !chrome?.accent && 'bg-muted-foreground/40',
+                    )}
+                    style={chrome?.accent ? { backgroundColor: chrome.accent } : undefined}
+                  />
                 </button>
                 <button
                   type="button"
@@ -947,7 +964,10 @@ const CenteredPopup = ({
                     e.stopPropagation();
                     flyOutThenDismiss();
                   }}
-                  className="relative z-40 w-11 h-11 flex items-center justify-center rounded-full bg-muted/90 text-muted-foreground"
+                  className={cn(
+                    'relative z-40 flex h-11 w-11 items-center justify-center',
+                    chrome ? 'text-foreground/55' : 'rounded-full bg-muted/90 text-muted-foreground',
+                  )}
                   aria-label="Lukk"
                 >
                   <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>

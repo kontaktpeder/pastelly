@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { DAY_PART_LABELS } from '@/lib/colors';
 import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
 import { resolveCategoryVisuals, getMemberColorMap } from '@/lib/categoryPresentation';
@@ -10,9 +11,45 @@ import { WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import SheetActionDock from '@/components/SheetActionDock';
 import { hapticLight } from '@/lib/native/haptics';
-import { BriefcaseBusiness, ImageIcon, Plus } from 'lucide-react';
+import { BriefcaseBusiness, ImageIcon, Plus, type LucideIcon } from 'lucide-react';
 import { formatEventStayLabel } from '@/lib/eventStay';
 import { addressDisplayLabel } from '@/lib/eventLocation';
+import { getMonthTheme, withAlpha } from '@/lib/monthTheme';
+
+function dayPartLabel(ev: Event, locale: Parameters<typeof translateDayPart>[0]): string {
+  const dps = (ev as { day_part_start?: string | null }).day_part_start;
+  const key = dps || ev.day_part;
+  return translateDayPart(locale, key) || DAY_PART_LABELS[key] || '';
+}
+
+/** Clock on two lines, or the existing day-part / all-day label. */
+function sheetTimeLines(ev: Event, locale: Parameters<typeof translateDayPart>[0]): {
+  primary: string;
+  secondary: string | null;
+  clock: boolean;
+} {
+  if (ev.start_time) {
+    return {
+      primary: ev.start_time.slice(0, 5),
+      secondary: ev.end_time ? ev.end_time.slice(0, 5) : null,
+      clock: true,
+    };
+  }
+  return { primary: dayPartLabel(ev, locale), secondary: null, clock: false };
+}
+
+function SheetMark({ icon: Icon, color }: { icon?: LucideIcon; color: string }) {
+  if (!Icon) return null;
+  return (
+    <Icon
+      size={16}
+      strokeWidth={2.25}
+      className="mt-0.5 shrink-0"
+      style={{ color }}
+      aria-hidden
+    />
+  );
+}
 
 export interface DayOverviewProps {
   date: Date;
@@ -24,6 +61,8 @@ export interface DayOverviewProps {
   canSeedWeek?: boolean;
   /** sheet = planted bottom dock; panel = desktop aside; agenda = inline week program */
   layout?: 'sheet' | 'panel' | 'agenda';
+  /** Sticky date header, rendered inside the sheet scroller. */
+  header?: ReactNode;
   onPickEvent: (event: DisplayEvent) => void;
   onCreateForDate: (date: Date) => void;
   onImportForDate?: (date: Date) => void;
@@ -36,6 +75,7 @@ const DayOverview = ({
   members,
   canSeedWeek = false,
   layout = 'panel',
+  header,
   onPickEvent,
   onCreateForDate,
   onImportForDate,
@@ -44,10 +84,26 @@ const DayOverview = ({
   const { t, locale, dateLocale } = useLocale();
   const getMember = (id: string) => members.find((m) => m.id === id);
   const isAgenda = layout === 'agenda';
+  const isSheet = layout === 'sheet';
+  const monthTheme = getMonthTheme(date);
   const programEvents = events;
   const programEmpty = programEvents.length === 0;
+  const rowRule = withAlpha(monthTheme.base, 0.4);
 
-  const addButton = (
+  const addButton = isSheet ? (
+    <button
+      type="button"
+      onClick={() => {
+        void hapticLight();
+        onCreateForDate(date);
+      }}
+      className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg text-base font-semibold active:opacity-90"
+      style={{ backgroundColor: monthTheme.base, color: monthTheme.textOnStrong }}
+    >
+      <span aria-hidden className="text-lg leading-none">+</span>
+      {t('event.newActivity')}
+    </button>
+  ) : (
     <button
       type="button"
       onClick={() => {
@@ -66,9 +122,13 @@ const DayOverview = ({
       type="button"
       onClick={() => onImportForDate(date)}
       aria-label={t('import.fromImage')}
-      className="flex h-12 w-12 items-center justify-center rounded-full border border-foreground/30 bg-transparent text-foreground active:bg-muted"
+      className={
+        isSheet
+          ? 'flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-foreground/20 bg-transparent text-foreground active:bg-foreground/5'
+          : 'flex h-12 w-12 items-center justify-center rounded-full border border-foreground/30 bg-transparent text-foreground active:bg-muted'
+      }
     >
-      <ImageIcon size={22} strokeWidth={2.2} />
+      <ImageIcon size={isSheet ? 18 : 22} strokeWidth={2.2} />
     </button>
   ) : null;
 
@@ -78,14 +138,15 @@ const DayOverview = ({
         <button
           type="button"
           onClick={onSeedWeek}
-          className="w-full rounded-2xl bg-primary py-3.5 font-semibold text-primary-foreground"
+          className="w-full rounded-lg bg-primary py-3.5 font-semibold text-primary-foreground"
         >
           {t('event.fillWeek')}
         </button>
       )}
-      <div className="flex items-center justify-center gap-3">
+      <div className={isSheet ? 'flex w-full items-center gap-2' : 'flex items-center justify-center gap-3'}>
+        {isSheet ? importButton : null}
         {addButton}
-        {importButton}
+        {isSheet ? null : importButton}
       </div>
     </>
   );
@@ -114,12 +175,13 @@ const DayOverview = ({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div
-        className={`min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain scroll-touch px-5 ${
-          layout === 'sheet' ? 'pb-4' : 'pb-3'
+        className={`min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-touch px-5 ${
+          isSheet ? 'pb-2' : 'space-y-2 pb-3'
         }`}
         style={isAgenda ? { touchAction: 'pan-y' } : undefined}
         data-sheet-scroll
       >
+        {header}
         {programEmpty ? (
           <div className={`flex flex-col items-center justify-center px-2 text-center ${
             isAgenda ? 'min-h-[4.5rem] py-6' : layout === 'sheet' ? 'py-8' : 'h-full min-h-[8rem]'
@@ -151,6 +213,71 @@ const DayOverview = ({
               });
 
               const timeLabel = formatEventTime(ev);
+
+              if (isSheet) {
+                const time = sheetTimeLines(ev, locale);
+                const detailLines: string[] = [];
+                if (multiLabel) detailLines.push(multiLabel);
+                if (ev.isWorkBlock) detailLines.push(t('event.workBlockHint'));
+                else if (ev.isOverlay) detailLines.push(t('event.overlayHint'));
+                if (ev.location) detailLines.push(addressDisplayLabel(ev.location));
+
+                let mark: ReactNode = null;
+                if (ev.isWorkBlock) {
+                  mark = <SheetMark icon={BriefcaseBusiness} color={WORK_BLOCK_MARK.ink} />;
+                } else if (ev.isOverlay) {
+                  const fromWork = (ev.sourceHouseholdKind || '').toLowerCase() === 'work';
+                  if (fromWork) mark = <SheetMark icon={BriefcaseBusiness} color={OVERLAY_MARK.ink} />;
+                } else {
+                  const member = getMember(ev.owner_member_id);
+                  const meta = EVENT_CATEGORY_META[(ev.category as keyof typeof EVENT_CATEGORY_META) || 'other'];
+                  const visuals = resolveCategoryVisuals(ev.category, getMemberColorMap(member));
+                  mark = <SheetMark icon={meta?.Icon} color={visuals.ink} />;
+                }
+
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => onPickEvent(ev)}
+                    className="flex w-full items-stretch gap-3 border-b py-3.5 text-left last:border-b-0"
+                    style={{ borderColor: rowRule }}
+                  >
+                    <span
+                      className={`flex w-[4.6rem] shrink-0 flex-col justify-start break-words pt-0.5 leading-tight text-foreground ${
+                        time.clock ? 'text-[15px] font-semibold tabular-nums' : 'text-[13px] font-semibold'
+                      }`}
+                    >
+                      <span>{time.primary || ' '}</span>
+                      {time.secondary && (
+                        <span className="font-medium text-foreground/75">{time.secondary}</span>
+                      )}
+                    </span>
+                    <span
+                      className="my-0.5 w-px shrink-0 self-stretch"
+                      style={{ backgroundColor: rowRule }}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-start gap-2">
+                        {mark}
+                        <span className="min-w-0 flex-1 break-words text-[1.05rem] font-semibold leading-snug text-foreground">
+                          {ev.title}
+                        </span>
+                      </span>
+                      {detailLines.map((line, index) => (
+                        <span
+                          key={`${index}-${line}`}
+                          className={`mt-0.5 block break-words text-base leading-snug text-muted-foreground ${
+                            mark ? 'pl-6' : ''
+                          }`}
+                        >
+                          {line}
+                        </span>
+                      ))}
+                    </span>
+                  </button>
+                );
+              }
 
               if (ev.isWorkBlock) {
                 return (
@@ -261,8 +388,8 @@ const DayOverview = ({
 
       {isAgenda ? (
         <div className="shrink-0 px-5 pb-1">{actions}</div>
-      ) : layout === 'sheet' ? (
-        <SheetActionDock>{actions}</SheetActionDock>
+      ) : isSheet ? (
+        <SheetActionDock surface={monthTheme.paper}>{actions}</SheetActionDock>
       ) : (
         <div className="flex shrink-0 flex-col items-center gap-2 px-5 py-3">
           {actions}

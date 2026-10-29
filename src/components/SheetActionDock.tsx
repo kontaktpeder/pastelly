@@ -20,7 +20,14 @@ export const SheetDockContext = createContext<SheetDockValue>({
  * lag, or sit on a divider. They float over the sheet until it closes.
  * On dismiss they follow the sheet via --sheet-dismiss-shift.
  */
-const SheetActionDock = ({ children }: { children: ReactNode }) => {
+const SheetActionDock = ({
+  children,
+  surface,
+}: {
+  children: ReactNode;
+  /** Solid fill so rows scrolling underneath stay readable. */
+  surface?: string;
+}) => {
   const { root, hidden } = useContext(SheetDockContext);
   const keyboardInset = useKeyboardInset();
   const keyboardOpen = keyboardInset > 24;
@@ -41,6 +48,7 @@ const SheetActionDock = ({ children }: { children: ReactNode }) => {
         className={`pointer-events-none flex w-full max-w-md flex-col items-center gap-2 px-5 pt-3 md:max-w-xl [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_textarea]:pointer-events-auto ${
           keyboardOpen ? 'pb-3' : 'pb-[max(0.75rem,env(safe-area-inset-bottom))]'
         }`}
+        style={surface ? { backgroundColor: surface } : undefined}
       >
         {children}
       </div>

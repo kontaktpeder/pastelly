@@ -239,6 +239,11 @@ body {
   scrollbar-width: none;
 }
 
+/* Day sheet: separate the cream card from the calendar without a heavy drop */
+.shadow-day-sheet {
+  box-shadow: 0 -12px 32px -14px rgba(58, 42, 56, 0.4);
+}
+
 /* Safe-area helpers for native shell (iOS notch / Android gesture bar) */
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
