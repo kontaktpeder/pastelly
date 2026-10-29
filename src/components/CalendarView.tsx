@@ -911,9 +911,9 @@ const MonthHeaderPanel = ({
               aria-hidden
               className="inline-block font-[inherit] font-bold leading-none"
               style={{
-                fontSize: '0.48em',
-                marginLeft: '0.2em',
-                transform: 'translateY(-0.12em)',
+                fontSize: '0.62em',
+                marginLeft: '0.22em',
+                transform: 'translateY(-0.1em)',
               }}
             >
               .
