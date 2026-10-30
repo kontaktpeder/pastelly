@@ -268,25 +268,39 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
    */
   const [liveIndex, setLiveIndex] = useState(() => clampMonthIndex(toMonthIndex(currentDate)));
   const liveIndexRef = useRef(liveIndex);
-  const stripIndices = useMemo(
-    () => Array.from({ length: WINDOW * 2 + 1 }, (_, i) => clampMonthIndex(liveIndex - WINDOW + i)),
-    [liveIndex],
-  );
+
+  /**
+   * Unique month indices only — never clamp into duplicates (that put 3× Jan 1970
+   * in the same grid column and broke React keys).
+   */
+  const stripIndices = useMemo(() => {
+    const start = Math.max(0, liveIndex - WINDOW);
+    const end = Math.min(MONTH_STRIP_COUNT - 1, liveIndex + WINDOW);
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }, [liveIndex]);
   const stripDates = useMemo(() => stripIndices.map((i) => fromMonthIndex(i)), [stripIndices]);
 
-  const eventFetchDates = stripDates;
+  /** Fixed ±WINDOW fetch slots around live (may repeat near strip edges — OK for queries). */
+  const fetchSlots = useMemo(
+    () =>
+      Array.from({ length: WINDOW * 2 + 1 }, (_, i) => {
+        const index = clampMonthIndex(liveIndex - WINDOW + i);
+        return { index, date: fromMonthIndex(index) };
+      }),
+    [liveIndex],
+  );
 
   // Prefetch ±WINDOW so continuous swipe never peeks empty
-  const { data: eventsM2 = [] } = useEventsForMonth(householdId, eventFetchDates[0].getFullYear(), eventFetchDates[0].getMonth());
-  const { data: eventsM1 = [] } = useEventsForMonth(householdId, eventFetchDates[1].getFullYear(), eventFetchDates[1].getMonth());
+  const { data: eventsM2 = [] } = useEventsForMonth(householdId, fetchSlots[0].date.getFullYear(), fetchSlots[0].date.getMonth());
+  const { data: eventsM1 = [] } = useEventsForMonth(householdId, fetchSlots[1].date.getFullYear(), fetchSlots[1].date.getMonth());
   const liveDate = fromMonthIndex(liveIndex);
   const {
     data: eventsRaw,
     isFetched: monthFetched,
     isError: monthError,
   } = useEventsForMonth(householdId, liveDate.getFullYear(), liveDate.getMonth());
-  const { data: eventsP1 = [] } = useEventsForMonth(householdId, eventFetchDates[3].getFullYear(), eventFetchDates[3].getMonth());
-  const { data: eventsP2 = [] } = useEventsForMonth(householdId, eventFetchDates[4].getFullYear(), eventFetchDates[4].getMonth());
+  const { data: eventsP1 = [] } = useEventsForMonth(householdId, fetchSlots[3].date.getFullYear(), fetchSlots[3].date.getMonth());
+  const { data: eventsP2 = [] } = useEventsForMonth(householdId, fetchSlots[4].date.getFullYear(), fetchSlots[4].date.getMonth());
 
   const overlayRange = useMemo(() => {
     const start = format(startOfMonth(stripDates[0]), 'yyyy-MM-dd');
@@ -367,27 +381,30 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const chromeTheme = useMemo(() => getMonthTheme(liveDate), [liveDate]);
   const monthTheme = chromeTheme;
 
-  const mergedByOffset = useMemo(() => {
+  const eventsByIndex = useMemo(() => {
     const locals = [eventsM2, eventsM1, events, eventsP1, eventsP2];
-    return locals.map((local, i) => {
-      const y = stripDates[i].getFullYear();
-      const m = stripDates[i].getMonth();
+    const map = new Map<number, Record<string, DisplayEvent[]>>();
+    fetchSlots.forEach((slot, i) => {
+      const local = locals[i] ?? [];
+      const y = slot.date.getFullYear();
+      const m = slot.date.getMonth();
       const monthOverlays = eventsForMonth(overlayEvents, y, m);
       const monthWork = eventsForMonth(workBlocks, y, m);
-      return mergeWorkBlocks(mergeEventsWithOverlays(local, monthOverlays), monthWork);
+      const merged = mergeWorkBlocks(mergeEventsWithOverlays(local, monthOverlays), monthWork);
+      map.set(slot.index, buildEventsByDate(merged));
     });
-  }, [eventsM2, eventsM1, events, eventsP1, eventsP2, overlayEvents, workBlocks, stripDates]);
+    return map;
+  }, [eventsM2, eventsM1, events, eventsP1, eventsP2, overlayEvents, workBlocks, fetchSlots]);
 
-  const eventsByOffset = useMemo(
-    () => mergedByOffset.map((list) => buildEventsByDate(list)),
-    [mergedByOffset],
-  );
-  const eventsByDate = eventsByOffset[WINDOW];
+  const eventsByDate = eventsByIndex.get(liveIndex) ?? {};
 
-  const daysByOffset = useMemo(
-    () => stripDates.map((date) => buildMonthDays(date)),
-    [stripDates],
-  );
+  const daysByIndex = useMemo(() => {
+    const map = new Map<number, Date[]>();
+    stripIndices.forEach((index, i) => {
+      map.set(index, buildMonthDays(stripDates[i]));
+    });
+    return map;
+  }, [stripIndices, stripDates]);
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [pageWidth, setPageWidth] = useState(0);
@@ -395,10 +412,22 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const suppressScrollRef = useRef(false);
   const scrollEndTimerRef = useRef<number | null>(null);
   const stackPointerRef = useRef<{ x: number; y: number } | null>(null);
+  /** Tap-vs-pan on the header band (no <button> inside the scroll strip). */
+  const headerTapRef = useRef<{ x: number; y: number } | null>(null);
+
+  const readNearestIndex = useCallback(
+    (el: HTMLDivElement) => {
+      if (pageWidth <= 0) return null;
+      const raw = el.scrollLeft / pageWidth;
+      if (!Number.isFinite(raw)) return null;
+      return clampMonthIndex(Math.round(raw));
+    },
+    [pageWidth],
+  );
 
   const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = 'instant') => {
     const el = scrollerRef.current;
-    if (!el || !pageWidth) return;
+    if (!el || pageWidth <= 0) return;
     const i = clampMonthIndex(index);
     suppressScrollRef.current = true;
     el.scrollTo({ left: i * pageWidth, behavior });
@@ -416,11 +445,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     if (!el) return;
     const measure = () => {
       const w = el.clientWidth;
+      // Never collapse the strip to pageWidth 0 — that stacks months vertically
+      // and clamps scrollLeft → false Jan 1970.
       if (w <= 0) return;
-      setPageWidth((prev) => {
-        if (prev === w) return prev;
-        return w;
-      });
+      setPageWidth((prev) => (prev === w ? prev : w));
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -430,7 +458,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
   // Initial + resize: pin scrollLeft to the live/parent month without animation.
   useLayoutEffect(() => {
-    if (!pageWidth) return;
+    if (pageWidth <= 0) return;
     const el = scrollerRef.current;
     if (!el) return;
     const target = clampMonthIndex(toMonthIndex(currentDate));
@@ -447,7 +475,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
   // External month jump (year overview / today) while width is stable.
   useLayoutEffect(() => {
-    if (!pageWidth) return;
+    if (pageWidth <= 0) return;
     const target = clampMonthIndex(toMonthIndex(currentDate));
     if (target === liveIndexRef.current) return;
     scrollToIndex(target, 'instant');
@@ -460,11 +488,12 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
   useEffect(() => {
     const el = scrollerRef.current;
-    if (!el || !pageWidth) return;
+    if (!el || pageWidth <= 0) return;
 
     const onScroll = () => {
       if (suppressScrollRef.current) return;
-      const i = clampMonthIndex(Math.round(el.scrollLeft / pageWidth));
+      const i = readNearestIndex(el);
+      if (i === null) return;
       if (i !== liveIndexRef.current) {
         liveIndexRef.current = i;
         setLiveIndex(i);
@@ -482,6 +511,11 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         scrollEndTimerRef.current = null;
       }
       if (suppressScrollRef.current) return;
+      const i = readNearestIndex(el);
+      if (i !== null && i !== liveIndexRef.current) {
+        liveIndexRef.current = i;
+        setLiveIndex(i);
+      }
       commitLiveToParent();
     };
 
@@ -492,7 +526,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
       el.removeEventListener('scrollend', onScrollEnd);
       if (scrollEndTimerRef.current) window.clearTimeout(scrollEndTimerRef.current);
     };
-  }, [pageWidth, commitLiveToParent]);
+  }, [pageWidth, commitLiveToParent, readNearestIndex]);
 
   /**
    * Jump without animation (today / year picker) — same tick: idx, scroll, onChange.
@@ -523,13 +557,52 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const lockStripForPress = useCallback(() => {}, []);
   const unlockStripForPress = useCallback(() => {}, []);
 
+  /** Open picker from the nearest snapped month (scrollLeft), not a panel's own date. */
+  const openYearView = useCallback(() => {
+    const el = scrollerRef.current;
+    if (el && pageWidth > 0) {
+      const i = readNearestIndex(el);
+      if (i !== null) {
+        liveIndexRef.current = i;
+        setLiveIndex(i);
+        setCurrentDate(fromMonthIndex(i));
+      }
+    }
+    setShowYear(true);
+  }, [pageWidth, setCurrentDate, readNearestIndex]);
+
+  const closeYearView = () => {
+    setShowYear(false);
+  };
+
   const handleStackPointerDown = (e: ReactPointerEvent) => {
-    if (!canSwipeCalendarStack || !onSwipeCalendarStack) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const el = scrollerRef.current;
+    if (el) {
+      const top = el.getBoundingClientRect().top;
+      // Header band — tap opens picker; no <button> inside the scroll track.
+      if (e.clientY - top <= HEADER_BAND_PX + 8) {
+        headerTapRef.current = { x: e.clientX, y: e.clientY };
+      } else {
+        headerTapRef.current = null;
+      }
+    }
+    if (!canSwipeCalendarStack || !onSwipeCalendarStack) return;
     stackPointerRef.current = { x: e.clientX, y: e.clientY };
   };
 
   const handleStackPointerUp = (e: ReactPointerEvent) => {
+    const headerTap = headerTapRef.current;
+    headerTapRef.current = null;
+    if (headerTap) {
+      const dx = Math.abs(e.clientX - headerTap.x);
+      const dy = Math.abs(e.clientY - headerTap.y);
+      if (dx < 12 && dy < 12) {
+        stackPointerRef.current = null;
+        openYearView();
+        return;
+      }
+    }
     if (!canSwipeCalendarStack || !onSwipeCalendarStack || !stackPointerRef.current) return;
     const dx = e.clientX - stackPointerRef.current.x;
     const dy = e.clientY - stackPointerRef.current.y;
@@ -550,22 +623,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     return members.find((m) => m.id === event.owner_member_id);
   };
 
-  /** Open picker from the nearest snapped month (scrollLeft), not the panel's own date. */
-  const openYearView = useCallback(() => {
-    const el = scrollerRef.current;
-    if (el && pageWidth > 0) {
-      const i = clampMonthIndex(Math.round(el.scrollLeft / pageWidth));
-      liveIndexRef.current = i;
-      setLiveIndex(i);
-      setCurrentDate(fromMonthIndex(i));
-    }
-    setShowYear(true);
-  }, [pageWidth, setCurrentDate]);
-
-  const closeYearView = () => {
-    setShowYear(false);
-  };
-
   const daySheetEvents = daySheetDate
     ? eventsByDate[format(daySheetDate, 'yyyy-MM-dd')] || []
     : [];
@@ -584,20 +641,20 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           onPointerUp={showYear ? undefined : handleStackPointerUp}
           onPointerCancel={() => {
             stackPointerRef.current = null;
+            headerTapRef.current = null;
           }}
         >
           {/*
             Grid with N month tracks keeps scroll extent + snap points stable while only
             ±WINDOW panels are mounted (grid-column places them without recentering).
           */}
+          {pageWidth > 0 ? (
           <div
             className="h-full"
             style={{
               display: 'grid',
-              width: pageWidth ? MONTH_STRIP_COUNT * pageWidth : '100%',
-              gridTemplateColumns: pageWidth
-                ? `repeat(${MONTH_STRIP_COUNT}, ${pageWidth}px)`
-                : undefined,
+              width: MONTH_STRIP_COUNT * pageWidth,
+              gridTemplateColumns: `repeat(${MONTH_STRIP_COUNT}, ${pageWidth}px)`,
             }}
           >
             {stripIndices.map((monthIndex, i) => {
@@ -605,10 +662,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
               const theme = getMonthTheme(date);
               const monthHeader = formatMonthHeaderLabel(date, dateLocale);
               const sunday = sundayAccentForMonth(date.getMonth());
-              const byDate = eventsByOffset[i];
+              const byDate = eventsByIndex.get(monthIndex) ?? {};
               const neighbour = {
-                ...(eventsByOffset[i - 1] || {}),
-                ...(eventsByOffset[i + 1] || {}),
+                ...(eventsByIndex.get(monthIndex - 1) || {}),
+                ...(eventsByIndex.get(monthIndex + 1) || {}),
               };
               const isLive = monthIndex === liveIndex;
               return (
@@ -631,7 +688,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                       yearLabel={format(date, 'yyyy')}
                       textColor={theme.base}
                       paperColor={theme.paper}
-                      onTitleClick={openYearView}
                     />
                   </div>
                   <div className="grid h-8 shrink-0 grid-cols-7 items-center" style={{ backgroundColor: theme.paper }}>
@@ -649,7 +705,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                     <MonthPanel
                       width={pageWidth}
                       monthDate={date}
-                      days={daysByOffset[i]}
+                      days={daysByIndex.get(monthIndex) ?? []}
                       eventsByDate={byDate}
                       neighbourEventsByDate={neighbour}
                       monthTheme={isLive ? monthTheme : theme}
@@ -670,6 +726,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
               );
             })}
           </div>
+          ) : null}
         </div>
 
         <div
@@ -813,7 +870,6 @@ const MonthHeaderPanel = ({
   yearLabel,
   textColor,
   paperColor,
-  onTitleClick,
 }: {
   width: number;
   monthLabel: string;
@@ -824,80 +880,69 @@ const MonthHeaderPanel = ({
   yearLabel: string;
   textColor: string;
   paperColor: string;
-  onTitleClick?: () => void;
 }) => {
   const monthPx = monthHeaderFontPx(monthLabel, monthDot, width);
   const yearEm = HEADER_YEAR_STACK_RATIO / Math.max(yearLabel.length, 1);
-
-  const title = (
-    <div
-      className="flex h-full w-full min-w-0 items-end gap-2.5"
-      style={{ fontSize: monthPx }}
-    >
-      <div className="flex min-h-0 min-w-0 flex-1 items-end overflow-visible">
-        <h2
-          className="m-0 whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
-          style={{ color: textColor, fontSize: '1em' }}
-        >
-          {monthLabel}
-          {monthDot ? (
-            <span
-              aria-hidden
-              className="font-[inherit] font-bold leading-none"
-              style={{
-                fontSize: '0.62em',
-                marginLeft: `${monthDotGapEm}em`,
-                verticalAlign: 'baseline',
-              }}
-            >
-              .
-            </span>
-          ) : null}
-        </h2>
-      </div>
-      <div
-        className="flex shrink-0 items-center justify-center gap-2"
-        style={{
-          width: HEADER_YEAR_COL_PX,
-          height: '1em',
-          lineHeight: 1,
-        }}
-      >
-        <span
-          className="w-px shrink-0 self-stretch"
-          style={{ backgroundColor: textColor, opacity: 0.9 }}
-          aria-hidden
-        />
-        <span
-          className="flex items-center justify-center font-calendar font-black tabular-nums tracking-tight"
-          style={{
-            color: textColor,
-            fontSize: `${yearEm}em`,
-            lineHeight: 1,
-            height: '1em',
-            width: '1em',
-            writingMode: 'vertical-rl',
-            textOrientation: 'mixed',
-          }}
-        >
-          {yearLabel}
-        </span>
-      </div>
-    </div>
-  );
 
   return (
     <div
       className="relative flex h-full w-full items-stretch px-3 pb-2 pr-14"
       style={{ backgroundColor: paperColor }}
     >
-      {onTitleClick ? (
-        <button type="button" onClick={onTitleClick} className="h-full w-full min-w-0 text-left active:opacity-80">
-          {title}
-        </button>
-      ) : (
-        title
-      )}
+      <div
+        className="flex h-full w-full min-w-0 items-end gap-2.5"
+        style={{ fontSize: monthPx }}
+      >
+        <div className="flex min-h-0 min-w-0 flex-1 items-end overflow-visible">
+          <h2
+            className="m-0 whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
+            style={{ color: textColor, fontSize: '1em' }}
+          >
+            {monthLabel}
+            {monthDot ? (
+              <span
+                aria-hidden
+                className="font-[inherit] font-bold leading-none"
+                style={{
+                  fontSize: '0.62em',
+                  marginLeft: `${monthDotGapEm}em`,
+                  verticalAlign: 'baseline',
+                }}
+              >
+                .
+              </span>
+            ) : null}
+          </h2>
+        </div>
+        <div
+          className="flex shrink-0 items-center justify-center gap-2"
+          style={{
+            width: HEADER_YEAR_COL_PX,
+            height: '1em',
+            lineHeight: 1,
+          }}
+        >
+          <span
+            className="w-px shrink-0 self-stretch"
+            style={{ backgroundColor: textColor, opacity: 0.9 }}
+            aria-hidden
+          />
+          <span
+            className="flex items-center justify-center font-calendar font-black tabular-nums tracking-tight"
+            style={{
+              color: textColor,
+              fontSize: `${yearEm}em`,
+              lineHeight: 1,
+              height: '1em',
+              width: '1em',
+              writingMode: 'vertical-rl',
+              textOrientation: 'mixed',
+            }}
+          >
+            {yearLabel}
+          </span>
+        </div>
+      </div>
     </div>
   );
 };
