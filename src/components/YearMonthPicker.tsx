@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
@@ -16,11 +16,19 @@ type YearMonthPickerProps = {
 };
 
 const EASE = [0.32, 0.72, 0, 1] as const;
-const ZOOM_MS = 0.28;
+const ZOOM_MS = 0.22;
 const SLIDE_MS = 0.2;
 const TITLE_YEAR_CLASS = 'font-calendar text-[2.75rem] font-black tabular-nums leading-none tracking-tight text-foreground';
 const TITLE_DECADE_CLASS =
   'font-calendar text-[1.85rem] font-black tabular-nums leading-none tracking-tight text-foreground';
+
+const zoomVariants = {
+  on: { scale: 1, opacity: 1 },
+  /** Month → year: month shrinks slightly */
+  offOut: { scale: 0.96, opacity: 0 },
+  /** Year idle / month → year enter from slightly large */
+  offIn: { scale: 1.04, opacity: 0 },
+} as const;
 
 function decadeStartFor(y: number) {
   return Math.floor(y / 12) * 12;
@@ -40,9 +48,15 @@ function cellCenterInGrid(grid: HTMLElement, index: number): { x: number; y: num
   };
 }
 
+function setInert(el: HTMLElement | null, dead: boolean) {
+  if (!el) return;
+  if (dead) el.setAttribute('inert', '');
+  else el.removeAttribute('inert');
+}
+
 /**
- * Full-screen month/year picker. Tap month → jump + close.
- * Tap year header → zoom to year grid. Dot = today, filled tile = selected month.
+ * Full-screen month/year picker. Tap month → jump + close (same tick).
+ * Inactive grid: visibility hidden + inert after exit; no residual scale.
  */
 const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPickerProps) => {
   const { dateLocale, t } = useLocale();
@@ -54,6 +68,13 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
   const [decadeStart, setDecadeStart] = useState(() => decadeStartFor(year));
   const [origin, setOrigin] = useState({ x: '50%', y: '40%' });
   const [pageDir, setPageDir] = useState(0);
+  /** After exit animation: fully dead (no hit target, no scale). */
+  const [monthDead, setMonthDead] = useState(false);
+  const [yearDead, setYearDead] = useState(true);
+  /** One frame at offIn/offOut before animating to on (zoom enter). */
+  const [monthEnter, setMonthEnter] = useState(false);
+  const [yearEnter, setYearEnter] = useState(false);
+  const [willChange, setWillChange] = useState(false);
 
   const monthGridRef = useRef<HTMLDivElement>(null);
   const yearGridRef = useRef<HTMLDivElement>(null);
@@ -61,23 +82,47 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
   const years = Array.from({ length: 12 }, (_, i) => decadeStart + i);
   const months = Array.from({ length: 12 }, (_, i) => i);
 
+  useEffect(() => {
+    setInert(monthGridRef.current, monthDead || mode !== 'month');
+    setInert(yearGridRef.current, yearDead || mode !== 'year');
+  }, [monthDead, yearDead, mode]);
+
+  useLayoutEffect(() => {
+    if (!monthEnter && !yearEnter) return;
+    const id = requestAnimationFrame(() => {
+      setMonthEnter(false);
+      setYearEnter(false);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [monthEnter, yearEnter]);
+
+  const beginZoom = () => {
+    setWillChange(true);
+    window.setTimeout(() => setWillChange(false), ZOOM_MS * 1000 + 40);
+  };
+
   const goMonthMode = (nextYear: number, fromIndex: number) => {
     const grid = yearGridRef.current;
     if (grid) {
       const c = cellCenterInGrid(grid, fromIndex);
       setOrigin({ x: `${c.x}px`, y: `${c.y}px` });
     }
+    beginZoom();
+    setMonthDead(false);
+    setMonthEnter(true);
     setViewYear(nextYear);
     setMode('month');
   };
 
   const goYearMode = () => {
     const grid = monthGridRef.current;
-    // Origin near the year title cluster (top center of grid area)
     if (grid) {
       const r = grid.getBoundingClientRect();
       setOrigin({ x: `${r.width / 2}px`, y: '0px' });
     }
+    beginZoom();
+    setYearDead(false);
+    setYearEnter(true);
     setDecadeStart(decadeStartFor(viewYear));
     setMode('year');
   };
@@ -95,24 +140,25 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
   };
 
   const selectMonth = (m: number) => {
-    // Parent jumps the strip under the overlay, then we fade out.
     onJumpToMonth(new Date(viewYear, m, 1));
-    requestAnimationFrame(() => onClose());
+    onClose();
   };
 
   const goToday = () => {
     onJumpToMonth(new Date(now.getFullYear(), now.getMonth(), 1));
-    requestAnimationFrame(() => onClose());
+    onClose();
   };
 
   const slideX = pageDir === 0 ? 0 : pageDir * 24;
+
+  const monthAnimating = !monthDead;
+  const yearAnimating = !yearDead;
 
   return (
     <div
       className="flex h-full min-h-0 flex-col"
       style={{ backgroundColor: PASTEL.calendarPaper, color: accent }}
     >
-      {/* Header */}
       <div className="flex shrink-0 items-center justify-between px-5 pt-[max(0.85rem,env(safe-area-inset-top))] pb-1">
         <p className="text-[0.7rem] font-bold uppercase tracking-[0.18em]" style={{ color: accent }}>
           {mode === 'month' ? t('picker.selectMonth') : t('picker.selectYear')}
@@ -127,8 +173,7 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
         </button>
       </div>
 
-      {/* Year / decade chrome */}
-      <div className="flex shrink-0 items-center justify-between px-2 pb-3 pt-1">
+      <div className="relative z-10 flex shrink-0 items-center justify-between px-2 pb-3 pt-1">
         <button
           type="button"
           onClick={() => (mode === 'month' ? pageYear(-1) : pageDecade(-1))}
@@ -146,11 +191,9 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
             aria-label={t('picker.zoomOutYears')}
           >
             <motion.span
-              key={viewYear}
-              initial={{ x: slideX, opacity: 0.35 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ duration: SLIDE_MS, ease: EASE }}
               className={TITLE_YEAR_CLASS}
+              animate={{ x: slideX, opacity: pageDir === 0 ? 1 : 0.35 }}
+              transition={{ duration: SLIDE_MS, ease: EASE }}
             >
               {viewYear}
             </motion.span>
@@ -158,11 +201,9 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
           </button>
         ) : (
           <motion.span
-            key={decadeStart}
-            initial={{ x: slideX, opacity: 0.35 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: SLIDE_MS, ease: EASE }}
             className={TITLE_DECADE_CLASS}
+            animate={{ x: slideX, opacity: pageDir === 0 ? 1 : 0.35 }}
+            transition={{ duration: SLIDE_MS, ease: EASE }}
           >
             {decadeStart}–{decadeStart + 11}
           </motion.span>
@@ -178,22 +219,32 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
         </button>
       </div>
 
-      {/* Stacked grids — both mounted; zoom with shared transform-origin */}
-      <div className="relative min-h-0 flex-1 overflow-hidden px-3">
+      <div className="relative z-0 min-h-0 flex-1 overflow-hidden px-3">
         <motion.div
           ref={monthGridRef}
           className="absolute inset-x-3 top-0 bottom-0 grid grid-cols-3 content-start gap-x-2 gap-y-2 pt-1"
           style={{
             padding: 6,
             transformOrigin: `${origin.x} ${origin.y}`,
-            pointerEvents: mode === 'month' ? 'auto' : 'none',
+            visibility: monthDead ? 'hidden' : 'visible',
+            pointerEvents: mode === 'month' && !monthDead ? 'auto' : 'none',
+            willChange: willChange && monthAnimating ? 'transform' : undefined,
           }}
-          animate={mode === 'month' ? 'on' : 'offOut'}
-          variants={{
-            on: { scale: 1, opacity: 1 },
-            offOut: { scale: 0.88, opacity: 0 },
-          }}
+          initial={false}
+          animate={
+            monthDead
+              ? { scale: 1, opacity: 0 }
+              : monthEnter
+                ? 'offOut'
+                : mode === 'month'
+                  ? 'on'
+                  : 'offOut'
+          }
+          variants={zoomVariants}
           transition={{ duration: ZOOM_MS, ease: EASE }}
+          onAnimationComplete={() => {
+            if (mode !== 'month') setMonthDead(true);
+          }}
         >
           {months.map((m) => {
             const theme = getMonthTheme(new Date(viewYear, m, 1));
@@ -207,8 +258,8 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
                 onClick={() => selectMonth(m)}
                 className="relative flex min-h-[4.75rem] flex-col items-center justify-center rounded-2xl active:scale-[0.98]"
                 style={{
-                  backgroundColor: isSelected ? theme.softTile : 'transparent',
-                  boxShadow: isSelected ? `inset 0 0 0 2px ${theme.ink}` : undefined,
+                  backgroundColor: theme.softTile,
+                  boxShadow: isSelected ? `inset 0 0 0 2.5px ${theme.ink}` : undefined,
                 }}
               >
                 <span
@@ -235,15 +286,25 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
           style={{
             padding: 6,
             transformOrigin: `${origin.x} ${origin.y}`,
-            pointerEvents: mode === 'year' ? 'auto' : 'none',
+            visibility: yearDead ? 'hidden' : 'visible',
+            pointerEvents: mode === 'year' && !yearDead ? 'auto' : 'none',
+            willChange: willChange && yearAnimating ? 'transform' : undefined,
           }}
           initial={false}
-          animate={mode === 'year' ? 'on' : 'offIn'}
-          variants={{
-            on: { scale: 1, opacity: 1 },
-            offIn: { scale: 1.12, opacity: 0 },
-          }}
+          animate={
+            yearDead
+              ? { scale: 1, opacity: 0 }
+              : yearEnter
+                ? 'offIn'
+                : mode === 'year'
+                  ? 'on'
+                  : 'offIn'
+          }
+          variants={zoomVariants}
           transition={{ duration: ZOOM_MS, ease: EASE }}
+          onAnimationComplete={() => {
+            if (mode !== 'year') setYearDead(true);
+          }}
         >
           {years.map((y, i) => {
             const isTodayYear = now.getFullYear() === y;
@@ -256,8 +317,8 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
                 onClick={() => goMonthMode(y, i)}
                 className="relative flex min-h-[4.75rem] flex-col items-center justify-center rounded-2xl active:scale-[0.98]"
                 style={{
-                  backgroundColor: isSelected ? withAlpha(accent, 0.14) : 'transparent',
-                  boxShadow: isSelected ? `inset 0 0 0 2px ${accent}` : undefined,
+                  backgroundColor: withAlpha(accent, 0.14),
+                  boxShadow: isSelected ? `inset 0 0 0 2.5px ${accent}` : undefined,
                 }}
               >
                 <span
@@ -279,8 +340,7 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
         </motion.div>
       </div>
 
-      {/* Single thumb-zone CTA */}
-      <div className="shrink-0 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+      <div className="relative z-10 shrink-0 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
         <button
           type="button"
           onClick={goToday}
