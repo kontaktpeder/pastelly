@@ -230,6 +230,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   );
 
   const [showYear, setShowYear] = useState(false);
+  /** Picker start date — local only; opening must not write Index/strip state. */
+  const [pickerAt, setPickerAt] = useState({ year: 0, month: 0 });
   const [daySheetDate, setDaySheetDate] = useState<Date | null>(null);
   const [detailEvent, setDetailEvent] = useState<Event | null>(null);
   const [overlayEvent, setOverlayEvent] = useState<DisplayEvent | null>(null);
@@ -407,9 +409,12 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   }, [stripIndices, stripDates]);
 
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const calendarShellRef = useRef<HTMLDivElement>(null);
   const [pageWidth, setPageWidth] = useState(0);
   /** Ignore scroll events while we programmatically jump (year picker / resize). */
   const suppressScrollRef = useRef(false);
+  /** True for the whole verified jump — blocks scroll handler from writing old month back. */
+  const jumpingRef = useRef(false);
   const scrollEndTimerRef = useRef<number | null>(null);
   const stackPointerRef = useRef<{ x: number; y: number } | null>(null);
   /** Tap-vs-pan on the header band (no <button> inside the scroll strip). */
@@ -491,7 +496,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     if (!el || pageWidth <= 0) return;
 
     const onScroll = () => {
-      if (suppressScrollRef.current) return;
+      if (suppressScrollRef.current || jumpingRef.current) return;
       const i = readNearestIndex(el);
       if (i === null) return;
       if (i !== liveIndexRef.current) {
@@ -501,6 +506,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
       if (scrollEndTimerRef.current) window.clearTimeout(scrollEndTimerRef.current);
       scrollEndTimerRef.current = window.setTimeout(() => {
         scrollEndTimerRef.current = null;
+        if (jumpingRef.current || suppressScrollRef.current) return;
         commitLiveToParent();
       }, SCROLL_END_DEBOUNCE_MS);
     };
@@ -510,7 +516,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         window.clearTimeout(scrollEndTimerRef.current);
         scrollEndTimerRef.current = null;
       }
-      if (suppressScrollRef.current) return;
+      if (suppressScrollRef.current || jumpingRef.current) return;
       const i = readNearestIndex(el);
       if (i !== null && i !== liveIndexRef.current) {
         liveIndexRef.current = i;
@@ -529,26 +535,51 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   }, [pageWidth, commitLiveToParent, readNearestIndex]);
 
   /**
-   * Jump without animation (today / year picker) — same tick: idx, scroll, onChange.
-   * Guarantees scroll only when pageWidth > 0; still updates parent date either way.
+   * Verified jump: scroll, confirm scrollLeft, then parent onChange.
+   * Scroll handler stays blocked until verify finishes so old scrollLeft cannot win.
    */
   const jumpToMonth = useCallback(
-    (date: Date) => {
+    (date: Date): Promise<void> => {
       const next = startOfMonth(date);
       const target = clampMonthIndex(toMonthIndex(next));
       const el = scrollerRef.current;
+      if (scrollEndTimerRef.current) {
+        window.clearTimeout(scrollEndTimerRef.current);
+        scrollEndTimerRef.current = null;
+      }
+      jumpingRef.current = true;
+      suppressScrollRef.current = true;
       liveIndexRef.current = target;
       setLiveIndex(target);
-      if (el && pageWidth > 0) {
-        suppressScrollRef.current = true;
-        el.scrollTo({ left: target * pageWidth, behavior: 'instant' });
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            suppressScrollRef.current = false;
-          });
-        });
-      }
-      setCurrentDate(next);
+
+      return new Promise((resolve) => {
+        let tries = 0;
+        const finish = () => {
+          jumpingRef.current = false;
+          suppressScrollRef.current = false;
+          setCurrentDate(next);
+          resolve();
+        };
+        const step = () => {
+          if (!el || pageWidth <= 0) {
+            finish();
+            return;
+          }
+          const want = target * pageWidth;
+          if (Math.abs(el.scrollLeft - want) < 1) {
+            finish();
+            return;
+          }
+          if (tries++ > 8) {
+            el.scrollLeft = want;
+            finish();
+            return;
+          }
+          el.scrollTo({ left: want, behavior: 'instant' });
+          requestAnimationFrame(step);
+        };
+        step();
+      });
     },
     [pageWidth, setCurrentDate],
   );
@@ -557,23 +588,31 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const lockStripForPress = useCallback(() => {}, []);
   const unlockStripForPress = useCallback(() => {}, []);
 
-  /** Open picker from the nearest snapped month (scrollLeft), not a panel's own date. */
+  /** Open picker only — pass start month via pickerAt; do not write Index/strip. */
   const openYearView = useCallback(() => {
     const el = scrollerRef.current;
-    if (el && pageWidth > 0) {
-      const i = readNearestIndex(el);
-      if (i !== null) {
-        liveIndexRef.current = i;
-        setLiveIndex(i);
-        setCurrentDate(fromMonthIndex(i));
-      }
-    }
+    const i = el && pageWidth > 0 ? readNearestIndex(el) : null;
+    const d = fromMonthIndex(i ?? liveIndexRef.current);
+    setPickerAt({ year: d.getFullYear(), month: d.getMonth() });
     setShowYear(true);
-  }, [pageWidth, setCurrentDate, readNearestIndex]);
+  }, [pageWidth, readNearestIndex]);
 
   const closeYearView = () => {
     setShowYear(false);
   };
+
+  // Cover strip (measurable) instead of visibility:hidden while picker is open.
+  useEffect(() => {
+    const shell = calendarShellRef.current;
+    if (!shell) return;
+    if (showYear) {
+      shell.setAttribute('inert', '');
+      shell.setAttribute('aria-hidden', 'true');
+    } else {
+      shell.removeAttribute('inert');
+      shell.removeAttribute('aria-hidden');
+    }
+  }, [showYear]);
 
   const handleStackPointerDown = (e: ReactPointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -631,7 +670,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   return (
     <>
       <div className="relative flex flex-col h-full min-h-0">
-        <div className={`flex flex-col h-full min-h-0 ${showYear ? 'invisible pointer-events-none' : ''}`}>
+        <div
+          ref={calendarShellRef}
+          className={`flex flex-col h-full min-h-0 ${showYear ? 'pointer-events-none' : ''}`}
+        >
         {/* Native horizontal scroll-snap — browser owns gesture (snappy, interruptible). */}
         <div
           ref={scrollerRef}
@@ -761,8 +803,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
               style={{ backgroundColor: PASTEL.calendarPaper }}
             >
               <YearMonthPicker
-                year={year}
-                month={month}
+                year={pickerAt.year}
+                month={pickerAt.month}
                 onJumpToMonth={jumpToMonth}
                 onClose={closeYearView}
               />
