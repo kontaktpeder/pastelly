@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect, type Dispatch, type SetStateAction } from 'react';
+import { flushSync } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, animate, type PanInfo } from 'framer-motion';
 import { format, startOfMonth, endOfMonth, startOfWeek, eachDayOfInterval, isToday, isSameMonth, addMonths, getISOWeek, addDays, type Locale } from 'date-fns';
 import { useEventsForMonth, type Event } from '@/hooks/useEvents';
@@ -467,14 +468,18 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
       // Lock outer chrome to the destination month as soon as the fling commits.
       setChromeDate(addMonths(currentDate, clamped));
 
-      // Animate to exact one page, then recenter instantly (new center == old neighbor)
+      // Animate to exact one page, then recenter instantly (new center == old neighbor).
+      // flushSync date+paging BEFORE x.set(0) — otherwise one frame shows old stripDates at x=0
+      // (glitch on the side you swiped toward).
       animationControlsRef.current = animate(x, -clamped * pageWidth, {
         ...snap,
         onComplete: () => {
-          setCurrentDate((d) => addMonths(d, clamped));
+          flushSync(() => {
+            setCurrentDate((d) => addMonths(d, clamped));
+            setPaging(false);
+          });
           x.set(0);
           animatingRef.current = false;
-          setPaging(false);
           animationControlsRef.current = null;
         },
       });
@@ -715,7 +720,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                   monthTheme={i === WINDOW ? monthTheme : getMonthTheme(date)}
                   members={members}
                   highlight={highlight}
-                  interactive={i === WINDOW}
+                  interactive={i === WINDOW && !paging}
                   onTap={handleDayTap}
                   onLongPress={onCreateEvent}
                   onPressLock={lockStripForPress}
@@ -847,26 +852,36 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 const HEADER_FIT_PROBE_PX = 100;
 /** Fixed trailing column for divider + vertical year (house uses pr-14 outside). */
 const HEADER_YEAR_COL_PX = 36;
-/** Ignore sub-pixel jitter so ResizeObserver don't thrash month font size. */
-const HEADER_FIT_EPSILON_PX = 0.5;
 /**
  * Vertical year stack vs month letter height (em). Leftover air is equal via items-center.
  * Year is always `ratio / digitCount` em of the month — locked, no separate yearPx state.
  */
 const HEADER_YEAR_STACK_RATIO = 0.96;
 
-/** Survive strip remounts so first paint is already sized. */
+/**
+ * Locked month font sizes after fonts+measure. Exact key only (no prefix) so we never
+ * flash a wrong size then "correct" it — that was the year jumping on the divider.
+ */
 const headerMonthFitCache = new Map<string, number>();
-const HEADER_FIT_CACHE_VER = 'y5';
+const HEADER_FIT_CACHE_VER = 'y6';
 
 function headerMonthFitCacheKey(
   monthLabel: string,
   monthDot: boolean,
   monthDotGapEm: number,
-  availW: number,
-  availH: number,
+  pageWidth: number,
 ) {
-  return `${HEADER_FIT_CACHE_VER}|${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|${Math.round(availW)}|${Math.round(availH)}`;
+  return `${HEADER_FIT_CACHE_VER}|${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|${Math.round(pageWidth)}`;
+}
+
+async function ensureCalendarHeaderFont() {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  try {
+    await document.fonts.load(`900 ${HEADER_FIT_PROBE_PX}px Montserrat`);
+    await document.fonts.ready;
+  } catch {
+    /* keep going with fallback metrics */
+  }
 }
 
 let headerMeasureHost: HTMLDivElement | null = null;
@@ -945,90 +960,58 @@ const MonthHeaderPanel = ({
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
-  const monthPxRef = useRef(48);
-  const labelCachePrefix = `${HEADER_FIT_CACHE_VER}|${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|`;
-  const [monthPx, setMonthPx] = useState(() => {
-    for (const [key, value] of headerMonthFitCache) {
-      if (key.startsWith(labelCachePrefix)) {
-        monthPxRef.current = value;
-        return value;
-      }
-    }
-    return 48;
-  });
-  const [fitted, setFitted] = useState(() => {
-    for (const key of headerMonthFitCache.keys()) {
-      if (key.startsWith(labelCachePrefix)) return true;
-    }
-    return false;
-  });
+  const lockKey = headerMonthFitCacheKey(monthLabel, monthDot, monthDotGapEm, width || 0);
+  const cachedPx = headerMonthFitCache.get(lockKey);
+  const [monthPx, setMonthPx] = useState(() => cachedPx ?? 48);
+  /** Only true after fonts + measure (or exact cache hit) — never show the pre-font pose. */
+  const [ready, setReady] = useState(() => cachedPx != null);
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
     const slot = slotRef.current;
     if (!panel || !slot) return;
     let cancelled = false;
-    let fontsFitted = false;
 
-    const apply = (next: number) => {
+    const lock = (px: number) => {
       if (cancelled) return;
-      if (Math.abs(monthPxRef.current - next) < HEADER_FIT_EPSILON_PX) {
-        setFitted(true);
-        return;
-      }
-      monthPxRef.current = next;
-      setMonthPx(next);
-      setFitted(true);
+      headerMonthFitCache.set(lockKey, px);
+      setMonthPx(px);
+      setReady(true);
     };
 
-    const fit = () => {
+    const measureNow = () => {
       const monthAvailW = slot.clientWidth;
       const monthAvailH = Math.max(panel.clientHeight - 10, 1);
-      if (monthAvailW <= 0) return;
-
-      const key = headerMonthFitCacheKey(
-        monthLabel,
-        monthDot,
-        monthDotGapEm,
-        monthAvailW,
-        monthAvailH,
-      );
-      const cached = headerMonthFitCache.get(key);
-      if (cached != null) {
-        apply(cached);
-        return;
-      }
-
-      const measured = measureMonthHeaderPx({
+      if (monthAvailW <= 0) return null;
+      return measureMonthHeaderPx({
         monthLabel,
         monthDot,
         monthDotGapEm,
         monthAvailW,
         monthAvailH,
       });
-      if (measured == null) return;
-      headerMonthFitCache.set(key, measured);
-      apply(measured);
     };
 
-    fit();
-    // One fonts pass only — do not keep busting cache (that reflowed year on swipe settle).
-    void document.fonts?.ready?.then(() => {
-      if (cancelled || fontsFitted) return;
-      fontsFitted = true;
-      for (const key of [...headerMonthFitCache.keys()]) {
-        if (key.startsWith(labelCachePrefix)) headerMonthFitCache.delete(key);
-      }
-      fit();
-    });
-    const ro = new ResizeObserver(() => fit());
-    ro.observe(panel);
-    ro.observe(slot);
+    const hit = headerMonthFitCache.get(lockKey);
+    if (hit != null) {
+      setMonthPx(hit);
+      setReady(true);
+      return;
+    }
+
+    // Hide until Montserrat metrics are final, then measure once and lock.
+    void (async () => {
+      await ensureCalendarHeaderFont();
+      if (cancelled) return;
+      const measured = measureNow();
+      if (measured == null) return;
+      lock(measured);
+    })();
+
     return () => {
       cancelled = true;
-      ro.disconnect();
     };
-  }, [monthLabel, monthDot, monthDotGapEm, width, labelCachePrefix]);
+  }, [lockKey, monthLabel, monthDot, monthDotGapEm]);
 
   const yearEm = HEADER_YEAR_STACK_RATIO / Math.max(yearLabel.length, 1);
 
@@ -1090,7 +1073,7 @@ const MonthHeaderPanel = ({
       style={{
         width: width || '33.333%',
         backgroundColor: paperColor,
-        opacity: fitted ? 1 : 0,
+        opacity: ready ? 1 : 0,
       }}
     >
       {onTitleClick ? (
