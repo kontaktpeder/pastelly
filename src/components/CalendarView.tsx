@@ -1,5 +1,15 @@
-import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect, type Dispatch, type SetStateAction } from 'react';
-import { motion, AnimatePresence, useMotionValue, animate, type PanInfo } from 'framer-motion';
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  type Dispatch,
+  type PointerEvent as ReactPointerEvent,
+  type SetStateAction,
+} from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { format, startOfMonth, endOfMonth, startOfWeek, eachDayOfInterval, isToday, isSameMonth, getISOWeek, addDays, type Locale } from 'date-fns';
 import { useEventsForMonth, type Event } from '@/hooks/useEvents';
 import {
@@ -86,50 +96,31 @@ const CATEGORY_ORDER: Record<string, number> = {
   other: 22,
 };
 
-/** Commit when dragged past this fraction of width, or with enough velocity */
-const COMMIT_RATIO = 0.14;
-const COMMIT_VELOCITY = 220;
-/** Vertical stack switch thresholds */
+/** Vertical stack switch thresholds (calendar ↔ calendar) */
 const STACK_COMMIT_PX = 64;
-const STACK_COMMIT_VELOCITY = 420;
-/** Months rendered on each side of the settled month (5 panels total) */
+/** Months mounted around the live scroll index */
 const WINDOW = 2;
-/** One gesture = at most one month */
-const MAX_HOPS_PER_SWIPE = 1;
-/** Soft resistance past one page (rubber-band) — avoids hard edge blink */
-const RUBBER = 0.28;
-/** Ignore strip movement until finger travels this far (px) */
-const PAN_ACTIVATE_PX = 6;
-/** Treat gesture as vertical (stack) when |dy| exceeds |dx| by this factor */
-const AXIS_LOCK_RATIO = 1.15;
-/**
- * Absolute month index origin. Strip uses x = -monthIndex * pageWidth and never recenters —
- * panels keep stable `left: index * pageWidth` so settle cannot race React vs Framer.
- */
-const MONTH_INDEX_BASE = 2000 * 12;
+/** Absolute month index origin — scrollLeft = monthIndex * pageWidth */
+const MONTH_INDEX_BASE = 1970 * 12;
+/** Virtual strip length in months (100 years) */
+const MONTH_STRIP_COUNT = 100 * 12;
+/** Fallback when scrollend is missing (older Safari) */
+const SCROLL_END_DEBOUNCE_MS = 120;
 
 function toMonthIndex(d: Date) {
   return d.getFullYear() * 12 + d.getMonth() - MONTH_INDEX_BASE;
 }
 
 function fromMonthIndex(index: number) {
-  const abs = index + MONTH_INDEX_BASE;
+  const clamped = Math.max(0, Math.min(MONTH_STRIP_COUNT - 1, index));
+  const abs = clamped + MONTH_INDEX_BASE;
   const year = Math.floor(abs / 12);
   const month = ((abs % 12) + 12) % 12;
   return startOfMonth(new Date(year, month, 1));
 }
 
-/** Diminishing travel past ±limit so the strip never hard-stops / blinks at the edge */
-function rubberBand(offset: number, limit: number): number {
-  const sign = offset < 0 ? -1 : 1;
-  const abs = Math.abs(offset);
-  if (abs <= limit) return offset;
-  return sign * (limit + (abs - limit) * RUBBER);
-}
-
-/** Rubber-band around an absolute strip center (settled x). */
-function rubberBandAround(offset: number, center: number, limit: number): number {
-  return center + rubberBand(offset - center, limit);
+function clampMonthIndex(index: number) {
+  return Math.max(0, Math.min(MONTH_STRIP_COUNT - 1, index));
 }
 
 function addCalendarDaysYmd(ymd: string, days: number): string {
@@ -243,8 +234,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const [detailEvent, setDetailEvent] = useState<Event | null>(null);
   const [overlayEvent, setOverlayEvent] = useState<DisplayEvent | null>(null);
   const [workBlock, setWorkBlock] = useState<DisplayEvent | null>(null);
-  /** True while springing — disables hit-testing on the strip without remounting cells. */
-  const [paging, setPaging] = useState(false);
 
   const openDayFromPush = useCallback(
     (dateStr: string) => {
@@ -272,12 +261,16 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  const settledIndex = toMonthIndex(currentDate);
 
-  /** Stable absolute indices around settled month — panels never shift left on settle. */
+  /**
+   * Live month under the viewport (updates at snap midpoints). Drives which ±WINDOW
+   * panels are mounted — not parent currentDate (that updates only on scrollend).
+   */
+  const [liveIndex, setLiveIndex] = useState(() => clampMonthIndex(toMonthIndex(currentDate)));
+  const liveIndexRef = useRef(liveIndex);
   const stripIndices = useMemo(
-    () => Array.from({ length: WINDOW * 2 + 1 }, (_, i) => settledIndex - WINDOW + i),
-    [settledIndex],
+    () => Array.from({ length: WINDOW * 2 + 1 }, (_, i) => clampMonthIndex(liveIndex - WINDOW + i)),
+    [liveIndex],
   );
   const stripDates = useMemo(() => stripIndices.map((i) => fromMonthIndex(i)), [stripIndices]);
 
@@ -286,11 +279,12 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   // Prefetch ±WINDOW so continuous swipe never peeks empty
   const { data: eventsM2 = [] } = useEventsForMonth(householdId, eventFetchDates[0].getFullYear(), eventFetchDates[0].getMonth());
   const { data: eventsM1 = [] } = useEventsForMonth(householdId, eventFetchDates[1].getFullYear(), eventFetchDates[1].getMonth());
+  const liveDate = fromMonthIndex(liveIndex);
   const {
     data: eventsRaw,
     isFetched: monthFetched,
     isError: monthError,
-  } = useEventsForMonth(householdId, year, month);
+  } = useEventsForMonth(householdId, liveDate.getFullYear(), liveDate.getMonth());
   const { data: eventsP1 = [] } = useEventsForMonth(householdId, eventFetchDates[3].getFullYear(), eventFetchDates[3].getMonth());
   const { data: eventsP2 = [] } = useEventsForMonth(householdId, eventFetchDates[4].getFullYear(), eventFetchDates[4].getMonth());
 
@@ -369,16 +363,9 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     marksVisible,
   ]);
 
-  const monthTheme = useMemo(() => getMonthTheme(currentDate), [currentDate]);
-  /**
-   * Chrome outside the strip (paper wash, "Vis aktiviteter") follows the committed
-   * month at fling start so color doesn't wait for parent currentDate.
-   */
-  const [chromeDate, setChromeDate] = useState(currentDate);
-  useEffect(() => {
-    setChromeDate(currentDate);
-  }, [currentDate]);
-  const chromeTheme = useMemo(() => getMonthTheme(chromeDate), [chromeDate]);
+  /** Chrome follows the live viewport month (updates at snap midpoints, not only scrollend). */
+  const chromeTheme = useMemo(() => getMonthTheme(liveDate), [liveDate]);
+  const monthTheme = chromeTheme;
 
   const mergedByOffset = useMemo(() => {
     const locals = [eventsM2, eventsM1, events, eventsP1, eventsP2];
@@ -402,230 +389,141 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     [stripDates],
   );
 
-  const trackRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const [pageWidth, setPageWidth] = useState(0);
-  /** Absolute strip offset: x = -monthIndex * pageWidth. Never recentered to 0. */
-  const x = useMotionValue(0);
-  const settledIndexRef = useRef(settledIndex);
-  const animatingRef = useRef(false);
-  const animationControlsRef = useRef<{ stop: () => void } | null>(null);
-  const panStartXRef = useRef(0);
-  /** pending = undecided, pan = horizontal month, stack = vertical calendar switch, blocked = press lock */
-  const panModeRef = useRef<'pending' | 'pan' | 'stack' | 'blocked'>('pending');
-  /** Set while a day long-press is active — keeps strip frozen */
-  const pressLockRef = useRef(false);
-  /** Track vertical intent for calendar-stack swipe */
-  const panOffsetYRef = useRef(0);
-  const panVelocityYRef = useRef(0);
+  /** Ignore scroll events while we programmatically jump (year picker / resize). */
+  const suppressScrollRef = useRef(false);
+  const scrollEndTimerRef = useRef<number | null>(null);
+  const stackPointerRef = useRef<{ x: number; y: number } | null>(null);
+
+  const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = 'instant') => {
+    const el = scrollerRef.current;
+    if (!el || !pageWidth) return;
+    const i = clampMonthIndex(index);
+    suppressScrollRef.current = true;
+    el.scrollTo({ left: i * pageWidth, behavior });
+    liveIndexRef.current = i;
+    setLiveIndex(i);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        suppressScrollRef.current = false;
+      });
+    });
+  }, [pageWidth]);
 
   useEffect(() => {
-    const el = trackRef.current;
+    const el = scrollerRef.current;
     if (!el) return;
-    const measure = () => setPageWidth(el.clientWidth);
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w <= 0) return;
+      setPageWidth((prev) => {
+        if (prev === w) return prev;
+        return w;
+      });
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  // Align absolute x when pageWidth appears/changes, or parent jumps to a different month.
-  // Skip while a fling is in flight — onComplete owns settledIndexRef + parent date.
+  // Initial + resize: pin scrollLeft to the live/parent month without animation.
   useLayoutEffect(() => {
     if (!pageWidth) return;
-    if (animatingRef.current) return;
-    const target = toMonthIndex(currentDate);
-    if (target === settledIndexRef.current && Math.abs(x.get() + target * pageWidth) < 1) {
-      return;
-    }
-    settledIndexRef.current = target;
-    x.jump(-target * pageWidth);
-  }, [currentDate, pageWidth, x]);
+    const el = scrollerRef.current;
+    if (!el) return;
+    const target = clampMonthIndex(toMonthIndex(currentDate));
+    liveIndexRef.current = target;
+    setLiveIndex(target);
+    suppressScrollRef.current = true;
+    el.scrollTo({ left: target * pageWidth, behavior: 'instant' });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        suppressScrollRef.current = false;
+      });
+    });
+  }, [pageWidth]); // eslint-disable-line react-hooks/exhaustive-deps -- only when width appears/changes
 
-  const stopPagingAnim = useCallback(() => {
-    animationControlsRef.current?.stop();
-    animationControlsRef.current = null;
-    if (animatingRef.current) {
-      animatingRef.current = false;
-      setPaging(false);
-    }
-  }, []);
+  // External month jump (year overview / today) while width is stable.
+  useLayoutEffect(() => {
+    if (!pageWidth) return;
+    const target = clampMonthIndex(toMonthIndex(currentDate));
+    if (target === liveIndexRef.current) return;
+    scrollToIndex(target, 'instant');
+  }, [currentDate, pageWidth, scrollToIndex]);
 
-  /** Jump without strip animation (today / year picker) — absolute x jump, no recenter. */
+  const commitLiveToParent = useCallback(() => {
+    const next = fromMonthIndex(liveIndexRef.current);
+    setCurrentDate(next);
+  }, [setCurrentDate]);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || !pageWidth) return;
+
+    const onScroll = () => {
+      if (suppressScrollRef.current) return;
+      const i = clampMonthIndex(Math.round(el.scrollLeft / pageWidth));
+      if (i !== liveIndexRef.current) {
+        liveIndexRef.current = i;
+        setLiveIndex(i);
+      }
+      if (scrollEndTimerRef.current) window.clearTimeout(scrollEndTimerRef.current);
+      scrollEndTimerRef.current = window.setTimeout(() => {
+        scrollEndTimerRef.current = null;
+        commitLiveToParent();
+      }, SCROLL_END_DEBOUNCE_MS);
+    };
+
+    const onScrollEnd = () => {
+      if (scrollEndTimerRef.current) {
+        window.clearTimeout(scrollEndTimerRef.current);
+        scrollEndTimerRef.current = null;
+      }
+      if (suppressScrollRef.current) return;
+      commitLiveToParent();
+    };
+
+    el.addEventListener('scroll', onScroll, { passive: true });
+    el.addEventListener('scrollend', onScrollEnd);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      el.removeEventListener('scrollend', onScrollEnd);
+      if (scrollEndTimerRef.current) window.clearTimeout(scrollEndTimerRef.current);
+    };
+  }, [pageWidth, commitLiveToParent]);
+
+  /** Jump without animation (today / year picker). */
   const jumpToMonth = useCallback(
     (date: Date) => {
-      stopPagingAnim();
       const next = startOfMonth(date);
-      const target = toMonthIndex(next);
-      settledIndexRef.current = target;
-      if (pageWidth) x.jump(-target * pageWidth);
-      setChromeDate(next);
+      const target = clampMonthIndex(toMonthIndex(next));
+      scrollToIndex(target, 'instant');
       setCurrentDate(next);
     },
-    [pageWidth, setCurrentDate, stopPagingAnim, x],
+    [scrollToIndex, setCurrentDate],
   );
 
-  const lockStripForPress = useCallback(() => {
-    pressLockRef.current = true;
-    panModeRef.current = 'blocked';
-    x.set(panStartXRef.current);
-  }, [x]);
+  // Long-press no longer freezes the strip — native scroll only starts if the finger moves.
+  const lockStripForPress = useCallback(() => {}, []);
+  const unlockStripForPress = useCallback(() => {}, []);
 
-  const unlockStripForPress = useCallback(() => {
-    pressLockRef.current = false;
-  }, []);
-
-  const flingToHops = useCallback(
-    (hops: number, velocity = 0) => {
-      if (!pageWidth) return;
-
-      const clamped = Math.max(-MAX_HOPS_PER_SWIPE, Math.min(MAX_HOPS_PER_SWIPE, hops));
-      const from = settledIndexRef.current;
-      const target = from + clamped;
-      const settledX = -from * pageWidth;
-      const targetX = -target * pageWidth;
-
-      animatingRef.current = true;
-      setPaging(true);
-
-      // Overdamped spring: keeps the release speed, then lands without bounce.
-      const maxV = pageWidth * 5.5;
-      const snap = {
-        type: 'spring' as const,
-        stiffness: 780,
-        damping: 42,
-        mass: 0.42,
-        velocity: Math.max(-maxV, Math.min(maxV, velocity)),
-        restDelta: 0.4,
-        restSpeed: 50,
-      };
-
-      if (clamped === 0) {
-        animationControlsRef.current = animate(x, settledX, {
-          ...snap,
-          onComplete: () => {
-            animatingRef.current = false;
-            setPaging(false);
-            animationControlsRef.current = null;
-          },
-        });
-        return;
-      }
-
-      // Chrome follows destination immediately; strip x is already absolute — no recenter.
-      setChromeDate(fromMonthIndex(target));
-
-      animationControlsRef.current = animate(x, targetX, {
-        ...snap,
-        onComplete: () => {
-          settledIndexRef.current = target;
-          setCurrentDate(fromMonthIndex(target));
-          setPaging(false);
-          animationControlsRef.current = null;
-          animatingRef.current = false;
-        },
-      });
-    },
-    [pageWidth, setCurrentDate, x],
-  );
-
-  const handlePanStart = () => {
-    stopPagingAnim();
-    panStartXRef.current = x.get();
-    panModeRef.current = pressLockRef.current ? 'blocked' : 'pending';
-    panOffsetYRef.current = 0;
-    panVelocityYRef.current = 0;
+  const handleStackPointerDown = (e: ReactPointerEvent) => {
+    if (!canSwipeCalendarStack || !onSwipeCalendarStack) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    stackPointerRef.current = { x: e.clientX, y: e.clientY };
   };
 
-  const handlePan = (_: unknown, info: PanInfo) => {
-    if (!pageWidth) return;
-
-    panOffsetYRef.current = info.offset.y;
-    panVelocityYRef.current = info.velocity.y;
-
-    if (pressLockRef.current || panModeRef.current === 'blocked') {
-      x.set(panStartXRef.current);
-      return;
-    }
-
-    if (panModeRef.current === 'stack') {
-      x.set(panStartXRef.current);
-      return;
-    }
-
-    const dx = info.offset.x;
-    const dy = info.offset.y;
-    const adx = Math.abs(dx);
-    const ady = Math.abs(dy);
-
-    if (panModeRef.current === 'pending') {
-      if (adx < PAN_ACTIVATE_PX && ady < PAN_ACTIVATE_PX) {
-        x.set(panStartXRef.current);
-        return;
-      }
-      // Vertical: week agenda scrolls natively; month view can switch calendars.
-      if (ady >= PAN_ACTIVATE_PX && ady > adx * AXIS_LOCK_RATIO) {
-        panModeRef.current = canSwipeCalendarStack ? 'stack' : 'blocked';
-        x.set(panStartXRef.current);
-        return;
-      }
-      if (adx < PAN_ACTIVATE_PX) {
-        x.set(panStartXRef.current);
-        return;
-      }
-      panModeRef.current = 'pan';
-    }
-
-    // Follow finger within ±1 page of settled month; soft rubber past that.
-    const settledX = -settledIndexRef.current * pageWidth;
-    const raw = panStartXRef.current + dx;
-    x.set(rubberBandAround(raw, settledX, pageWidth));
-  };
-
-  const handlePanEnd = (_: unknown, info: PanInfo) => {
-    if (!pageWidth) return;
-
-    const wasPanning = panModeRef.current === 'pan' && !pressLockRef.current;
-    const wasVerticalStack = panModeRef.current === 'stack' && !pressLockRef.current;
-    const dy = info.offset.y || panOffsetYRef.current;
-    const vy = info.velocity.y || panVelocityYRef.current;
-    panModeRef.current = 'pending';
-
-    const settledX = -settledIndexRef.current * pageWidth;
-
-    if (wasVerticalStack && onSwipeCalendarStack) {
-      const flicked = Math.abs(vy) > STACK_COMMIT_VELOCITY;
-      const dragged = Math.abs(dy) > STACK_COMMIT_PX;
-      if (flicked || dragged) {
-        // Finger up → content moves up → next calendar below
-        if (dy < 0 || (flicked && vy < 0)) onSwipeCalendarStack(1);
-        else onSwipeCalendarStack(-1);
-      }
-      x.set(settledX);
-      return;
-    }
-
-    const vx = info.velocity.x;
-
-    if (!wasPanning) {
-      if (Math.abs(x.get() - settledX) > 0.5) flingToHops(0, vx);
-      else x.set(settledX);
-      return;
-    }
-
-    const delta = x.get() - settledX;
-    let hops = 0;
-
-    const flicked = Math.abs(vx) > COMMIT_VELOCITY;
-    const dragged = Math.abs(delta) > pageWidth * COMMIT_RATIO;
-    if (flicked || dragged) {
-      if (Math.abs(delta) > pageWidth * 0.04) {
-        hops = delta < 0 ? 1 : -1;
-      } else {
-        hops = vx < 0 ? 1 : -1;
-      }
-    }
-
-    flingToHops(hops, vx);
+  const handleStackPointerUp = (e: ReactPointerEvent) => {
+    if (!canSwipeCalendarStack || !onSwipeCalendarStack || !stackPointerRef.current) return;
+    const dx = e.clientX - stackPointerRef.current.x;
+    const dy = e.clientY - stackPointerRef.current.y;
+    stackPointerRef.current = null;
+    if (Math.abs(dy) < STACK_COMMIT_PX) return;
+    if (Math.abs(dy) <= Math.abs(dx) * 1.1) return;
+    // Finger up → next calendar; finger down → previous
+    onSwipeCalendarStack(dy < 0 ? 1 : -1);
   };
 
   const handleDayTap = (day: Date) => {
@@ -639,12 +537,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   };
 
   const openYearView = () => {
-    stopPagingAnim();
     setShowYear(true);
   };
 
   const closeYearView = () => {
-    stopPagingAnim();
     setShowYear(false);
   };
 
@@ -657,26 +553,54 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     <>
       <div className="relative flex flex-col h-full min-h-0">
         <div className={`flex flex-col h-full min-h-0 ${showYear ? 'invisible pointer-events-none' : ''}`}>
-        {/* Month title + year strip — absolute months, shared x (never recentered) */}
+        {/* Native horizontal scroll-snap — browser owns gesture (snappy, interruptible). */}
         <div
-          className="relative shrink-0 overflow-hidden pt-[max(0.35rem,env(safe-area-inset-top))]"
+          ref={scrollerRef}
+          className="relative min-h-0 flex-1 overflow-x-auto overflow-y-hidden select-none calendar-month-snap no-scrollbar"
           style={{ backgroundColor: chromeTheme.paper }}
+          onPointerDown={showYear ? undefined : handleStackPointerDown}
+          onPointerUp={showYear ? undefined : handleStackPointerUp}
+          onPointerCancel={() => {
+            stackPointerRef.current = null;
+          }}
         >
-          <div className="relative h-[7.75rem] overflow-hidden">
-            <motion.div
-              className="absolute inset-0 will-change-transform"
-              style={{ x }}
-            >
-              {stripIndices.map((monthIndex, i) => {
-                const date = stripDates[i];
-                const theme = monthIndex === settledIndex ? monthTheme : getMonthTheme(date);
-                const monthHeader = formatMonthHeaderLabel(date, dateLocale);
-                return (
-                  <div
-                    key={monthIndex}
-                    className="absolute top-0 bottom-0"
-                    style={{ left: pageWidth ? monthIndex * pageWidth : 0, width: pageWidth || '100%' }}
-                  >
+          {/*
+            Grid with N month tracks keeps scroll extent + snap points stable while only
+            ±WINDOW panels are mounted (grid-column places them without recentering).
+          */}
+          <div
+            className="h-full"
+            style={{
+              display: 'grid',
+              width: pageWidth ? MONTH_STRIP_COUNT * pageWidth : '100%',
+              gridTemplateColumns: pageWidth
+                ? `repeat(${MONTH_STRIP_COUNT}, ${pageWidth}px)`
+                : undefined,
+            }}
+          >
+            {stripIndices.map((monthIndex, i) => {
+              const date = stripDates[i];
+              const theme = getMonthTheme(date);
+              const monthHeader = formatMonthHeaderLabel(date, dateLocale);
+              const sunday = sundayAccentForMonth(date.getMonth());
+              const byDate = eventsByOffset[i];
+              const neighbour = {
+                ...(eventsByOffset[i - 1] || {}),
+                ...(eventsByOffset[i + 1] || {}),
+              };
+              const isLive = monthIndex === liveIndex;
+              return (
+                <div
+                  key={monthIndex}
+                  className="flex h-full min-h-0 flex-col"
+                  style={{
+                    gridColumn: monthIndex + 1,
+                    scrollSnapAlign: 'start',
+                    scrollSnapStop: 'always',
+                    backgroundColor: theme.paper,
+                  }}
+                >
+                  <div className="relative h-[7.75rem] shrink-0 overflow-hidden pt-[max(0.35rem,env(safe-area-inset-top))]">
                     <MonthHeaderPanel
                       width={pageWidth}
                       monthLabel={monthHeader.label}
@@ -685,99 +609,45 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                       yearLabel={format(date, 'yyyy')}
                       textColor={theme.base}
                       paperColor={theme.paper}
-                      onTitleClick={monthIndex === settledIndex ? openYearView : undefined}
+                      onTitleClick={isLive ? openYearView : undefined}
                     />
                   </div>
-                );
-              })}
-            </motion.div>
+                  <div className="grid h-8 shrink-0 grid-cols-7 items-center" style={{ backgroundColor: theme.paper }}>
+                    {weekdayLabels.map((d, di) => (
+                      <div
+                        key={`${d}-${di}`}
+                        className="text-center font-calendar text-sm font-semibold uppercase tracking-wide"
+                        style={{ color: di === 6 ? sunday : theme.base }}
+                      >
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="relative min-h-0 flex-1">
+                    <MonthPanel
+                      width={pageWidth}
+                      monthDate={date}
+                      days={daysByOffset[i]}
+                      eventsByDate={byDate}
+                      neighbourEventsByDate={neighbour}
+                      monthTheme={isLive ? monthTheme : theme}
+                      members={members}
+                      highlight={highlight}
+                      interactive={isLive}
+                      onTap={handleDayTap}
+                      onLongPress={onCreateEvent}
+                      onPressLock={lockStripForPress}
+                      onPressUnlock={unlockStripForPress}
+                      getMemberForEvent={getMemberForEvent}
+                      marksVisible={marksVisible && !eventsHidden}
+                      selectedDateStr={selectedDateStr}
+                      showSelection={!isMobile}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
-
-        <div className="relative h-8 shrink-0 overflow-hidden" style={{ backgroundColor: chromeTheme.paper }}>
-          <motion.div className="absolute inset-0 will-change-transform" style={{ x }}>
-            {stripIndices.map((monthIndex, i) => {
-              const date = stripDates[i];
-              const theme = getMonthTheme(date);
-              const sunday = sundayAccentForMonth(date.getMonth());
-              return (
-                <div
-                  key={monthIndex}
-                  className="absolute top-0 bottom-0 grid grid-cols-7 items-center"
-                  style={{ left: pageWidth ? monthIndex * pageWidth : 0, width: pageWidth || '100%' }}
-                >
-                  {weekdayLabels.map((d, di) => (
-                    <div
-                      key={`${d}-${di}`}
-                      className="text-center font-calendar text-sm font-semibold uppercase tracking-wide"
-                      style={{ color: di === 6 ? sunday : theme.base }}
-                    >
-                      {d}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-          </motion.div>
-        </div>
-
-        {/* Absolute month grids — touch-action:none so Android gets H+V gestures */}
-        <div
-          ref={trackRef}
-          className="relative flex-1 min-h-0 overflow-hidden select-none calendar-gesture-surface"
-          style={{
-            backgroundColor: chromeTheme.paper,
-            pointerEvents: paging ? 'none' : undefined,
-          }}
-        >
-          <motion.div
-            className="absolute inset-0 will-change-transform"
-            style={{
-              x,
-              touchAction: 'none',
-              WebkitUserSelect: 'none',
-              userSelect: 'none',
-            }}
-            onPanStart={showYear ? undefined : handlePanStart}
-            onPan={showYear ? undefined : handlePan}
-            onPanEnd={showYear ? undefined : handlePanEnd}
-          >
-            {stripIndices.map((monthIndex, i) => {
-              const date = stripDates[i];
-              const byDate = eventsByOffset[i];
-              const neighbour = {
-                ...(eventsByOffset[i - 1] || {}),
-                ...(eventsByOffset[i + 1] || {}),
-              };
-              return (
-                <div
-                  key={monthIndex}
-                  className="absolute top-0 bottom-0"
-                  style={{ left: pageWidth ? monthIndex * pageWidth : 0, width: pageWidth || '100%' }}
-                >
-                  <MonthPanel
-                    width={pageWidth}
-                    monthDate={date}
-                    days={daysByOffset[i]}
-                    eventsByDate={byDate}
-                    neighbourEventsByDate={neighbour}
-                    monthTheme={monthIndex === settledIndex ? monthTheme : getMonthTheme(date)}
-                    members={members}
-                    highlight={highlight}
-                    interactive={monthIndex === settledIndex && !paging}
-                    onTap={handleDayTap}
-                    onLongPress={onCreateEvent}
-                    onPressLock={lockStripForPress}
-                    onPressUnlock={unlockStripForPress}
-                    getMemberForEvent={getMemberForEvent}
-                    marksVisible={marksVisible && !eventsHidden}
-                    selectedDateStr={selectedDateStr}
-                    showSelection={!isMobile}
-                  />
-                </div>
-              );
-            })}
-          </motion.div>
         </div>
 
         <div
@@ -1074,10 +944,10 @@ const MonthPanel = ({
 
   return (
     <div
-      className={`flex flex-col h-full min-h-0 shrink-0 pt-0 pb-[max(0.25rem,env(safe-area-inset-bottom))] ${
+      className={`flex flex-col h-full min-h-0 w-full pt-0 pb-[max(0.25rem,env(safe-area-inset-bottom))] ${
         interactive ? '' : 'pointer-events-none'
       }`}
-      style={{ width: width || '33.333%', backgroundColor: monthTheme.paper }}
+      style={{ backgroundColor: monthTheme.paper }}
     >
       <div className="flex flex-col flex-1 min-h-0">
         {weeks.map((weekDays) => {

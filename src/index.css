@@ -219,8 +219,14 @@ body {
 }
 
 
-/* Calendar month strip: JS owns both axes (month ↔ + calendar stack ↕).
-   pan-x alone breaks vertical stack swipe on Android Chrome. */
+/* Calendar month strip: native horizontal scroll-snap (browser owns the gesture). */
+.calendar-month-snap {
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+/* Legacy Framer pan surface (week strip / other views). */
 .calendar-gesture-surface,
 .calendar-gesture-surface * {
   touch-action: none;
