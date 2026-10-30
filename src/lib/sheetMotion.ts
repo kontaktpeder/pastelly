@@ -151,7 +151,7 @@ export function runSheetSpring(options: {
 export const SHEET_HALF_VISIBLE = 0.55;
 
 export type SheetDetent = 'half' | 'full';
-export type SheetVariant = 'browse' | 'wizard' | 'compact';
+export type SheetVariant = 'browse' | 'wizard' | 'compact' | 'half';
 
 /**
  * Named sheet roles — call sites pick a role, never raw detents/size/fitContent.
@@ -164,6 +164,15 @@ export const SHEET_VARIANTS = {
     detents: ['half', 'full'] as const satisfies readonly SheetDetent[],
     initialDetent: 'half' as const satisfies SheetDetent,
     fitContent: true,
+    nest: true,
+    backdrop: 'solid' as const,
+  },
+  /** Fixed half-height (month/year picker). Swipe down to dismiss; no full expand. */
+  half: {
+    size: 'sheet' as const,
+    detents: ['half'] as const satisfies readonly SheetDetent[],
+    initialDetent: 'half' as const satisfies SheetDetent,
+    fitContent: false,
     nest: true,
     backdrop: 'solid' as const,
   },
