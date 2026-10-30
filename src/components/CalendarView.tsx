@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect, type Dispatch, type SetStateAction } from 'react';
-import { flushSync } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, animate, type PanInfo } from 'framer-motion';
-import { format, startOfMonth, endOfMonth, startOfWeek, eachDayOfInterval, isToday, isSameMonth, addMonths, getISOWeek, addDays, type Locale } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, eachDayOfInterval, isToday, isSameMonth, getISOWeek, addDays, type Locale } from 'date-fns';
 import { useEventsForMonth, type Event } from '@/hooks/useEvents';
 import {
   mergeEventsWithOverlays,
@@ -93,7 +92,7 @@ const COMMIT_VELOCITY = 220;
 /** Vertical stack switch thresholds */
 const STACK_COMMIT_PX = 64;
 const STACK_COMMIT_VELOCITY = 420;
-/** Months rendered on each side of the center (5 panels total) */
+/** Months rendered on each side of the settled month (5 panels total) */
 const WINDOW = 2;
 /** One gesture = at most one month */
 const MAX_HOPS_PER_SWIPE = 1;
@@ -103,6 +102,22 @@ const RUBBER = 0.28;
 const PAN_ACTIVATE_PX = 6;
 /** Treat gesture as vertical (stack) when |dy| exceeds |dx| by this factor */
 const AXIS_LOCK_RATIO = 1.15;
+/**
+ * Absolute month index origin. Strip uses x = -monthIndex * pageWidth and never recenters —
+ * panels keep stable `left: index * pageWidth` so settle cannot race React vs Framer.
+ */
+const MONTH_INDEX_BASE = 2000 * 12;
+
+function toMonthIndex(d: Date) {
+  return d.getFullYear() * 12 + d.getMonth() - MONTH_INDEX_BASE;
+}
+
+function fromMonthIndex(index: number) {
+  const abs = index + MONTH_INDEX_BASE;
+  const year = Math.floor(abs / 12);
+  const month = ((abs % 12) + 12) % 12;
+  return startOfMonth(new Date(year, month, 1));
+}
 
 /** Diminishing travel past ±limit so the strip never hard-stops / blinks at the edge */
 function rubberBand(offset: number, limit: number): number {
@@ -110,6 +125,11 @@ function rubberBand(offset: number, limit: number): number {
   const abs = Math.abs(offset);
   if (abs <= limit) return offset;
   return sign * (limit + (abs - limit) * RUBBER);
+}
+
+/** Rubber-band around an absolute strip center (settled x). */
+function rubberBandAround(offset: number, center: number, limit: number): number {
+  return center + rubberBand(offset - center, limit);
 }
 
 function addCalendarDaysYmd(ymd: string, days: number): string {
@@ -223,6 +243,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   const [detailEvent, setDetailEvent] = useState<Event | null>(null);
   const [overlayEvent, setOverlayEvent] = useState<DisplayEvent | null>(null);
   const [workBlock, setWorkBlock] = useState<DisplayEvent | null>(null);
+  /** True while springing — disables hit-testing on the strip without remounting cells. */
   const [paging, setPaging] = useState(false);
 
   const openDayFromPush = useCallback(
@@ -251,12 +272,14 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+  const settledIndex = toMonthIndex(currentDate);
 
-  const stripOffsets = useMemo(() => Array.from({ length: WINDOW * 2 + 1 }, (_, i) => i - WINDOW), []);
-  const stripDates = useMemo(
-    () => stripOffsets.map((off) => startOfMonth(addMonths(currentDate, off))),
-    [currentDate, stripOffsets],
+  /** Stable absolute indices around settled month — panels never shift left on settle. */
+  const stripIndices = useMemo(
+    () => Array.from({ length: WINDOW * 2 + 1 }, (_, i) => settledIndex - WINDOW + i),
+    [settledIndex],
   );
+  const stripDates = useMemo(() => stripIndices.map((i) => fromMonthIndex(i)), [stripIndices]);
 
   const eventFetchDates = stripDates;
 
@@ -348,8 +371,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
   const monthTheme = useMemo(() => getMonthTheme(currentDate), [currentDate]);
   /**
-   * Chrome outside the peeking strip (paper wash, "Vis aktiviteter") follows the
-   * committed month at fling start — not only after settle — so color doesn't snap late.
+   * Chrome outside the strip (paper wash, "Vis aktiviteter") follows the committed
+   * month at fling start so color doesn't wait for parent currentDate.
    */
   const [chromeDate, setChromeDate] = useState(currentDate);
   useEffect(() => {
@@ -381,7 +404,9 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
   const trackRef = useRef<HTMLDivElement>(null);
   const [pageWidth, setPageWidth] = useState(0);
+  /** Absolute strip offset: x = -monthIndex * pageWidth. Never recentered to 0. */
   const x = useMotionValue(0);
+  const settledIndexRef = useRef(settledIndex);
   const animatingRef = useRef(false);
   const animationControlsRef = useRef<{ stop: () => void } | null>(null);
   const panStartXRef = useRef(0);
@@ -403,6 +428,19 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     return () => ro.disconnect();
   }, []);
 
+  // Align absolute x when pageWidth appears/changes, or parent jumps to a different month.
+  // Skip while a fling is in flight — onComplete owns settledIndexRef + parent date.
+  useLayoutEffect(() => {
+    if (!pageWidth) return;
+    if (animatingRef.current) return;
+    const target = toMonthIndex(currentDate);
+    if (target === settledIndexRef.current && Math.abs(x.get() + target * pageWidth) < 1) {
+      return;
+    }
+    settledIndexRef.current = target;
+    x.jump(-target * pageWidth);
+  }, [currentDate, pageWidth, x]);
+
   const stopPagingAnim = useCallback(() => {
     animationControlsRef.current?.stop();
     animationControlsRef.current = null;
@@ -412,14 +450,18 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     }
   }, []);
 
-  /** Jump without strip animation (today / year picker) */
+  /** Jump without strip animation (today / year picker) — absolute x jump, no recenter. */
   const jumpToMonth = useCallback(
     (date: Date) => {
       stopPagingAnim();
-      x.set(0);
-      setCurrentDate(startOfMonth(date));
+      const next = startOfMonth(date);
+      const target = toMonthIndex(next);
+      settledIndexRef.current = target;
+      if (pageWidth) x.jump(-target * pageWidth);
+      setChromeDate(next);
+      setCurrentDate(next);
     },
-    [setCurrentDate, stopPagingAnim, x],
+    [pageWidth, setCurrentDate, stopPagingAnim, x],
   );
 
   const lockStripForPress = useCallback(() => {
@@ -437,8 +479,12 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
       if (!pageWidth) return;
 
       const clamped = Math.max(-MAX_HOPS_PER_SWIPE, Math.min(MAX_HOPS_PER_SWIPE, hops));
+      const from = settledIndexRef.current;
+      const target = from + clamped;
+      const settledX = -from * pageWidth;
+      const targetX = -target * pageWidth;
+
       animatingRef.current = true;
-      // Don't flip pointer-events mid-settle — that remounts cells and blinks at the edge
       setPaging(true);
 
       // Overdamped spring: keeps the release speed, then lands without bounce.
@@ -454,7 +500,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
       };
 
       if (clamped === 0) {
-        animationControlsRef.current = animate(x, 0, {
+        animationControlsRef.current = animate(x, settledX, {
           ...snap,
           onComplete: () => {
             animatingRef.current = false;
@@ -465,26 +511,21 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         return;
       }
 
-      // Lock outer chrome to the destination month as soon as the fling commits.
-      setChromeDate(addMonths(currentDate, clamped));
+      // Chrome follows destination immediately; strip x is already absolute — no recenter.
+      setChromeDate(fromMonthIndex(target));
 
-      // Animate to exact one page, then recenter instantly (new center == old neighbor).
-      // flushSync date+paging BEFORE x.set(0) — otherwise one frame shows old stripDates at x=0
-      // (glitch on the side you swiped toward).
-      animationControlsRef.current = animate(x, -clamped * pageWidth, {
+      animationControlsRef.current = animate(x, targetX, {
         ...snap,
         onComplete: () => {
-          flushSync(() => {
-            setCurrentDate((d) => addMonths(d, clamped));
-            setPaging(false);
-          });
-          x.set(0);
-          animatingRef.current = false;
+          settledIndexRef.current = target;
+          setCurrentDate(fromMonthIndex(target));
+          setPaging(false);
           animationControlsRef.current = null;
+          animatingRef.current = false;
         },
       });
     },
-    [currentDate, pageWidth, setCurrentDate, x],
+    [pageWidth, setCurrentDate, x],
   );
 
   const handlePanStart = () => {
@@ -534,9 +575,10 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
       panModeRef.current = 'pan';
     }
 
-    // Follow finger within ±1 page; soft rubber past that (no hard blink wall)
+    // Follow finger within ±1 page of settled month; soft rubber past that.
+    const settledX = -settledIndexRef.current * pageWidth;
     const raw = panStartXRef.current + dx;
-    x.set(rubberBand(raw, pageWidth));
+    x.set(rubberBandAround(raw, settledX, pageWidth));
   };
 
   const handlePanEnd = (_: unknown, info: PanInfo) => {
@@ -548,6 +590,8 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     const vy = info.velocity.y || panVelocityYRef.current;
     panModeRef.current = 'pending';
 
+    const settledX = -settledIndexRef.current * pageWidth;
+
     if (wasVerticalStack && onSwipeCalendarStack) {
       const flicked = Math.abs(vy) > STACK_COMMIT_VELOCITY;
       const dragged = Math.abs(dy) > STACK_COMMIT_PX;
@@ -556,26 +600,26 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         if (dy < 0 || (flicked && vy < 0)) onSwipeCalendarStack(1);
         else onSwipeCalendarStack(-1);
       }
-      x.set(0);
+      x.set(settledX);
       return;
     }
 
     const vx = info.velocity.x;
 
     if (!wasPanning) {
-      if (Math.abs(x.get()) > 0.5) flingToHops(0, vx);
-      else x.set(0);
+      if (Math.abs(x.get() - settledX) > 0.5) flingToHops(0, vx);
+      else x.set(settledX);
       return;
     }
 
-    const px = x.get();
+    const delta = x.get() - settledX;
     let hops = 0;
 
     const flicked = Math.abs(vx) > COMMIT_VELOCITY;
-    const dragged = Math.abs(px) > pageWidth * COMMIT_RATIO;
+    const dragged = Math.abs(delta) > pageWidth * COMMIT_RATIO;
     if (flicked || dragged) {
-      if (Math.abs(px) > pageWidth * 0.04) {
-        hops = px < 0 ? 1 : -1;
+      if (Math.abs(delta) > pageWidth * 0.04) {
+        hops = delta < 0 ? 1 : -1;
       } else {
         hops = vx < 0 ? 1 : -1;
       }
@@ -596,13 +640,11 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
   const openYearView = () => {
     stopPagingAnim();
-    x.set(0);
     setShowYear(true);
   };
 
   const closeYearView = () => {
     stopPagingAnim();
-    x.set(0);
     setShowYear(false);
   };
 
@@ -615,35 +657,37 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     <>
       <div className="relative flex flex-col h-full min-h-0">
         <div className={`flex flex-col h-full min-h-0 ${showYear ? 'invisible pointer-events-none' : ''}`}>
-        {/* Month title + year strip — peeks with the day grid */}
+        {/* Month title + year strip — absolute months, shared x (never recentered) */}
         <div
           className="relative shrink-0 overflow-hidden pt-[max(0.35rem,env(safe-area-inset-top))]"
           style={{ backgroundColor: chromeTheme.paper }}
         >
           <div className="relative h-[7.75rem] overflow-hidden">
             <motion.div
-              className="absolute top-0 bottom-0 flex will-change-transform"
-              style={{
-                x,
-                width: pageWidth ? pageWidth * (WINDOW * 2 + 1) : '500%',
-                left: pageWidth ? -pageWidth * WINDOW : '-200%',
-              }}
+              className="absolute inset-0 will-change-transform"
+              style={{ x }}
             >
-              {stripDates.map((date, i) => {
-                const theme = i === WINDOW ? monthTheme : getMonthTheme(date);
+              {stripIndices.map((monthIndex, i) => {
+                const date = stripDates[i];
+                const theme = monthIndex === settledIndex ? monthTheme : getMonthTheme(date);
                 const monthHeader = formatMonthHeaderLabel(date, dateLocale);
                 return (
-                  <MonthHeaderPanel
-                    key={`${date.getFullYear()}-${date.getMonth()}`}
-                    width={pageWidth}
-                    monthLabel={monthHeader.label}
-                    monthDot={monthHeader.showDot}
-                    monthDotGapEm={monthHeader.dotGapEm}
-                    yearLabel={format(date, 'yyyy')}
-                    textColor={theme.base}
-                    paperColor={theme.paper}
-                    onTitleClick={i === WINDOW ? openYearView : undefined}
-                  />
+                  <div
+                    key={monthIndex}
+                    className="absolute top-0 bottom-0"
+                    style={{ left: pageWidth ? monthIndex * pageWidth : 0, width: pageWidth || '100%' }}
+                  >
+                    <MonthHeaderPanel
+                      width={pageWidth}
+                      monthLabel={monthHeader.label}
+                      monthDot={monthHeader.showDot}
+                      monthDotGapEm={monthHeader.dotGapEm}
+                      yearLabel={format(date, 'yyyy')}
+                      textColor={theme.base}
+                      paperColor={theme.paper}
+                      onTitleClick={monthIndex === settledIndex ? openYearView : undefined}
+                    />
+                  </div>
                 );
               })}
             </motion.div>
@@ -651,28 +695,22 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         </div>
 
         <div className="relative h-8 shrink-0 overflow-hidden" style={{ backgroundColor: chromeTheme.paper }}>
-          <motion.div
-            className="absolute top-0 bottom-0 flex will-change-transform"
-            style={{
-              x,
-              width: pageWidth ? pageWidth * (WINDOW * 2 + 1) : '500%',
-              left: pageWidth ? -pageWidth * WINDOW : '-200%',
-            }}
-          >
-            {stripDates.map((date) => {
+          <motion.div className="absolute inset-0 will-change-transform" style={{ x }}>
+            {stripIndices.map((monthIndex, i) => {
+              const date = stripDates[i];
               const theme = getMonthTheme(date);
               const sunday = sundayAccentForMonth(date.getMonth());
               return (
                 <div
-                  key={`${date.getFullYear()}-${date.getMonth()}-wd`}
-                  className="grid h-full shrink-0 grid-cols-7 items-center"
-                  style={{ width: pageWidth || '20%' }}
+                  key={monthIndex}
+                  className="absolute top-0 bottom-0 grid grid-cols-7 items-center"
+                  style={{ left: pageWidth ? monthIndex * pageWidth : 0, width: pageWidth || '100%' }}
                 >
-                  {weekdayLabels.map((d, i) => (
+                  {weekdayLabels.map((d, di) => (
                     <div
-                      key={`${d}-${i}`}
+                      key={`${d}-${di}`}
                       className="text-center font-calendar text-sm font-semibold uppercase tracking-wide"
-                      style={{ color: i === 6 ? sunday : theme.base }}
+                      style={{ color: di === 6 ? sunday : theme.base }}
                     >
                       {d}
                     </div>
@@ -683,18 +721,19 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           </motion.div>
         </div>
 
-        {/* Continuous infinite-feel month strip — touch-action:none so Android gets H+V gestures */}
+        {/* Absolute month grids — touch-action:none so Android gets H+V gestures */}
         <div
           ref={trackRef}
           className="relative flex-1 min-h-0 overflow-hidden select-none calendar-gesture-surface"
-          style={{ backgroundColor: chromeTheme.paper }}
+          style={{
+            backgroundColor: chromeTheme.paper,
+            pointerEvents: paging ? 'none' : undefined,
+          }}
         >
           <motion.div
-            className="absolute top-0 bottom-0 flex will-change-transform"
+            className="absolute inset-0 will-change-transform"
             style={{
               x,
-              width: pageWidth ? pageWidth * (WINDOW * 2 + 1) : '500%',
-              left: pageWidth ? -pageWidth * WINDOW : '-200%',
               touchAction: 'none',
               WebkitUserSelect: 'none',
               userSelect: 'none',
@@ -703,33 +742,39 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
             onPan={showYear ? undefined : handlePan}
             onPanEnd={showYear ? undefined : handlePanEnd}
           >
-            {stripDates.map((date, i) => {
+            {stripIndices.map((monthIndex, i) => {
+              const date = stripDates[i];
               const byDate = eventsByOffset[i];
               const neighbour = {
                 ...(eventsByOffset[i - 1] || {}),
                 ...(eventsByOffset[i + 1] || {}),
               };
               return (
-                <MonthPanel
-                  key={`${date.getFullYear()}-${date.getMonth()}`}
-                  width={pageWidth}
-                  monthDate={date}
-                  days={daysByOffset[i]}
-                  eventsByDate={byDate}
-                  neighbourEventsByDate={neighbour}
-                  monthTheme={i === WINDOW ? monthTheme : getMonthTheme(date)}
-                  members={members}
-                  highlight={highlight}
-                  interactive={i === WINDOW && !paging}
-                  onTap={handleDayTap}
-                  onLongPress={onCreateEvent}
-                  onPressLock={lockStripForPress}
-                  onPressUnlock={unlockStripForPress}
-                  getMemberForEvent={getMemberForEvent}
-                  marksVisible={marksVisible && !eventsHidden}
-                  selectedDateStr={selectedDateStr}
-                  showSelection={!isMobile}
-                />
+                <div
+                  key={monthIndex}
+                  className="absolute top-0 bottom-0"
+                  style={{ left: pageWidth ? monthIndex * pageWidth : 0, width: pageWidth || '100%' }}
+                >
+                  <MonthPanel
+                    width={pageWidth}
+                    monthDate={date}
+                    days={daysByOffset[i]}
+                    eventsByDate={byDate}
+                    neighbourEventsByDate={neighbour}
+                    monthTheme={monthIndex === settledIndex ? monthTheme : getMonthTheme(date)}
+                    members={members}
+                    highlight={highlight}
+                    interactive={monthIndex === settledIndex && !paging}
+                    onTap={handleDayTap}
+                    onLongPress={onCreateEvent}
+                    onPressLock={lockStripForPress}
+                    onPressUnlock={unlockStripForPress}
+                    getMemberForEvent={getMemberForEvent}
+                    marksVisible={marksVisible && !eventsHidden}
+                    selectedDateStr={selectedDateStr}
+                    showSelection={!isMobile}
+                  />
+                </div>
               );
             })}
           </motion.div>
@@ -848,93 +893,27 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
 /* ---------- Peeking month header panel ---------- */
 
-/** Probe size for offscreen month measuring only — never applied to live DOM. */
-const HEADER_FIT_PROBE_PX = 100;
 /** Fixed trailing column for divider + vertical year (house uses pr-14 outside). */
 const HEADER_YEAR_COL_PX = 36;
-/**
- * Vertical year stack vs month letter height (em). Leftover air is equal via items-center.
- * Year is always `ratio / digitCount` em of the month — locked, no separate yearPx state.
- */
+/** Vertical year stack vs month letter height (em) — equal air via flex center. */
 const HEADER_YEAR_STACK_RATIO = 0.96;
-
+/** Header band height (matches h-[7.75rem]). */
+const HEADER_BAND_PX = 7.75 * 16;
 /**
- * Locked month font sizes after fonts+measure. Exact key only (no prefix) so we never
- * flash a wrong size then "correct" it — that was the year jumping on the divider.
+ * Approx advance width of Montserrat Black + tracking-tighter as fraction of em.
+ * Pure math — no runtime measure, so year never jumps when fonts settle.
  */
-const headerMonthFitCache = new Map<string, number>();
-const HEADER_FIT_CACHE_VER = 'y6';
+const MONTH_CHAR_EM = 0.58;
+/** Horizontal chrome inside the panel (px-3 + pr-14 + year col + gap). */
+const HEADER_H_CHROME_PX = 12 + 56 + HEADER_YEAR_COL_PX + 10;
 
-function headerMonthFitCacheKey(
-  monthLabel: string,
-  monthDot: boolean,
-  monthDotGapEm: number,
-  pageWidth: number,
-) {
-  return `${HEADER_FIT_CACHE_VER}|${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|${Math.round(pageWidth)}`;
-}
-
-async function ensureCalendarHeaderFont() {
-  if (typeof document === 'undefined' || !document.fonts) return;
-  try {
-    await document.fonts.load(`900 ${HEADER_FIT_PROBE_PX}px Montserrat`);
-    await document.fonts.ready;
-  } catch {
-    /* keep going with fallback metrics */
-  }
-}
-
-let headerMeasureHost: HTMLDivElement | null = null;
-
-function getHeaderMeasureHost() {
-  if (typeof document === 'undefined') return null;
-  if (headerMeasureHost?.isConnected) return headerMeasureHost;
-  const host = document.createElement('div');
-  host.setAttribute('aria-hidden', 'true');
-  host.style.cssText = 'position:fixed;left:-10000px;top:0;pointer-events:none;';
-  document.body.appendChild(host);
-  headerMeasureHost = host;
-  return host;
-}
-
-/** Measure month font-size on a detached clone — year follows via em, never measured. */
-function measureMonthHeaderPx(opts: {
-  monthLabel: string;
-  monthDot: boolean;
-  monthDotGapEm: number;
-  monthAvailW: number;
-  monthAvailH: number;
-}): number | null {
-  const { monthLabel, monthDot, monthDotGapEm, monthAvailW, monthAvailH } = opts;
-  if (monthAvailW <= 0 || monthAvailH <= 0) return null;
-
-  const host = getHeaderMeasureHost();
-  if (!host) return null;
-
-  host.replaceChildren();
-
-  const monthEl = document.createElement('h2');
-  monthEl.className =
-    'm-0 whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter';
-  monthEl.style.cssText = `font-size:${HEADER_FIT_PROBE_PX}px;margin:0;white-space:nowrap;display:inline-block;`;
-  monthEl.textContent = monthLabel;
-  if (monthDot) {
-    const dot = document.createElement('span');
-    dot.className = 'font-[inherit] font-bold leading-none';
-    dot.style.cssText = `font-size:0.62em;margin-left:${monthDotGapEm}em;vertical-align:baseline;`;
-    dot.textContent = '.';
-    monthEl.appendChild(dot);
-  }
-  host.appendChild(monthEl);
-
-  const monthNeedW = monthEl.scrollWidth;
-  host.replaceChildren();
-  if (monthNeedW <= 0) return null;
-
-  let nextMonth = HEADER_FIT_PROBE_PX * (monthAvailW / monthNeedW) * 0.96;
-  nextMonth = Math.min(nextMonth, monthAvailH * 0.92);
-  nextMonth = Math.max(20, nextMonth);
-  return Math.round(nextMonth * 100) / 100;
+function monthHeaderFontPx(label: string, showDot: boolean, pageWidth: number) {
+  const availW = Math.max((pageWidth || 320) - HEADER_H_CHROME_PX, 80);
+  const availH = HEADER_BAND_PX - 16;
+  const units = label.length + (showDot ? 0.4 : 0);
+  let px = (availW * 0.96) / (units * MONTH_CHAR_EM);
+  px = Math.min(px, availH * 0.92);
+  return Math.max(22, Math.min(px, 88));
 }
 
 const MonthHeaderPanel = ({
@@ -958,70 +937,15 @@ const MonthHeaderPanel = ({
   paperColor: string;
   onTitleClick?: () => void;
 }) => {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const slotRef = useRef<HTMLDivElement>(null);
-  const lockKey = headerMonthFitCacheKey(monthLabel, monthDot, monthDotGapEm, width || 0);
-  const cachedPx = headerMonthFitCache.get(lockKey);
-  const [monthPx, setMonthPx] = useState(() => cachedPx ?? 48);
-  /** Only true after fonts + measure (or exact cache hit) — never show the pre-font pose. */
-  const [ready, setReady] = useState(() => cachedPx != null);
-
-  useLayoutEffect(() => {
-    const panel = panelRef.current;
-    const slot = slotRef.current;
-    if (!panel || !slot) return;
-    let cancelled = false;
-
-    const lock = (px: number) => {
-      if (cancelled) return;
-      headerMonthFitCache.set(lockKey, px);
-      setMonthPx(px);
-      setReady(true);
-    };
-
-    const measureNow = () => {
-      const monthAvailW = slot.clientWidth;
-      const monthAvailH = Math.max(panel.clientHeight - 10, 1);
-      if (monthAvailW <= 0) return null;
-      return measureMonthHeaderPx({
-        monthLabel,
-        monthDot,
-        monthDotGapEm,
-        monthAvailW,
-        monthAvailH,
-      });
-    };
-
-    const hit = headerMonthFitCache.get(lockKey);
-    if (hit != null) {
-      setMonthPx(hit);
-      setReady(true);
-      return;
-    }
-
-    // Hide until Montserrat metrics are final, then measure once and lock.
-    void (async () => {
-      await ensureCalendarHeaderFont();
-      if (cancelled) return;
-      const measured = measureNow();
-      if (measured == null) return;
-      lock(measured);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [lockKey, monthLabel, monthDot, monthDotGapEm]);
-
+  const monthPx = monthHeaderFontPx(monthLabel, monthDot, width);
   const yearEm = HEADER_YEAR_STACK_RATIO / Math.max(yearLabel.length, 1);
 
   const title = (
-    // One fontSize root: month = 1em, year column = 1em tall, year glyphs locked in em.
     <div
       className="flex h-full w-full min-w-0 items-end gap-2.5"
       style={{ fontSize: monthPx }}
     >
-      <div ref={slotRef} className="flex min-h-0 min-w-0 flex-1 items-end overflow-visible">
+      <div className="flex min-h-0 min-w-0 flex-1 items-end overflow-visible">
         <h2
           className="m-0 whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
           style={{ color: textColor, fontSize: '1em' }}
@@ -1043,8 +967,12 @@ const MonthHeaderPanel = ({
         </h2>
       </div>
       <div
-        className="flex h-[1em] shrink-0 items-center gap-2"
-        style={{ width: HEADER_YEAR_COL_PX }}
+        className="flex shrink-0 items-center justify-center gap-2"
+        style={{
+          width: HEADER_YEAR_COL_PX,
+          height: '1em',
+          lineHeight: 1,
+        }}
       >
         <span
           className="w-px shrink-0 self-stretch"
@@ -1052,10 +980,13 @@ const MonthHeaderPanel = ({
           aria-hidden
         />
         <span
-          className="font-calendar font-black tabular-nums leading-none tracking-tight"
+          className="flex items-center justify-center font-calendar font-black tabular-nums tracking-tight"
           style={{
             color: textColor,
             fontSize: `${yearEm}em`,
+            lineHeight: 1,
+            height: '1em',
+            width: '1em',
             writingMode: 'vertical-rl',
             textOrientation: 'mixed',
           }}
@@ -1068,13 +999,8 @@ const MonthHeaderPanel = ({
 
   return (
     <div
-      ref={panelRef}
-      className="relative flex h-full shrink-0 items-stretch px-3 pb-2 pr-14"
-      style={{
-        width: width || '33.333%',
-        backgroundColor: paperColor,
-        opacity: ready ? 1 : 0,
-      }}
+      className="relative flex h-full w-full items-stretch px-3 pb-2 pr-14"
+      style={{ backgroundColor: paperColor }}
     >
       {onTitleClick ? (
         <button type="button" onClick={onTitleClick} className="h-full w-full min-w-0 text-left active:opacity-80">
