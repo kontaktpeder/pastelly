@@ -317,7 +317,7 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
   };
 
   return (
-    <CenteredPopup onClose={handleDismiss} onExit={onClose} size="sheet" zClassName="z-[70]">
+    <CenteredPopup variant="wizard" onClose={handleDismiss} onExit={onClose} zClassName="z-[70]">
       <div className="flex items-center justify-center px-5 pt-1 pb-3 shrink-0">
         <div className="flex gap-1.5">
           {Array.from({ length: STEPS }).map((_, i) => (

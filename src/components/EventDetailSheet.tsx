@@ -146,13 +146,10 @@ const EventDetailSheet = ({
 
   return (
     <CenteredPopup
+      variant="browse"
       onClose={onClose}
       onExit={onClose}
-      size="sheet"
-      detents={['half', 'full']}
-      initialDetent="half"
       zClassName="z-[60]"
-      backdrop="none"
       chrome={{ paper: theme.paper, accent: theme.base }}
     >
       <div

@@ -60,7 +60,7 @@ const VacationModeToggle = ({ compact = false }: VacationModeToggleProps) => {
       </button>
 
       {sheet && (
-        <CenteredPopup onClose={() => setSheet(false)} onExit={() => setSheet(false)} size="sheet" zClassName="z-[80]">
+        <CenteredPopup variant="wizard" onClose={() => setSheet(false)} onExit={() => setSheet(false)} zClassName="z-[80]">
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain scroll-touch px-5 pb-4" data-sheet-scroll>
             <h2 className="text-xl font-bold text-center">{t('vacation.turnOn')}</h2>
             <p className="text-sm text-muted-foreground text-center mt-1 mb-4">{t('vacation.layerHint')}</p>

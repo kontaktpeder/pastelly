@@ -65,9 +65,9 @@ const VacationModeBanner = ({
 
       {sheet && (
         <CenteredPopup
+          variant="compact"
           onClose={() => setSheet(false)}
           onExit={() => setSheet(false)}
-          size="hug"
           zClassName="z-[80]"
         >
           <div className="px-1 py-1">

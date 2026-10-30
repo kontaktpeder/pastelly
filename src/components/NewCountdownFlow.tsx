@@ -400,7 +400,7 @@ const NewCountdownFlow = ({
   );
 
   return (
-    <CenteredPopup onClose={onClose} onExit={onClose} size="sheet" zClassName="z-[70]">
+    <CenteredPopup variant="wizard" onClose={onClose} onExit={onClose} zClassName="z-[70]">
       {needsScroll ? (
         <div
           className="flex-1 min-h-0 overflow-y-auto overscroll-contain scroll-touch px-5 pb-4"

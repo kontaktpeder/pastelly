@@ -37,11 +37,9 @@ const CountdownCelebrateDialog = ({
 
   return (
     <CenteredPopup
+      variant="browse"
       onClose={onClose}
       onExit={onClose}
-      size="sheet"
-      detents={['half', 'full']}
-      initialDetent="half"
       zClassName="z-[80]"
     >
       <div

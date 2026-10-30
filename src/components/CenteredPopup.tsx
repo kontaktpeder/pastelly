@@ -27,14 +27,17 @@ import {
   SAME_DETENT_VEL_CAP,
   SETTLE_SPRING,
   SHEET_HALF_VISIBLE,
+  SHEET_VARIANTS,
   VEL_EMA,
   runSheetEaseOut,
   runSheetSpring,
   sheetYToReveal,
+  type SheetDetent,
   type SheetSpringOpts,
+  type SheetVariant,
 } from '@/lib/sheetMotion';
 
-export type SheetDetent = 'half' | 'full';
+export type { SheetDetent, SheetVariant };
 
 /** Air between the last row and whatever covers the bottom of the sheet. */
 const SCROLL_END_GAP = 16;
@@ -43,25 +46,12 @@ interface CenteredPopupProps {
   onClose: () => void;
   children: ReactNode;
   /**
-   * hug — height follows content (small overlays)
-   * sheet — viewport-tall card; use with detents for half/full
+   * Required role — maps to detents / open height / size in SHEET_VARIANTS.
+   * Call sites must not pick raw detents.
    */
-  size?: 'hug' | 'sheet';
-  /**
-   * Snap points. Default `['full']` (wizards).
-   * `['half','full']` = Ruter-style browse sheet (calendar peeks behind).
-   */
-  detents?: SheetDetent[];
-  /** Where the sheet opens. Defaults to the largest detent. */
-  initialDetent?: SheetDetent;
-  /**
-   * Open tall enough to show the scroll content. Grows from the initial
-   * detent up to full; anything past full scrolls inside the sheet.
-   */
-  fitContent?: boolean;
+  variant: SheetVariant;
   className?: string;
   zClassName?: string;
-  backdrop?: 'solid' | 'none';
   /**
    * Calendar day sheet surface. Other sheets keep the default chrome.
    * `paper` is the card fill; `accent` colors the grabber.
@@ -71,11 +61,6 @@ interface CenteredPopupProps {
     accent?: string;
   };
   onExit?: () => void;
-  /**
-   * Participate in nested sheet stack (default: sheets yes, hug no).
-   * Under-sheets recess and un-recess when a higher sheet dismisses.
-   */
-  nest?: boolean;
 }
 
 /** Visible fraction of the frame at each detent (full = flush to top inset). */
@@ -165,21 +150,24 @@ type GestureState = {
 const CenteredPopup = ({
   onClose,
   children,
-  size = 'sheet',
-  detents: detentsProp,
-  initialDetent,
-  fitContent = false,
+  variant,
   className,
   zClassName = 'z-50',
-  backdrop = 'solid',
   onExit,
-  nest: nestProp,
   chrome,
 }: CenteredPopupProps) => {
+  const variantConfig = SHEET_VARIANTS[variant];
+  const size = variantConfig.size;
+  const fitContent = variantConfig.fitContent;
+  const nestEnabled = variantConfig.nest;
+  // Browse covering another sheet: no dim so the under-sheet stays readable.
+  const coveringSheet = nestEnabled && getNestDepth() > 0;
+  const backdrop =
+    coveringSheet && variant === 'browse' ? 'none' : variantConfig.backdrop;
+
   const keyboardInset = useKeyboardInset();
   const keyboardOpen = keyboardInset > 24;
   const exit = onExit ?? onClose;
-  const nestEnabled = nestProp ?? size === 'sheet';
   const cardRef = useRef<HTMLDivElement>(null);
   const sheetLayerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -209,11 +197,11 @@ const CenteredPopup = ({
 
   const nestDepth = useSyncExternalStore(subscribeNest, getNestDepth, () => 0);
 
-  const detents = normalizeDetents(detentsProp ?? ['full']);
+  const detents = normalizeDetents([...variantConfig.detents]);
   const multiDetent = detents.length > 1 && size === 'sheet';
   const startDetent: SheetDetent =
-    initialDetent && detents.includes(initialDetent)
-      ? initialDetent
+    detents.includes(variantConfig.initialDetent)
+      ? variantConfig.initialDetent
       : detents.includes('half') && multiDetent
         ? 'half'
         : 'full';

@@ -40,12 +40,9 @@ const CalendarDaySheet = ({
 
   return (
     <CenteredPopup
+      variant="browse"
       onClose={onClose}
       onExit={onClose}
-      size="sheet"
-      detents={['half', 'full']}
-      initialDetent="half"
-      fitContent
       zClassName="z-50"
       chrome={{ paper: theme.paper, accent: theme.base }}
     >

@@ -379,9 +379,9 @@ const ProfileSheet = ({
   return (
     <>
     <CenteredPopup
+      variant="browse"
       onClose={onClose}
       onExit={onClose}
-      size="sheet"
       zClassName="z-[60]"
       chrome={{ paper: theme.paper, accent: theme.base }}
     >
