@@ -346,6 +346,15 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   ]);
 
   const monthTheme = useMemo(() => getMonthTheme(currentDate), [currentDate]);
+  /**
+   * Chrome outside the peeking strip (paper wash, "Vis aktiviteter") follows the
+   * committed month at fling start — not only after settle — so color doesn't snap late.
+   */
+  const [chromeDate, setChromeDate] = useState(currentDate);
+  useEffect(() => {
+    setChromeDate(currentDate);
+  }, [currentDate]);
+  const chromeTheme = useMemo(() => getMonthTheme(chromeDate), [chromeDate]);
 
   const mergedByOffset = useMemo(() => {
     const locals = [eventsM2, eventsM1, events, eventsP1, eventsP2];
@@ -455,6 +464,9 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         return;
       }
 
+      // Lock outer chrome to the destination month as soon as the fling commits.
+      setChromeDate(addMonths(currentDate, clamped));
+
       // Animate to exact one page, then recenter instantly (new center == old neighbor)
       animationControlsRef.current = animate(x, -clamped * pageWidth, {
         ...snap,
@@ -467,7 +479,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         },
       });
     },
-    [pageWidth, setCurrentDate, x],
+    [currentDate, pageWidth, setCurrentDate, x],
   );
 
   const handlePanStart = () => {
@@ -601,7 +613,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         {/* Month title + year strip — peeks with the day grid */}
         <div
           className="relative shrink-0 overflow-hidden pt-[max(0.35rem,env(safe-area-inset-top))]"
-          style={{ backgroundColor: monthTheme.paper }}
+          style={{ backgroundColor: chromeTheme.paper }}
         >
           <div className="relative h-[7.75rem] overflow-hidden">
             <motion.div
@@ -633,7 +645,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           </div>
         </div>
 
-        <div className="relative h-8 shrink-0 overflow-hidden" style={{ backgroundColor: monthTheme.paper }}>
+        <div className="relative h-8 shrink-0 overflow-hidden" style={{ backgroundColor: chromeTheme.paper }}>
           <motion.div
             className="absolute top-0 bottom-0 flex will-change-transform"
             style={{
@@ -670,7 +682,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         <div
           ref={trackRef}
           className="relative flex-1 min-h-0 overflow-hidden select-none calendar-gesture-surface"
-          style={{ backgroundColor: monthTheme.paper }}
+          style={{ backgroundColor: chromeTheme.paper }}
         >
           <motion.div
             className="absolute top-0 bottom-0 flex will-change-transform"
@@ -720,15 +732,15 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
         <div
           className="shrink-0 flex justify-center px-4 pt-2.5 pb-[max(0.85rem,env(safe-area-inset-bottom))]"
-          style={{ backgroundColor: monthTheme.paper }}
+          style={{ backgroundColor: chromeTheme.paper }}
         >
           <button
             type="button"
             onClick={() => setEventsHidden((v) => !v)}
             className="min-h-9 px-4 rounded-full text-sm font-semibold active:opacity-80"
             style={{
-              color: monthTheme.base,
-              backgroundColor: withAlpha(monthTheme.base, 0.16),
+              color: chromeTheme.base,
+              backgroundColor: withAlpha(chromeTheme.base, 0.16),
             }}
           >
             {eventsHidden ? t('common.showEvents') : t('common.hideEvents')}
@@ -831,31 +843,30 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
 /* ---------- Peeking month header panel ---------- */
 
-/** Probe size for offscreen month/year measuring only — never applied to live DOM. */
+/** Probe size for offscreen month measuring only — never applied to live DOM. */
 const HEADER_FIT_PROBE_PX = 100;
 /** Fixed trailing column for divider + vertical year (house uses pr-14 outside). */
 const HEADER_YEAR_COL_PX = 36;
-/** Ignore sub-pixel jitter so ResizeObserver / fonts.ready don't thrash state. */
-const HEADER_FIT_EPSILON_PX = 0.35;
-
-type HeaderFitSizes = { monthPx: number; yearPx: number };
-
-/** Survive strip remounts (swipe recenter / year jump) so first paint is already sized. */
-const headerFitCache = new Map<string, HeaderFitSizes>();
-/** Bump when fit math changes so stale entries are ignored. */
-const HEADER_FIT_CACHE_VER = 'y4';
-/** Vertical year stack vs month letter height — leftover is equal air via items-center. */
+/** Ignore sub-pixel jitter so ResizeObserver don't thrash month font size. */
+const HEADER_FIT_EPSILON_PX = 0.5;
+/**
+ * Vertical year stack vs month letter height (em). Leftover air is equal via items-center.
+ * Year is always `ratio / digitCount` em of the month — locked, no separate yearPx state.
+ */
 const HEADER_YEAR_STACK_RATIO = 0.96;
 
-function headerFitCacheKey(
+/** Survive strip remounts so first paint is already sized. */
+const headerMonthFitCache = new Map<string, number>();
+const HEADER_FIT_CACHE_VER = 'y5';
+
+function headerMonthFitCacheKey(
   monthLabel: string,
   monthDot: boolean,
   monthDotGapEm: number,
-  yearLabel: string,
   availW: number,
   availH: number,
 ) {
-  return `${HEADER_FIT_CACHE_VER}|${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|${yearLabel}|${Math.round(availW)}|${Math.round(availH)}`;
+  return `${HEADER_FIT_CACHE_VER}|${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|${Math.round(availW)}|${Math.round(availH)}`;
 }
 
 let headerMeasureHost: HTMLDivElement | null = null;
@@ -865,23 +876,21 @@ function getHeaderMeasureHost() {
   if (headerMeasureHost?.isConnected) return headerMeasureHost;
   const host = document.createElement('div');
   host.setAttribute('aria-hidden', 'true');
-  // Avoid contain/visibility tricks — they skew writing-mode metrics offscreen.
   host.style.cssText = 'position:fixed;left:-10000px;top:0;pointer-events:none;';
   document.body.appendChild(host);
   headerMeasureHost = host;
   return host;
 }
 
-/** Measure fit sizes on a detached clone — never mutates the visible header. */
-function measureHeaderFit(opts: {
+/** Measure month font-size on a detached clone — year follows via em, never measured. */
+function measureMonthHeaderPx(opts: {
   monthLabel: string;
   monthDot: boolean;
   monthDotGapEm: number;
-  yearLabel: string;
   monthAvailW: number;
   monthAvailH: number;
-}): HeaderFitSizes | null {
-  const { monthLabel, monthDot, monthDotGapEm, yearLabel, monthAvailW, monthAvailH } = opts;
+}): number | null {
+  const { monthLabel, monthDot, monthDotGapEm, monthAvailW, monthAvailH } = opts;
   if (monthAvailW <= 0 || monthAvailH <= 0) return null;
 
   const host = getHeaderMeasureHost();
@@ -904,25 +913,13 @@ function measureHeaderFit(opts: {
   host.appendChild(monthEl);
 
   const monthNeedW = monthEl.scrollWidth;
-  if (monthNeedW <= 0) {
-    host.replaceChildren();
-    return null;
-  }
+  host.replaceChildren();
+  if (monthNeedW <= 0) return null;
 
   let nextMonth = HEADER_FIT_PROBE_PX * (monthAvailW / monthNeedW) * 0.96;
   nextMonth = Math.min(nextMonth, monthAvailH * 0.92);
   nextMonth = Math.max(20, nextMonth);
-
-  // Year size is analytic (month / digits) — offscreen vertical-rl measure was unstable
-  // and caused swipe jumps + off-center seating on the divider.
-  const digitCount = Math.max(yearLabel.length, 1);
-  const nextYear = (nextMonth * HEADER_YEAR_STACK_RATIO) / digitCount;
-
-  host.replaceChildren();
-  return {
-    monthPx: Math.round(nextMonth * 100) / 100,
-    yearPx: Math.round(nextYear * 100) / 100,
-  };
+  return Math.round(nextMonth * 100) / 100;
 }
 
 const MonthHeaderPanel = ({
@@ -948,20 +945,19 @@ const MonthHeaderPanel = ({
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
-  const sizesRef = useRef<HeaderFitSizes>({ monthPx: 48, yearPx: 16 });
-  const labelCachePrefix = `${HEADER_FIT_CACHE_VER}|${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|${yearLabel}|`;
-  const [sizes, setSizes] = useState<HeaderFitSizes>(() => {
-    // Best-effort first paint from any prior measure for this label (width may refine later).
-    for (const [key, value] of headerFitCache) {
+  const monthPxRef = useRef(48);
+  const labelCachePrefix = `${HEADER_FIT_CACHE_VER}|${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|`;
+  const [monthPx, setMonthPx] = useState(() => {
+    for (const [key, value] of headerMonthFitCache) {
       if (key.startsWith(labelCachePrefix)) {
-        sizesRef.current = value;
+        monthPxRef.current = value;
         return value;
       }
     }
-    return { monthPx: 48, yearPx: 16 };
+    return 48;
   });
   const [fitted, setFitted] = useState(() => {
-    for (const key of headerFitCache.keys()) {
+    for (const key of headerMonthFitCache.keys()) {
       if (key.startsWith(labelCachePrefix)) return true;
     }
     return false;
@@ -972,19 +968,16 @@ const MonthHeaderPanel = ({
     const slot = slotRef.current;
     if (!panel || !slot) return;
     let cancelled = false;
+    let fontsFitted = false;
 
-    const apply = (next: HeaderFitSizes) => {
+    const apply = (next: number) => {
       if (cancelled) return;
-      const prev = sizesRef.current;
-      if (
-        Math.abs(prev.monthPx - next.monthPx) < HEADER_FIT_EPSILON_PX &&
-        Math.abs(prev.yearPx - next.yearPx) < HEADER_FIT_EPSILON_PX
-      ) {
+      if (Math.abs(monthPxRef.current - next) < HEADER_FIT_EPSILON_PX) {
         setFitted(true);
         return;
       }
-      sizesRef.current = next;
-      setSizes(next);
+      monthPxRef.current = next;
+      setMonthPx(next);
       setFitted(true);
     };
 
@@ -993,41 +986,38 @@ const MonthHeaderPanel = ({
       const monthAvailH = Math.max(panel.clientHeight - 10, 1);
       if (monthAvailW <= 0) return;
 
-      const key = headerFitCacheKey(
+      const key = headerMonthFitCacheKey(
         monthLabel,
         monthDot,
         monthDotGapEm,
-        yearLabel,
         monthAvailW,
         monthAvailH,
       );
-      const cached = headerFitCache.get(key);
-      if (cached) {
+      const cached = headerMonthFitCache.get(key);
+      if (cached != null) {
         apply(cached);
         return;
       }
 
-      const measured = measureHeaderFit({
+      const measured = measureMonthHeaderPx({
         monthLabel,
         monthDot,
         monthDotGapEm,
-        yearLabel,
         monthAvailW,
         monthAvailH,
       });
-      if (!measured) return;
-      headerFitCache.set(key, measured);
+      if (measured == null) return;
+      headerMonthFitCache.set(key, measured);
       apply(measured);
     };
 
     fit();
+    // One fonts pass only — do not keep busting cache (that reflowed year on swipe settle).
     void document.fonts?.ready?.then(() => {
-      if (cancelled) return;
-      // Fonts can change metrics — clear this label's cache entries and remeasure offscreen.
-      for (const key of [...headerFitCache.keys()]) {
-        if (key.startsWith(labelCachePrefix)) {
-          headerFitCache.delete(key);
-        }
+      if (cancelled || fontsFitted) return;
+      fontsFitted = true;
+      for (const key of [...headerMonthFitCache.keys()]) {
+        if (key.startsWith(labelCachePrefix)) headerMonthFitCache.delete(key);
       }
       fit();
     });
@@ -1038,16 +1028,20 @@ const MonthHeaderPanel = ({
       cancelled = true;
       ro.disconnect();
     };
-  }, [monthLabel, monthDot, monthDotGapEm, yearLabel, width]);
+  }, [monthLabel, monthDot, monthDotGapEm, width, labelCachePrefix]);
 
-  const { monthPx, yearPx } = sizes;
+  const yearEm = HEADER_YEAR_STACK_RATIO / Math.max(yearLabel.length, 1);
 
   const title = (
-    <div className="flex h-full w-full min-w-0 items-end gap-2.5">
+    // One fontSize root: month = 1em, year column = 1em tall, year glyphs locked in em.
+    <div
+      className="flex h-full w-full min-w-0 items-end gap-2.5"
+      style={{ fontSize: monthPx }}
+    >
       <div ref={slotRef} className="flex min-h-0 min-w-0 flex-1 items-end overflow-visible">
         <h2
           className="m-0 whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
-          style={{ color: textColor, fontSize: monthPx }}
+          style={{ color: textColor, fontSize: '1em' }}
         >
           {monthLabel}
           {monthDot ? (
@@ -1065,10 +1059,9 @@ const MonthHeaderPanel = ({
           ) : null}
         </h2>
       </div>
-      {/* Column matches month letter height; year is centered on the divider. */}
       <div
-        className="flex shrink-0 items-center gap-2"
-        style={{ width: HEADER_YEAR_COL_PX, height: monthPx }}
+        className="flex h-[1em] shrink-0 items-center gap-2"
+        style={{ width: HEADER_YEAR_COL_PX }}
       >
         <span
           className="w-px shrink-0 self-stretch"
@@ -1079,7 +1072,7 @@ const MonthHeaderPanel = ({
           className="font-calendar font-black tabular-nums leading-none tracking-tight"
           style={{
             color: textColor,
-            fontSize: yearPx,
+            fontSize: `${yearEm}em`,
             writingMode: 'vertical-rl',
             textOrientation: 'mixed',
           }}
@@ -1097,7 +1090,6 @@ const MonthHeaderPanel = ({
       style={{
         width: width || '33.333%',
         backgroundColor: paperColor,
-        // Hold first cold paint until offscreen fit lands — avoids 48→probe flash.
         opacity: fitted ? 1 : 0,
       }}
     >
