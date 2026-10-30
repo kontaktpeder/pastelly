@@ -47,13 +47,13 @@
     --calendar-accent: 220 65% 80%;
     --list-accent: 270 45% 84%;
 
-    /* Member colors — knæsj pastels for detail cards */
-    --member-blue: 210 62% 70%;
-    --member-peach: 18 88% 74%;
-    --member-lavender: 270 58% 74%;
-    --member-mint: 155 55% 68%;
-    --member-rose: 340 72% 74%;
-    --member-yellow: 44 82% 68%;
+    /* Member colors — same accents as the month palette */
+    --member-blue: 236 98% 47%;
+    --member-peach: 22 100% 59%;
+    --member-lavender: 265 100% 69%;
+    --member-mint: 174 72% 56%;
+    --member-rose: 327 100% 49%;
+    --member-yellow: 47 100% 46%;
 
     /* Day parts */
     --morning: 40 72% 82%;

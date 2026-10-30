@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { getMemberColor } from '@/lib/colors';
+import { memberAccent } from '@/lib/colors';
 import type { HouseholdMember, Household } from '@/hooks/useHousehold';
 import type { CalendarMembership } from '@/hooks/useCurrentHouseholdContext';
 import {
@@ -50,7 +50,7 @@ interface ProfileSheetProps {
 
 const MemberAvatar = ({ member, size = 'md' }: { member: HouseholdMember; size?: 'sm' | 'md' | 'lg' }) => {
   const sizeClasses = { sm: 'w-10 h-10 text-base', md: 'w-16 h-16 text-2xl', lg: 'w-20 h-20 text-3xl' };
-  const color = getMemberColor(member.color_token);
+  const accent = memberAccent(member.color_token);
 
   if (member.avatar_url) {
     return (
@@ -64,7 +64,8 @@ const MemberAvatar = ({ member, size = 'md' }: { member: HouseholdMember; size?:
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-bold ${color.bg}`}
+      className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-bold`}
+      style={{ backgroundColor: accent.fill, color: accent.text }}
     >
       {member.display_name.charAt(0)}
     </div>

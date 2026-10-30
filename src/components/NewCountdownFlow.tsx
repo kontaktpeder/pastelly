@@ -9,7 +9,7 @@ import { persistCountdownVacationLocal } from '@/hooks/useVacationMode';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import { useLocale } from '@/hooks/useLocale';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
-import { getMemberColor } from '@/lib/colors';
+import { memberAccent } from '@/lib/colors';
 import CenteredPopup from '@/components/CenteredPopup';
 import PopupStickyFooter from '@/components/PopupStickyFooter';
 import CountdownCelebrateDialog from '@/components/CountdownCelebrateDialog';
@@ -359,21 +359,22 @@ const NewCountdownFlow = ({
             ) : (
               others.map((m) => {
                 const selected = inviteIds.includes(m.id);
-                const color = getMemberColor(m.color_token);
+                const accent = memberAccent(m.color_token);
                 return (
                   <button
                     key={m.id}
                     type="button"
                     onClick={() => toggleInvite(m.id)}
                     className={`w-full flex items-center gap-3 rounded-2xl p-3 text-left transition-colors ${
-                      selected ? `${color.bg} ring-2 ring-foreground/15` : 'bg-muted/60'
+                      selected ? 'ring-2 ring-foreground/15' : 'bg-muted/60'
                     }`}
+                    style={selected ? { backgroundColor: accent.wash } : undefined}
                   >
                     <span
                       className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm overflow-hidden shrink-0"
                       style={
                         !m.avatar_url
-                          ? { backgroundColor: `hsl(var(--member-${m.color_token.replace('pastel-', '')}))` }
+                          ? { backgroundColor: accent.fill, color: accent.text }
                           : undefined
                       }
                     >

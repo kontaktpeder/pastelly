@@ -4,6 +4,7 @@ import { VACATION_QUICK_CATEGORIES } from '@/lib/vacationMode';
 import type { CalendarKind } from '@/lib/calendarKinds';
 import { translateCategory } from '@/lib/i18n';
 import type { AppLocale } from '@/lib/i18n/types';
+import { MONTH_COLORS, textOnStrongColor, withAlpha } from '@/lib/monthTheme';
 
 export type CategoryColorToken = 'pink' | 'blue' | 'purple' | 'amber' | 'orange' | 'green' | 'teal' | 'red';
 
@@ -43,37 +44,45 @@ export const DEFAULT_CATEGORY_COLOR_MAP: Record<MainCategory, CategoryColorToken
 };
 
 /**
- * Soft pastels — same family as month overview. Ink stays deep so icons read.
+ * Month accents. `ink` sits on cream; `onFill` sits on the solid `rail`.
  */
 export type CategoryVisuals = {
+  /** Light wash for large rows */
   soft: string;
+  /** Solid month color for chips and bars */
   rail: string;
+  /** Icon on cream paper */
   ink: string;
+  /** Picker dot */
   swatch: string;
+  /** Icon drawn on `rail` */
+  onFill: string;
 };
 
 /**
- * Calendar mark colors matched to the live calendar look:
- * soft picker blob + stronger same-hue icon (not near-black).
+ * Icon choices use the month accents, not a separate pastel set.
+ * pink → May, blue → June, purple → February, amber → July,
+ * orange → October, green → March, teal → April, red → December.
  */
-const TOKEN_COLORS: Record<CategoryColorToken, { blob: string; ink: string }> = {
-  pink: { blob: '#F0C8E6', ink: '#D25096' },
-  blue: { blob: '#BED2FA', ink: '#4678E6' },
-  purple: { blob: '#E0C8F0', ink: '#9B5AD0' },
-  amber: { blob: '#E8D090', ink: '#C09018' },
-  orange: { blob: '#F0D2AA', ink: '#E67832' },
-  green: { blob: '#C0E8C0', ink: '#3FA85A' },
-  teal: { blob: '#AAF0DC', ink: '#50B4A0' },
-  red: { blob: '#F0C8C8', ink: '#DC5046' },
+const TOKEN_MONTH: Record<CategoryColorToken, string> = {
+  pink: MONTH_COLORS[4]!,
+  blue: MONTH_COLORS[5]!,
+  purple: MONTH_COLORS[1]!,
+  amber: MONTH_COLORS[6]!,
+  orange: MONTH_COLORS[9]!,
+  green: MONTH_COLORS[2]!,
+  teal: MONTH_COLORS[3]!,
+  red: MONTH_COLORS[11]!,
 };
 
 function tokenVisuals(token: CategoryColorToken): CategoryVisuals {
-  const { blob, ink } = TOKEN_COLORS[token];
+  const color = TOKEN_MONTH[token];
   return {
-    soft: blob,
-    rail: blob,
-    ink,
-    swatch: blob,
+    soft: withAlpha(color, 0.16),
+    rail: color,
+    ink: color,
+    swatch: color,
+    onFill: textOnStrongColor(color),
   };
 }
 
@@ -82,7 +91,7 @@ export function silverMarkRim(): string {
   return 'none';
 }
 
-/** Calendar marks use the picker blob color. */
+/** Calendar marks use the solid month color when a rail is set. */
 export function categoryMarkFill(soft: string, rail: string): string {
   const fill = rail || soft;
   if (fill.startsWith('hsl')) return fill;
@@ -94,7 +103,7 @@ export function categoryMarkOutline(_ink?: string, _strength?: number): string {
   return silverMarkRim();
 }
 
-/** Category tokens → blob from picker, stronger icon ink. */
+/** Category tokens → month accent, with a contrasting glyph on the solid fill. */
 const TOKEN_PALETTE: Record<CategoryColorToken, CategoryVisuals> = {
   pink: tokenVisuals('pink'),
   blue: tokenVisuals('blue'),
@@ -111,6 +120,7 @@ const OTHER_NEUTRAL: CategoryVisuals = {
   rail: 'hsl(var(--muted))',
   ink: 'hsl(var(--muted-foreground))',
   swatch: 'hsl(var(--muted-foreground))',
+  onFill: 'hsl(var(--foreground))',
 };
 
 export const COLOR_TOKEN_OPTIONS: CategoryColorToken[] = [

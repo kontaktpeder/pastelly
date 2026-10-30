@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { useEventComments, useAddComment, useDeleteEvent, type Event } from '@/hooks/useEvents';
 import { useMemberEventLeak, useSetMemberEventLeak } from '@/hooks/useMemberEventLeak';
-import { getMemberColor } from '@/lib/colors';
+import { memberAccent } from '@/lib/colors';
 import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
 import { resolveCategoryVisuals, resolveCategoryLabel, getMemberColorMap } from '@/lib/categoryPresentation';
 import { formatMultiDayLabel } from '@/lib/multiDaySpans';
@@ -237,10 +237,13 @@ const EventDetailSheet = ({
           <div className="space-y-3">
             {comments.map((c) => {
               const sender = getMemberById(c.sender_member_id);
-              const senderColor = sender ? getMemberColor(sender.color_token) : getMemberColor('pastel-blue');
+              const senderAccent = memberAccent(sender?.color_token);
               return (
                 <div key={c.id} className="flex gap-3">
-                  <div className={`w-8 h-8 rounded-full ${senderColor.bg} flex items-center justify-center text-sm font-bold flex-shrink-0`}>
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                    style={{ backgroundColor: senderAccent.fill, color: senderAccent.text }}
+                  >
                     {sender?.display_name?.charAt(0) || '?'}
                   </div>
                   <div className="flex-1 min-w-0">

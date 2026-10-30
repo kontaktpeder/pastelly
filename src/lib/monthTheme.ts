@@ -35,7 +35,7 @@ export const PASTEL = {
  * Pale palette tones (Jan/Mar/Jun/Aug/Sep/Oct/Dec) swapped to deep
  * counterparts so cream paper keeps strong contrast; the rest deepened too.
  */
-const MONTH_COLORS = [
+export const MONTH_COLORS = [
   '#a10b56', // Jan
   '#a260ff', // Feb — was July
   '#09a953', // Mar
@@ -105,7 +105,7 @@ function contrastRatio(a: string, b: string): number {
 }
 
 /** White when it stays readable, otherwise ink darkened until it clears 4.5:1. */
-function labelOnStrong(fill: string): string {
+export function textOnStrongColor(fill: string): string {
   if (contrastRatio(fill, '#FFFFFF') >= 4.5) return '#FFFFFF';
   if (contrastRatio(fill, PASTEL.ink) >= 4.5) return PASTEL.ink;
   for (let t = 0.2; t <= 1; t += 0.1) {
@@ -188,7 +188,7 @@ export function getMonthTheme(date: Date): MonthTheme {
   const paper = PASTEL.calendarPaper;
   const light = mix(base, paper, 0.35);
   const dark = base;
-  const textOnStrong = labelOnStrong(base);
+  const textOnStrong = textOnStrongColor(base);
   const textOnLight = base;
   const gradient = light;
   return { base, light, dark, textOnStrong, textOnLight, gradient, paper };

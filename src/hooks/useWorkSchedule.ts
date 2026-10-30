@@ -2,10 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { DisplayEvent } from '@/hooks/useOverlayEvents';
 
+/** Production block — July gold, same as the amber icon choice. */
 export const WORK_BLOCK_MARK = {
-  soft: '#F3E2B8',
-  rail: '#E4C98A',
-  ink: '#8A5A12',
+  soft: 'rgba(237, 185, 0, 0.2)',
+  rail: '#edb900',
+  ink: '#edb900',
+  onFill: '#3A2A38',
 } as const;
 
 type WorkBlock = {

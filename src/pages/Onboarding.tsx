@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useMutation } from '@tanstack/react-query';
 import { Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { COLOR_TOKEN_OPTIONS } from '@/lib/colors';
+import { COLOR_TOKEN_OPTIONS, memberAccent } from '@/lib/colors';
 import {
   CALENDAR_KINDS,
   defaultShowInOtherCalendars,
@@ -230,16 +230,22 @@ const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className={`w-full h-full rounded-full overflow-hidden transition-all ${
-                  avatarPreview
-                    ? 'ring-2 ring-foreground ring-offset-2'
-                    : colorMap[colorToken] ?? 'bg-member-blue'
+                  avatarPreview ? 'ring-2 ring-foreground ring-offset-2' : ''
                 }`}
+                style={
+                  avatarPreview
+                    ? undefined
+                    : {
+                        backgroundColor: memberAccent(colorToken).fill,
+                        color: memberAccent(colorToken).text,
+                      }
+                }
                 aria-label={t('onboarding.addPhoto')}
               >
                 {avatarPreview ? (
                   <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="flex h-full w-full items-center justify-center text-2xl font-semibold text-foreground/40">
+                  <span className="flex h-full w-full items-center justify-center text-2xl font-semibold">
                     {(displayName.trim()[0] || '?').toUpperCase()}
                   </span>
                 )}

@@ -455,10 +455,10 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
                       setCategory(key);
                       if (key !== 'other') setOtherLabel('');
                     }}
-                    className={`rounded-xl py-2.5 px-3 text-base font-medium transition-all flex items-center justify-between ${
-                      selected ? 'ring-2 ring-current' : 'bg-muted hover:bg-muted/80'
+                    className={`rounded-xl py-2.5 px-3 text-base font-medium text-foreground transition-all flex items-center justify-between ${
+                      selected ? '' : 'bg-muted hover:bg-muted/80'
                     }`}
-                    style={selected ? { backgroundColor: visuals.soft, color: visuals.ink } : undefined}
+                    style={selected ? { backgroundColor: visuals.soft, boxShadow: `inset 0 0 0 2px ${visuals.ink}` } : undefined}
                   >
                     <span>{catLabel(key)}</span>
                     <Icon size={16} strokeWidth={2.5} style={{ color: visuals.ink }} />

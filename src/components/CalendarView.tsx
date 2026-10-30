@@ -1392,7 +1392,7 @@ const DayCell = ({
             background: categoryMarkFill(WORK_BLOCK_MARK.soft, WORK_BLOCK_MARK.rail),
           }}
         >
-          <MarkGlyph Icon={BriefcaseBusiness} color={WORK_BLOCK_MARK.ink} />
+          <MarkGlyph Icon={BriefcaseBusiness} color={WORK_BLOCK_MARK.onFill} />
         </div>
       );
     }
@@ -1409,7 +1409,7 @@ const DayCell = ({
           }}
         >
           {fromWork ? (
-            <MarkGlyph Icon={BriefcaseBusiness} color={OVERLAY_MARK.ink} />
+            <MarkGlyph Icon={BriefcaseBusiness} color={OVERLAY_MARK.onFill} />
           ) : null}
         </div>
       );
@@ -1430,11 +1430,11 @@ const DayCell = ({
         }}
       >
         {Icon ? (
-          <MarkGlyph Icon={Icon} color={visuals.ink} />
+          <MarkGlyph Icon={Icon} color={visuals.onFill} />
         ) : (
           <span
             className="block w-1 h-1 rounded-full shrink-0"
-            style={{ backgroundColor: visuals.ink }}
+            style={{ backgroundColor: visuals.onFill }}
           />
         )}
       </div>
@@ -1507,7 +1507,7 @@ const DayCell = ({
                       evHighlighted ? 'ring-1 ring-primary/40' : ''
                     }`}
                     style={{
-                      backgroundColor: visuals.soft,
+                      backgroundColor: visuals.rail,
                     }}
                   />
                 </div>

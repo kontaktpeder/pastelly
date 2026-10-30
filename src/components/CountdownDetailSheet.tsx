@@ -18,7 +18,7 @@ import {
   DEFAULT_TIME_ZONE,
 } from '@/lib/timeZone';
 import { getIntlLocale } from '@/lib/i18n';
-import { getMemberColor } from '@/lib/colors';
+import { memberAccent } from '@/lib/colors';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import { useLocale } from '@/hooks/useLocale';
 import CenteredPopup from '@/components/CenteredPopup';
@@ -293,10 +293,13 @@ const CountdownDetailSheet = ({
             .map((p) => {
               const m = getMember(p.member_id);
               if (!m) return null;
-              const color = getMemberColor(m.color_token);
+              const accent = memberAccent(m.color_token);
               return (
-                <div key={p.id} className={`flex items-center gap-3 rounded-2xl p-3 ${color.bg}`}>
-                  <span className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center font-bold text-sm shrink-0 bg-white/50">
+                <div key={p.id} className="flex items-center gap-3 rounded-2xl p-3" style={{ backgroundColor: accent.wash }}>
+                  <span
+                    className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center font-bold text-sm shrink-0"
+                    style={m.avatar_url ? undefined : { backgroundColor: accent.fill, color: accent.text }}
+                  >
                     {m.avatar_url ? (
                       <img src={m.avatar_url} alt="" className="w-full h-full object-cover" />
                     ) : (

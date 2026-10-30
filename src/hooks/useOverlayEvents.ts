@@ -28,11 +28,12 @@ export type DisplayEvent = Event & {
   sourceHouseholdKind?: string;
 };
 
-/** Soft blue blob + stronger icon, matched to category mark language. */
+/** Busy block from another calendar — June blue, same as the blue icon choice. */
 export const OVERLAY_MARK = {
-  soft: '#BED2FA',
-  rail: '#BED2FA',
-  ink: '#4678E6',
+  soft: 'rgba(2, 18, 238, 0.16)',
+  rail: '#0212ee',
+  ink: '#0212ee',
+  onFill: '#FFFFFF',
 } as const;
 
 export function overlayToDisplayEvent(row: OverlayEventRow): DisplayEvent {

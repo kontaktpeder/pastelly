@@ -447,8 +447,8 @@ const EditEventFlow = ({ event, householdId, members, currentMemberId, calendarK
                         setCategory(key);
                         if (key !== 'other') setOtherLabel('');
                       }}
-                      className={`rounded-xl py-3 px-4 text-base font-medium transition-all flex items-center justify-between ${selected ? 'ring-2 ring-current' : 'bg-muted hover:bg-muted/80'}`}
-                      style={selected ? { backgroundColor: visuals.soft, color: visuals.ink } : undefined}
+                      className={`rounded-xl py-3 px-4 text-base font-medium text-foreground transition-all flex items-center justify-between ${selected ? '' : 'bg-muted hover:bg-muted/80'}`}
+                      style={selected ? { backgroundColor: visuals.soft, boxShadow: `inset 0 0 0 2px ${visuals.ink}` } : undefined}
                     >
                       <span>{catLabel(key)}</span>
                       <Icon size={18} strokeWidth={2.5} style={{ color: visuals.ink }} />

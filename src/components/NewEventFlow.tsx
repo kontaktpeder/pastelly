@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useCreateEvent, syncEventVisibleMembers } from '@/hooks/useEvents';
 import { getCategoryOptionsForKind, EVENT_CATEGORY_META, type EventCategory } from '@/lib/eventCategories';
 import { resolveCategoryLabel, resolveCategoryVisuals, getMemberColorMap } from '@/lib/categoryPresentation';
+import { memberAccent } from '@/lib/colors';
 import {
   DAY_PART_ORDER,
   DAY_PART_TIME_RANGES,
@@ -559,12 +560,14 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                           applyCategoryTiming(key);
                           if (key !== 'other') setOtherLabel('');
                         }}
-                        className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-all ${
-                          selected ? 'ring-2 ring-current' : ''
-                        }`}
-                        style={{ backgroundColor: visuals.soft, color: visuals.ink }}
+                        className="flex h-12 w-12 items-center justify-center rounded-2xl border-[1.5px] transition-all"
+                        style={
+                          selected
+                            ? { backgroundColor: visuals.rail, borderColor: visuals.rail, color: visuals.onFill }
+                            : { backgroundColor: 'transparent', borderColor: visuals.ink, color: visuals.ink }
+                        }
                       >
-                        <Icon size={20} strokeWidth={2.4} style={{ color: visuals.ink }} />
+                        <Icon size={20} strokeWidth={2.4} style={{ color: selected ? visuals.onFill : visuals.ink }} />
                       </button>
                     );
                   })}
@@ -625,6 +628,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                   <div className="flex flex-col gap-2">
                     {members.filter((m) => m.id !== currentMemberId).map((m) => {
                       const checked = selectedMemberIds.includes(m.id);
+                      const accent = memberAccent(m.color_token);
                       return (
                         <button
                           key={m.id}
@@ -634,7 +638,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                         >
                           <span
                             className="w-8 h-8 rounded-full flex items-center justify-center text-base font-bold"
-                            style={{ backgroundColor: `hsl(var(--member-${m.color_token.replace('pastel-', '')}))` }}
+                            style={{ backgroundColor: accent.fill, color: accent.text }}
                           >
                             {m.display_name.charAt(0)}
                           </span>
@@ -685,7 +689,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
                           style={{ backgroundColor: visuals.rail }}
                         >
-                          <SummaryIcon size={20} strokeWidth={2.4} style={{ color: visuals.ink }} />
+                          <SummaryIcon size={20} strokeWidth={2.4} style={{ color: visuals.onFill }} />
                         </span>
                       )}
                       <div className="min-w-0">

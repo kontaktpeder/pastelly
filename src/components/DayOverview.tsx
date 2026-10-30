@@ -293,7 +293,7 @@ const DayOverview = ({
                         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px]"
                         style={{ backgroundColor: WORK_BLOCK_MARK.rail }}
                       >
-                        <BriefcaseBusiness size={12} strokeWidth={2} style={{ color: WORK_BLOCK_MARK.ink }} />
+                        <BriefcaseBusiness size={12} strokeWidth={2} style={{ color: WORK_BLOCK_MARK.onFill }} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-lg font-semibold">{ev.title}</span>
@@ -326,7 +326,7 @@ const DayOverview = ({
                           className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px]"
                           style={{ backgroundColor: OVERLAY_MARK.rail }}
                         >
-                          <BriefcaseBusiness size={12} strokeWidth={2} style={{ color: OVERLAY_MARK.ink }} />
+                          <BriefcaseBusiness size={12} strokeWidth={2} style={{ color: OVERLAY_MARK.onFill }} />
                         </span>
                       )}
                       <span className="min-w-0 flex-1">
@@ -365,7 +365,7 @@ const DayOverview = ({
                         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
                         style={{ backgroundColor: visuals.rail }}
                       >
-                        <Icon size={12} strokeWidth={2} style={{ color: visuals.ink }} />
+                        <Icon size={12} strokeWidth={2} style={{ color: visuals.onFill }} />
                       </span>
                     )}
                     <span className="truncate text-lg font-semibold">{ev.title}</span>

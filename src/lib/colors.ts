@@ -1,3 +1,21 @@
+import { MONTH_COLORS, textOnStrongColor, withAlpha } from '@/lib/monthTheme';
+
+/** Same month accents as the category tokens, kept as member color names. */
+const MEMBER_HEX: Record<string, string> = {
+  'pastel-blue': MONTH_COLORS[5]!,
+  'pastel-peach': MONTH_COLORS[9]!,
+  'pastel-lavender': MONTH_COLORS[1]!,
+  'pastel-mint': MONTH_COLORS[3]!,
+  'pastel-rose': MONTH_COLORS[4]!,
+  'pastel-yellow': MONTH_COLORS[6]!,
+};
+
+/** Solid fill, contrasting letter, and a light wash for larger rows. */
+export function memberAccent(token: string | null | undefined) {
+  const fill = MEMBER_HEX[token ?? ''] ?? MEMBER_HEX['pastel-blue']!;
+  return { fill, text: textOnStrongColor(fill), wash: withAlpha(fill, 0.16) };
+}
+
 export const MEMBER_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   'pastel-blue': { bg: 'bg-member-blue', text: 'text-foreground', dot: 'bg-member-blue' },
   'pastel-peach': { bg: 'bg-member-peach', text: 'text-foreground', dot: 'bg-member-peach' },
