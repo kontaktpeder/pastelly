@@ -831,10 +831,112 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
 
 /* ---------- Peeking month header panel ---------- */
 
-/** Probe size for month width fitting. */
+/** Probe size for offscreen month/year measuring only — never applied to live DOM. */
 const HEADER_FIT_PROBE_PX = 100;
 /** Fixed trailing column for divider + vertical year (house uses pr-14 outside). */
 const HEADER_YEAR_COL_PX = 36;
+/** Ignore sub-pixel jitter so ResizeObserver / fonts.ready don't thrash state. */
+const HEADER_FIT_EPSILON_PX = 0.35;
+
+type HeaderFitSizes = { monthPx: number; yearPx: number };
+
+/** Survive strip remounts (swipe recenter / year jump) so first paint is already sized. */
+const headerFitCache = new Map<string, HeaderFitSizes>();
+
+function headerFitCacheKey(
+  monthLabel: string,
+  monthDot: boolean,
+  monthDotGapEm: number,
+  yearLabel: string,
+  availW: number,
+  availH: number,
+) {
+  return `${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|${yearLabel}|${Math.round(availW)}|${Math.round(availH)}`;
+}
+
+let headerMeasureHost: HTMLDivElement | null = null;
+
+function getHeaderMeasureHost() {
+  if (typeof document === 'undefined') return null;
+  if (headerMeasureHost?.isConnected) return headerMeasureHost;
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText =
+    'position:fixed;left:-10000px;top:0;visibility:hidden;pointer-events:none;contain:layout style;';
+  document.body.appendChild(host);
+  headerMeasureHost = host;
+  return host;
+}
+
+function verticalBlockHeight(el: HTMLElement) {
+  const rect = el.getBoundingClientRect();
+  // For vertical-rl, the long axis is height; fall back to max metrics.
+  return Math.max(rect.height, el.scrollHeight, el.scrollWidth, 1);
+}
+
+/** Measure fit sizes on a detached clone — never mutates the visible header. */
+function measureHeaderFit(opts: {
+  monthLabel: string;
+  monthDot: boolean;
+  monthDotGapEm: number;
+  yearLabel: string;
+  monthAvailW: number;
+  monthAvailH: number;
+}): HeaderFitSizes | null {
+  const { monthLabel, monthDot, monthDotGapEm, yearLabel, monthAvailW, monthAvailH } = opts;
+  if (monthAvailW <= 0 || monthAvailH <= 0) return null;
+
+  const host = getHeaderMeasureHost();
+  if (!host) return null;
+
+  host.replaceChildren();
+
+  const monthEl = document.createElement('h2');
+  monthEl.className =
+    'm-0 whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter';
+  monthEl.style.cssText = `font-size:${HEADER_FIT_PROBE_PX}px;margin:0;white-space:nowrap;display:inline-block;`;
+  monthEl.textContent = monthLabel;
+  if (monthDot) {
+    const dot = document.createElement('span');
+    dot.className = 'font-[inherit] font-bold leading-none';
+    dot.style.cssText = `font-size:0.62em;margin-left:${monthDotGapEm}em;vertical-align:baseline;`;
+    dot.textContent = '.';
+    monthEl.appendChild(dot);
+  }
+  host.appendChild(monthEl);
+
+  const monthNeedW = monthEl.scrollWidth;
+  if (monthNeedW <= 0) {
+    host.replaceChildren();
+    return null;
+  }
+
+  let nextMonth = HEADER_FIT_PROBE_PX * (monthAvailW / monthNeedW) * 0.96;
+  nextMonth = Math.min(nextMonth, monthAvailH * 0.92);
+  nextMonth = Math.max(20, nextMonth);
+
+  const yearEl = document.createElement('span');
+  yearEl.className = 'font-calendar font-black tabular-nums leading-none tracking-tight';
+  yearEl.style.cssText = `font-size:${HEADER_FIT_PROBE_PX}px;writing-mode:vertical-rl;text-orientation:mixed;display:inline-block;`;
+  yearEl.textContent = yearLabel;
+  host.appendChild(yearEl);
+
+  const yearNeedLong = verticalBlockHeight(yearEl);
+  let nextYear = HEADER_FIT_PROBE_PX * (nextMonth / yearNeedLong) * 0.98;
+  // Guard: 4 digits must never get near month font-size (that was the clip bug).
+  nextYear = Math.min(nextYear, (nextMonth / Math.max(yearLabel.length, 1)) * 1.05);
+  nextYear = Math.max(10, nextYear);
+  yearEl.style.fontSize = `${nextYear}px`;
+  const yearGot = verticalBlockHeight(yearEl);
+  if (yearGot > 1) {
+    nextYear = nextYear * (nextMonth / yearGot);
+    nextYear = Math.min(nextYear, (nextMonth / Math.max(yearLabel.length, 1)) * 1.05);
+    nextYear = Math.max(10, nextYear);
+  }
+
+  host.replaceChildren();
+  return { monthPx: nextMonth, yearPx: nextYear };
+}
 
 const MonthHeaderPanel = ({
   width,
@@ -859,22 +961,44 @@ const MonthHeaderPanel = ({
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
-  const monthRef = useRef<HTMLHeadingElement>(null);
-  const yearRef = useRef<HTMLSpanElement>(null);
-  const [monthPx, setMonthPx] = useState(48);
-  const [yearPx, setYearPx] = useState(14);
+  const sizesRef = useRef<HeaderFitSizes>({ monthPx: 48, yearPx: 14 });
+  const [sizes, setSizes] = useState<HeaderFitSizes>(() => {
+    // Best-effort first paint from any prior measure for this label (width may refine later).
+    for (const [key, value] of headerFitCache) {
+      if (key.startsWith(`${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|${yearLabel}|`)) {
+        sizesRef.current = value;
+        return value;
+      }
+    }
+    return { monthPx: 48, yearPx: 14 };
+  });
+  const [fitted, setFitted] = useState(() => {
+    const prefix = `${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|${yearLabel}|`;
+    for (const key of headerFitCache.keys()) {
+      if (key.startsWith(prefix)) return true;
+    }
+    return false;
+  });
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
     const slot = slotRef.current;
-    const monthEl = monthRef.current;
-    const yearEl = yearRef.current;
-    if (!panel || !slot || !monthEl || !yearEl) return;
+    if (!panel || !slot) return;
+    let cancelled = false;
 
-    const verticalBlockHeight = (el: HTMLElement) => {
-      const rect = el.getBoundingClientRect();
-      // For vertical-rl, the long axis is height; fall back to max metrics.
-      return Math.max(rect.height, el.scrollHeight, el.scrollWidth, 1);
+    const apply = (next: HeaderFitSizes) => {
+      if (cancelled) return;
+      const prev = sizesRef.current;
+      if (
+        Math.abs(prev.monthPx - next.monthPx) < HEADER_FIT_EPSILON_PX &&
+        Math.abs(prev.yearPx - next.yearPx) < HEADER_FIT_EPSILON_PX
+      ) {
+        setFitted(true);
+        return;
+      }
+      sizesRef.current = next;
+      setSizes(next);
+      setFitted(true);
     };
 
     const fit = () => {
@@ -882,54 +1006,59 @@ const MonthHeaderPanel = ({
       const monthAvailH = Math.max(panel.clientHeight - 10, 1);
       if (monthAvailW <= 0) return;
 
-      // 1) Month alone → fit width (and cap to header height).
-      monthEl.style.fontSize = `${HEADER_FIT_PROBE_PX}px`;
-      const monthNeedW = monthEl.scrollWidth;
-      if (monthNeedW <= 0) return;
-
-      let nextMonth = HEADER_FIT_PROBE_PX * (monthAvailW / monthNeedW) * 0.96;
-      nextMonth = Math.min(nextMonth, monthAvailH * 0.92);
-      nextMonth = Math.max(20, nextMonth);
-      monthEl.style.fontSize = `${nextMonth}px`;
-      setMonthPx(nextMonth);
-
-      // 2) Year alone → size so the vertical stack equals month letter height.
-      // Do NOT use scrollHeight alone (broken under writing-mode); measure the box.
-      yearEl.style.fontSize = `${HEADER_FIT_PROBE_PX}px`;
-      const yearNeedLong = verticalBlockHeight(yearEl);
-      let nextYear = HEADER_FIT_PROBE_PX * (nextMonth / yearNeedLong) * 0.98;
-      // Guard: 4 digits must never get near month font-size (that was the clip bug).
-      nextYear = Math.min(nextYear, nextMonth / Math.max(yearLabel.length, 1) * 1.05);
-      nextYear = Math.max(10, nextYear);
-      yearEl.style.fontSize = `${nextYear}px`;
-      const yearGot = verticalBlockHeight(yearEl);
-      if (yearGot > 1) {
-        nextYear = nextYear * (nextMonth / yearGot);
-        nextYear = Math.min(nextYear, nextMonth / Math.max(yearLabel.length, 1) * 1.05);
-        nextYear = Math.max(10, nextYear);
+      const key = headerFitCacheKey(
+        monthLabel,
+        monthDot,
+        monthDotGapEm,
+        yearLabel,
+        monthAvailW,
+        monthAvailH,
+      );
+      const cached = headerFitCache.get(key);
+      if (cached) {
+        apply(cached);
+        return;
       }
-      setYearPx(nextYear);
+
+      const measured = measureHeaderFit({
+        monthLabel,
+        monthDot,
+        monthDotGapEm,
+        yearLabel,
+        monthAvailW,
+        monthAvailH,
+      });
+      if (!measured) return;
+      headerFitCache.set(key, measured);
+      apply(measured);
     };
 
-    const run = () => {
+    fit();
+    void document.fonts?.ready?.then(() => {
+      if (cancelled) return;
+      // Fonts can change metrics — clear this label's cache entries and remeasure offscreen.
+      for (const key of [...headerFitCache.keys()]) {
+        if (key.startsWith(`${monthLabel}|${monthDot ? 1 : 0}|${monthDotGapEm}|${yearLabel}|`)) {
+          headerFitCache.delete(key);
+        }
+      }
       fit();
-      void document.fonts?.ready?.then(() => {
-        fit();
-        requestAnimationFrame(fit);
-      });
-    };
-    run();
+    });
     const ro = new ResizeObserver(() => fit());
     ro.observe(panel);
     ro.observe(slot);
-    return () => ro.disconnect();
+    return () => {
+      cancelled = true;
+      ro.disconnect();
+    };
   }, [monthLabel, monthDot, monthDotGapEm, yearLabel, width]);
+
+  const { monthPx, yearPx } = sizes;
 
   const title = (
     <div className="flex h-full w-full min-w-0 items-end gap-2.5">
       <div ref={slotRef} className="flex min-h-0 min-w-0 flex-1 items-end overflow-visible">
         <h2
-          ref={monthRef}
           className="m-0 whitespace-nowrap font-calendar font-black capitalize leading-none tracking-tighter"
           style={{ color: textColor, fontSize: monthPx }}
         >
@@ -960,7 +1089,6 @@ const MonthHeaderPanel = ({
           aria-hidden
         />
         <span
-          ref={yearRef}
           className="font-calendar font-black tabular-nums leading-none tracking-tight"
           style={{
             color: textColor,
@@ -979,7 +1107,12 @@ const MonthHeaderPanel = ({
     <div
       ref={panelRef}
       className="relative flex h-full shrink-0 items-stretch px-3 pb-2 pr-14"
-      style={{ width: width || '33.333%', backgroundColor: paperColor }}
+      style={{
+        width: width || '33.333%',
+        backgroundColor: paperColor,
+        // Hold first cold paint until offscreen fit lands — avoids 48→probe flash.
+        opacity: fitted ? 1 : 0,
+      }}
     >
       {onTitleClick ? (
         <button type="button" onClick={onTitleClick} className="h-full w-full min-w-0 text-left active:opacity-80">
