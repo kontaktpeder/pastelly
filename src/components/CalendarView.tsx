@@ -9,7 +9,6 @@ import {
   type PointerEvent as ReactPointerEvent,
   type SetStateAction,
 } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { format, startOfMonth, endOfMonth, startOfWeek, eachDayOfInterval, isToday, isSameMonth, getISOWeek, addDays, type Locale } from 'date-fns';
 import { useEventsForMonth, type Event } from '@/hooks/useEvents';
 import {
@@ -40,7 +39,6 @@ import OverlayEventSheet from '@/components/OverlayEventSheet';
 import WorkBlockSheet from '@/components/WorkBlockSheet';
 import { useLongPress } from '@/hooks/useLongPress';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { fadeQuick } from '@/lib/motion';
 import { tryOpenSheet } from '@/lib/sheetGate';
 import { consumePendingOpenDay, peekPendingOpenDay, subscribePendingOpenDay } from '@/lib/native/pendingOpenDay';
 import { BriefcaseBusiness, type LucideIcon } from 'lucide-react';
@@ -791,26 +789,20 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         </div>
 
 
-        <AnimatePresence>
-          {showYear && (
-            <motion.div
-              key="year-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={fadeQuick}
-              className="absolute inset-0 z-30 flex flex-col"
-              style={{ backgroundColor: PASTEL.calendarPaper }}
-            >
-              <YearMonthPicker
-                year={pickerAt.year}
-                month={pickerAt.month}
-                onJumpToMonth={jumpToMonth}
-                onClose={closeYearView}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Opaque cover — no opacity fade (that flashed the strip underneath). */}
+        {showYear ? (
+          <div
+            className="absolute inset-0 z-30 flex flex-col"
+            style={{ backgroundColor: PASTEL.calendarPaper }}
+          >
+            <YearMonthPicker
+              year={pickerAt.year}
+              month={pickerAt.month}
+              onJumpToMonth={jumpToMonth}
+              onClose={closeYearView}
+            />
+          </div>
+        ) : null}
       </div>
 
       {daySheetDate && (
