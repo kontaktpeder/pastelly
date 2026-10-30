@@ -150,6 +150,43 @@ export function runSheetSpring(options: {
 /** Short day-sheet rest: 55% of the frame. Matches CenteredPopup's half detent. */
 export const SHEET_HALF_VISIBLE = 0.55;
 
+export type SheetDetent = 'half' | 'full';
+export type SheetVariant = 'browse' | 'wizard' | 'compact';
+
+/**
+ * Named sheet roles — call sites pick a role, never raw detents/size/fitContent.
+ * Keeps every sheet on the same motion path with consistent open height rules.
+ */
+export const SHEET_VARIANTS = {
+  /** Peek + expand (day, event detail, profile, countdown detail, …). */
+  browse: {
+    size: 'sheet' as const,
+    detents: ['half', 'full'] as const satisfies readonly SheetDetent[],
+    initialDetent: 'half' as const satisfies SheetDetent,
+    fitContent: true,
+    nest: true,
+    backdrop: 'solid' as const,
+  },
+  /** Full-height form flows (new/edit wizards). Keyboard-friendly. */
+  wizard: {
+    size: 'sheet' as const,
+    detents: ['full'] as const satisfies readonly SheetDetent[],
+    initialDetent: 'full' as const satisfies SheetDetent,
+    fitContent: false,
+    nest: true,
+    backdrop: 'solid' as const,
+  },
+  /** Content-sized card, same grabber/dismiss/nest physics as sheets. */
+  compact: {
+    size: 'hug' as const,
+    detents: ['full'] as const satisfies readonly SheetDetent[],
+    initialDetent: 'full' as const satisfies SheetDetent,
+    fitContent: false,
+    nest: true,
+    backdrop: 'none' as const,
+  },
+} as const;
+
 /**
  * How far up a day sheet should open so `neededPx` of content is on screen.
  * Never shorter than half. Never taller than the frame — leftover content scrolls.

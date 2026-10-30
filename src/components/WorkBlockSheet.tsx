@@ -17,7 +17,7 @@ const WorkBlockSheet = ({ event, onClose }: WorkBlockSheetProps) => {
   const timeLabel = start ? (end ? `${start}–${end}` : start) : null;
 
   return (
-    <CenteredPopup onClose={onClose} onExit={onClose} size="hug" nest zClassName="z-[60]" backdrop="none">
+    <CenteredPopup variant="compact" onClose={onClose} onExit={onClose} zClassName="z-[60]">
       <div className="px-5 pt-2 pb-2" data-sheet-scroll>
         <div className="mb-2 rounded-2xl border border-border/50 bg-muted/70 p-5">
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

@@ -94,7 +94,7 @@ const OverlayEventSheet = ({
   const pending = hideOverlay.isPending || setHiddenForAll.isPending;
 
   return (
-    <CenteredPopup onClose={onClose} onExit={onClose} size="hug" nest zClassName="z-[60]" backdrop="none">
+    <CenteredPopup variant="compact" onClose={onClose} onExit={onClose} zClassName="z-[60]">
       <div className="px-5 pt-2 pb-2" data-sheet-scroll>
         <div className="rounded-2xl bg-muted/70 border border-border/50 p-5 mb-2">
           <h2 className="text-xl font-bold mb-1">{event.title}</h2>

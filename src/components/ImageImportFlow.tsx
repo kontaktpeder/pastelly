@@ -276,7 +276,7 @@ const ImageImportFlow = ({
   }, [current, dateLocale]);
 
   return (
-    <CenteredPopup onClose={handleDismiss} onExit={handleDismiss} size="sheet" zClassName="z-[70]" backdrop="solid">
+    <CenteredPopup variant="wizard" onClose={handleDismiss} onExit={handleDismiss} zClassName="z-[70]">
       <input
         ref={fileRef}
         type="file"

@@ -123,11 +123,9 @@ const SeedWeekFlow = ({ householdId, onClose, onComplete }: SeedWeekFlowProps) =
 
   return (
     <CenteredPopup
+      variant="browse"
       onClose={handleBack}
       onExit={handleSkip}
-      size="sheet"
-      detents={['half', 'full']}
-      initialDetent="half"
       zClassName="z-[70]"
     >
       <div className="px-5 pt-1 pb-3 shrink-0">

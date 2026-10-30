@@ -326,7 +326,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
   };
 
   return (
-    <CenteredPopup onClose={handleDismiss} onExit={onClose} size="sheet" zClassName="z-[70]" backdrop="solid">
+    <CenteredPopup variant="wizard" onClose={handleDismiss} onExit={onClose} zClassName="z-[70]">
       {/* Header: progress only — ✕ + grabber live in CenteredPopup */}
       <div className="flex items-center justify-center px-5 pt-0.5 pb-1 shrink-0">
         <div className="flex gap-1.5">

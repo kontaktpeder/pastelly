@@ -293,7 +293,7 @@ const EditEventQuickSheet = ({ event, members = [], currentMemberId, calendarKin
   );
 
   return (
-    <CenteredPopup onClose={onClose} onExit={onClose} size="sheet" zClassName="z-[70]">
+    <CenteredPopup variant="wizard" onClose={onClose} onExit={onClose} zClassName="z-[70]">
       <div className="flex items-center px-5 pt-1 pb-3 shrink-0">
         <h2 className="text-lg font-bold">{t('event.quickEdit')}</h2>
       </div>
