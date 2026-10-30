@@ -20,7 +20,7 @@ import {
 import { mergeWorkBlocks, useWorkScheduleBlocks, WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
 import { resolveCategoryVisuals, getMemberColorMap } from '@/lib/categoryPresentation';
 import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
-import { getMonthTheme, PASTEL, sundayAccentForMonth, withAlpha } from '@/lib/monthTheme';
+import { getMonthTheme, sundayAccentForMonth, withAlpha } from '@/lib/monthTheme';
 import {
   buildSpanSegmentsByDate,
   isMultiDayEvent,
@@ -599,19 +599,6 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     setShowYear(false);
   };
 
-  // Cover strip (measurable) instead of visibility:hidden while picker is open.
-  useEffect(() => {
-    const shell = calendarShellRef.current;
-    if (!shell) return;
-    if (showYear) {
-      shell.setAttribute('inert', '');
-      shell.setAttribute('aria-hidden', 'true');
-    } else {
-      shell.removeAttribute('inert');
-      shell.removeAttribute('aria-hidden');
-    }
-  }, [showYear]);
-
   const handleStackPointerDown = (e: ReactPointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const el = scrollerRef.current;
@@ -668,17 +655,14 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   return (
     <>
       <div className="relative flex flex-col h-full min-h-0">
-        <div
-          ref={calendarShellRef}
-          className={`flex flex-col h-full min-h-0 ${showYear ? 'pointer-events-none' : ''}`}
-        >
+        <div ref={calendarShellRef} className="flex h-full min-h-0 flex-col">
         {/* Native horizontal scroll-snap — browser owns gesture (snappy, interruptible). */}
         <div
           ref={scrollerRef}
           className="relative min-h-0 flex-1 overflow-x-auto overflow-y-hidden select-none calendar-month-snap no-scrollbar"
           style={{ backgroundColor: chromeTheme.paper }}
-          onPointerDown={showYear ? undefined : handleStackPointerDown}
-          onPointerUp={showYear ? undefined : handleStackPointerUp}
+          onPointerDown={handleStackPointerDown}
+          onPointerUp={handleStackPointerUp}
           onPointerCancel={() => {
             stackPointerRef.current = null;
             headerTapRef.current = null;
@@ -789,21 +773,16 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
         </div>
 
 
-        {/* Opaque cover — no opacity fade (that flashed the strip underneath). */}
-        {showYear ? (
-          <div
-            className="absolute inset-0 z-30 flex flex-col"
-            style={{ backgroundColor: PASTEL.calendarPaper }}
-          >
-            <YearMonthPicker
-              year={pickerAt.year}
-              month={pickerAt.month}
-              onJumpToMonth={jumpToMonth}
-              onClose={closeYearView}
-            />
-          </div>
-        ) : null}
       </div>
+
+      {showYear ? (
+        <YearMonthPicker
+          year={pickerAt.year}
+          month={pickerAt.month}
+          onJumpToMonth={jumpToMonth}
+          onClose={closeYearView}
+        />
+      ) : null}
 
       {daySheetDate && (
         <CalendarDaySheet
