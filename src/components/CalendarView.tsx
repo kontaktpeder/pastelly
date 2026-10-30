@@ -494,15 +494,29 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     };
   }, [pageWidth, commitLiveToParent]);
 
-  /** Jump without animation (today / year picker). */
+  /**
+   * Jump without animation (today / year picker) — same tick: idx, scroll, onChange.
+   * Guarantees scroll only when pageWidth > 0; still updates parent date either way.
+   */
   const jumpToMonth = useCallback(
     (date: Date) => {
       const next = startOfMonth(date);
       const target = clampMonthIndex(toMonthIndex(next));
-      scrollToIndex(target, 'instant');
+      const el = scrollerRef.current;
+      liveIndexRef.current = target;
+      setLiveIndex(target);
+      if (el && pageWidth > 0) {
+        suppressScrollRef.current = true;
+        el.scrollTo({ left: target * pageWidth, behavior: 'instant' });
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            suppressScrollRef.current = false;
+          });
+        });
+      }
       setCurrentDate(next);
     },
-    [scrollToIndex, setCurrentDate],
+    [pageWidth, setCurrentDate],
   );
 
   // Long-press no longer freezes the strip — native scroll only starts if the finger moves.
@@ -536,9 +550,17 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
     return members.find((m) => m.id === event.owner_member_id);
   };
 
-  const openYearView = () => {
+  /** Open picker from the nearest snapped month (scrollLeft), not the panel's own date. */
+  const openYearView = useCallback(() => {
+    const el = scrollerRef.current;
+    if (el && pageWidth > 0) {
+      const i = clampMonthIndex(Math.round(el.scrollLeft / pageWidth));
+      liveIndexRef.current = i;
+      setLiveIndex(i);
+      setCurrentDate(fromMonthIndex(i));
+    }
     setShowYear(true);
-  };
+  }, [pageWidth, setCurrentDate]);
 
   const closeYearView = () => {
     setShowYear(false);
@@ -609,7 +631,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                       yearLabel={format(date, 'yyyy')}
                       textColor={theme.base}
                       paperColor={theme.paper}
-                      onTitleClick={isLive ? openYearView : undefined}
+                      onTitleClick={openYearView}
                     />
                   </div>
                   <div className="grid h-8 shrink-0 grid-cols-7 items-center" style={{ backgroundColor: theme.paper }}>
@@ -684,10 +706,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
               <YearMonthPicker
                 year={year}
                 month={month}
-                onJumpToMonth={(d) => {
-                  // Jump under the overlay so the strip is ready before fade-out.
-                  jumpToMonth(d);
-                }}
+                onJumpToMonth={jumpToMonth}
                 onClose={closeYearView}
               />
             </motion.div>

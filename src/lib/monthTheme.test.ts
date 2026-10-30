@@ -26,10 +26,16 @@ describe('month label on strong fills', () => {
     }
   });
 
-  it('keeps picker ink readable on cream paper', () => {
+  it('keeps picker ink at least 3:1 on cream paper (large labels)', () => {
     for (let month = 0; month < 12; month += 1) {
       const theme = getMonthTheme(new Date(2026, month, 1));
-      expect(contrast(theme.ink, theme.paper)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(theme.ink, theme.paper)).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  it('keeps saturated base as ink when base already clears 3:1', () => {
+    // January deep magenta should stay as base
+    const theme = getMonthTheme(new Date(2026, 0, 1));
+    expect(theme.ink.toLowerCase()).toBe(theme.base.toLowerCase());
   });
 });

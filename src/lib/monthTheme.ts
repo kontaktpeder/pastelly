@@ -189,14 +189,21 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
 }
 
-/** Darken `fill` toward ink/black until contrast vs `paper` clears 4.5:1. */
-export function readableInkOnPaper(fill: string, paper: string = PASTEL.calendarPaper): string {
-  if (contrastRatio(fill, paper) >= 4.5) return fill;
+/**
+ * Keep saturated fill when contrast vs paper clears `minRatio` (default 3:1 —
+ * large bold month labels). Darken only until the ratio is met.
+ */
+export function readableInkOnPaper(
+  fill: string,
+  paper: string = PASTEL.calendarPaper,
+  minRatio = 3,
+): string {
+  if (contrastRatio(fill, paper) >= minRatio) return fill;
   let best = shadeInk(fill);
-  if (contrastRatio(best, paper) >= 4.5) return best;
-  for (let t = 0.15; t <= 1; t += 0.1) {
+  if (contrastRatio(best, paper) >= minRatio) return best;
+  for (let t = 0.05; t <= 1; t += 0.05) {
     const next = mix(fill, '#000000', t);
-    if (contrastRatio(next, paper) >= 4.5) return next;
+    if (contrastRatio(next, paper) >= minRatio) return next;
     best = next;
   }
   return best;
