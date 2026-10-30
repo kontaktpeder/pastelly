@@ -31,6 +31,7 @@ import { AppLocaleSettings, CalendarLocaleSettings } from '@/components/LocaleSe
 import CenteredPopup from '@/components/CenteredPopup';
 import { useLocale } from '@/hooks/useLocale';
 import { defaultLocaleForKind } from '@/lib/i18n/types';
+import { getMonthTheme, withAlpha } from '@/lib/monthTheme';
 
 export type ProfileSheetMode = 'calendar' | 'account';
 
@@ -40,6 +41,8 @@ interface ProfileSheetProps {
   members: HouseholdMember[];
   currentMember: HouseholdMember;
   memberships: CalendarMembership[];
+  /** Month currently open in the calendar, so settings match its color. */
+  accentDate?: Date;
   onSelectCalendar: (householdId: string) => void;
   onClose: () => void;
   onSignOut: () => Promise<void>;
@@ -74,11 +77,16 @@ const ProfileSheet = ({
   members,
   currentMember,
   memberships,
+  accentDate,
   onSelectCalendar,
   onClose,
   onSignOut,
 }: ProfileSheetProps) => {
   const { t, intlLocale } = useLocale();
+  const theme = getMonthTheme(accentDate ?? new Date());
+  const rule = withAlpha(theme.base, 0.4);
+  const primaryStyle = { backgroundColor: theme.base, color: theme.textOnStrong };
+  const fieldStyle = { borderColor: rule };
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState('');
   const [inviteCode, setInviteCode] = useState<string | null>(null);
@@ -374,31 +382,47 @@ const ProfileSheet = ({
       onExit={onClose}
       size="sheet"
       zClassName="z-[60]"
+      chrome={{ paper: theme.paper, accent: theme.base }}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div
           data-sheet-scroll
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-touch px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
-          style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}
+          style={{
+            touchAction: 'pan-y',
+            overscrollBehavior: 'contain',
+            ['--sheet-accent' as string]: theme.base,
+            ['--sheet-on-accent' as string]: theme.textOnStrong,
+            ['--sheet-rule' as string]: rule,
+          }}
         >
           {mode === 'calendar' ? (
-            <div className="space-y-4 pt-2 pb-2">
-              <header className="text-center pb-1">
-                <h2 className="text-xl font-bold tracking-tight">{household.name}</h2>
-                <p className="text-base text-muted-foreground mt-0.5">
+            <div className="space-y-5 pb-2">
+              <header className="pb-1">
+                <p
+                  className="m-0 font-calendar text-[0.68rem] font-bold uppercase leading-none tracking-[0.2em]"
+                  style={{ color: theme.base }}
+                >
                   {calendarKindLabelLocalized(household, t)}
                 </p>
-                <p className="text-sm text-muted-foreground/80 mt-1.5">
+                <h2
+                  className="m-0 mt-1 break-words font-calendar font-black leading-[0.9] tracking-tighter"
+                  style={{ color: theme.base, fontSize: 'clamp(2.4rem, 10vw, 3.5rem)' }}
+                >
+                  {household.name}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
                   {t('profile.thisCalendarHint', { name: household.name })}
                 </p>
+                <div className="mt-3 h-px w-full" style={{ backgroundColor: withAlpha(theme.base, 0.55) }} />
               </header>
 
               <section className="space-y-2">
-                <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
+                <p className="font-calendar text-[0.68rem] font-bold uppercase tracking-[0.18em]" style={{ color: theme.base }}>
                   {t('profile.members')}
                 </p>
                 {members.map((m) => (
-                  <div key={m.id} className="flex items-center gap-3 rounded-xl bg-muted/40 p-3">
+                  <div key={m.id} className="flex items-center gap-3 border-b py-3" style={{ borderColor: rule }}>
                     <MemberAvatar member={m} size="sm" />
                     <div>
                       <p className="font-medium text-base">{m.display_name}</p>
@@ -412,7 +436,7 @@ const ProfileSheet = ({
 
               {isWorkCalendar && (
                 <section className="space-y-2">
-                  <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
+                  <p className="font-calendar text-[0.68rem] font-bold uppercase tracking-[0.18em]" style={{ color: theme.base }}>
                     {t('profile.workOrg')}
                   </p>
                   <p className="text-sm text-muted-foreground">{t('profile.workOrgHint')}</p>
@@ -425,14 +449,16 @@ const ProfileSheet = ({
                           setWorkOrgSaved(false);
                         }}
                         placeholder="00000000-0000-4000-8000-000000000000"
-                        className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-base"
+                        className="w-full rounded-lg border bg-transparent px-3 py-2.5 text-base"
+                        style={fieldStyle}
                         spellCheck={false}
                       />
                       <button
                         type="button"
                         onClick={() => saveWorkOrg.mutate()}
                         disabled={saveWorkOrg.isPending}
-                        className="w-full rounded-xl bg-calendar-accent/60 py-2.5 text-base font-medium transition-colors hover:bg-calendar-accent/80 disabled:opacity-50"
+                        className="w-full rounded-lg py-2.5 text-base font-semibold disabled:opacity-50"
+                        style={primaryStyle}
                       >
                         {saveWorkOrg.isPending ? t('common.loading') : t('common.save')}
                       </button>
@@ -448,10 +474,11 @@ const ProfileSheet = ({
               )}
 
               <section className="space-y-3">
-                <label className="flex items-start gap-3 rounded-xl bg-muted/40 p-3 cursor-pointer">
+                <label className="flex cursor-pointer items-start gap-3 border-b py-3" style={{ borderColor: rule }}>
                   <input
                     type="checkbox"
                     className="mt-1 rounded border-border"
+                    style={{ accentColor: theme.base }}
                     checked={!!currentMember.show_in_other_calendars}
                     disabled={toggleShowInOther.isPending}
                     onChange={(e) => toggleShowInOther.mutate(e.target.checked)}
@@ -476,12 +503,13 @@ const ProfileSheet = ({
                       <button
                         onClick={() => createInvite.mutate()}
                         disabled={createInvite.isPending}
-                        className="w-full rounded-xl bg-calendar-accent/60 py-3 text-base font-medium transition-colors hover:bg-calendar-accent/80 disabled:opacity-50"
+                        className="w-full rounded-lg py-3 text-base font-semibold disabled:opacity-50"
+                        style={primaryStyle}
                       >
                         {createInvite.isPending ? t('onboarding.creating') : t('profile.invite')}
                       </button>
                     ) : (
-                      <div className="rounded-xl bg-muted/40 p-4 space-y-3">
+                      <div className="space-y-3 border-b py-3" style={{ borderColor: rule }}>
                         <p className="text-base font-medium text-center">{t('profile.inviteCode')}</p>
                         <p className="text-2xl font-bold text-center tracking-widest select-all">{inviteCode}</p>
                         {inviteExpiry && (
@@ -494,14 +522,16 @@ const ProfileSheet = ({
                         </p>
                         <button
                           onClick={() => void handleCopyCode()}
-                          className="w-full rounded-xl bg-calendar-accent/60 py-2.5 text-base font-medium transition-colors hover:bg-calendar-accent/80"
+                          className="w-full rounded-lg py-2.5 text-base font-semibold"
+                          style={primaryStyle}
                         >
                           {copied ? t('profile.copied') : t('welcome.copyCode')}
                         </button>
                         <button
                           type="button"
                           onClick={() => void handleShareCode()}
-                          className="w-full rounded-xl bg-muted py-2.5 text-base font-medium transition-colors hover:bg-muted/80"
+                          className="w-full rounded-lg border bg-transparent py-2.5 text-base font-medium"
+                          style={fieldStyle}
                         >
                           {t('welcome.shareCode')}
                         </button>
@@ -516,8 +546,8 @@ const ProfileSheet = ({
                 )}
               </section>
 
-              <section className="space-y-3 pt-1 border-t border-border/50">
-                <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
+              <section className="space-y-3 pt-1">
+                <p className="font-calendar text-[0.68rem] font-bold uppercase tracking-[0.18em]" style={{ color: theme.base }}>
                   {t('profile.settingsThis')}
                 </p>
                 <DailyDigestSettings member={currentMember} />
@@ -528,12 +558,13 @@ const ProfileSheet = ({
                 {!showLeaveConfirm ? (
                   <button
                     onClick={() => { setLeaveError(''); setShowLeaveConfirm(true); }}
-                    className="w-full rounded-xl border border-border py-3 text-base font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    className="w-full rounded-lg border bg-transparent py-3 text-base font-medium text-foreground"
+                    style={fieldStyle}
                   >
                     {t('profile.leave')}
                   </button>
                 ) : (
-                  <div className="rounded-xl bg-muted p-4 space-y-3">
+                  <div className="space-y-3">
                     <p className="text-base font-medium text-center">
                       {t('profile.leaveConfirm', { name: household.name })}
                     </p>
@@ -548,7 +579,8 @@ const ProfileSheet = ({
                       <button
                         onClick={() => { setShowLeaveConfirm(false); setLeaveError(''); }}
                         disabled={leaveHousehold.isPending}
-                        className="rounded-xl border border-border py-2.5 text-base font-medium hover:bg-background transition-colors disabled:opacity-50"
+                        className="rounded-lg border bg-transparent py-2.5 text-base font-medium disabled:opacity-50"
+                        style={fieldStyle}
                       >
                         {t('common.cancel')}
                       </button>
@@ -568,40 +600,55 @@ const ProfileSheet = ({
               </section>
             </div>
           ) : (
-            <div className="space-y-4 pt-2 pb-2">
-              <section className="shrink-0 text-center pb-2">
-                <div className="relative w-20 h-20 mx-auto mb-3">
-                  <MemberAvatar member={currentMember} size="lg" />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadAvatar.isPending}
-                    className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md transition-transform hover:scale-110 disabled:opacity-50"
+            <div className="space-y-5 pb-2">
+              <section>
+                <p
+                  className="m-0 font-calendar text-[0.68rem] font-bold uppercase leading-none tracking-[0.2em]"
+                  style={{ color: theme.base }}
+                >
+                  {t('profile.account')}
+                </p>
+                <div className="mt-3 flex items-end gap-4">
+                  <div className="relative shrink-0">
+                    <MemberAvatar member={currentMember} size="lg" />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadAvatar.isPending}
+                      className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full disabled:opacity-50"
+                      style={primaryStyle}
+                    >
+                      {uploadAvatar.isPending ? (
+                        <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      ) : (
+                        <Camera size={15} strokeWidth={2.5} />
+                      )}
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </div>
+                  <h2
+                    className="m-0 min-w-0 flex-1 break-words font-calendar font-black leading-[0.9] tracking-tighter"
+                    style={{ color: theme.base, fontSize: 'clamp(2.2rem, 9vw, 3.25rem)' }}
                   >
-                    {uploadAvatar.isPending ? (
-                      <div className="w-3.5 h-3.5 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
-                    ) : (
-                      <Camera size={15} strokeWidth={2.5} />
-                    )}
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
+                    {currentMember.display_name}
+                  </h2>
                 </div>
                 {uploadError && (
-                  <p className="text-destructive text-sm mb-2">{uploadError}</p>
+                  <p className="mt-2 text-sm text-destructive">{uploadError}</p>
                 )}
-                <h2 className="text-2xl font-bold">{currentMember.display_name}</h2>
-                <p className="text-sm text-muted-foreground/80 mt-1.5">
+                <p className="mt-2 text-sm text-muted-foreground">
                   {t('profile.avatarHint')}
                 </p>
+                <div className="mt-3 h-px w-full" style={{ backgroundColor: withAlpha(theme.base, 0.55) }} />
               </section>
 
-              <section className="space-y-3 rounded-2xl bg-muted/40 px-4 py-4">
-                <p className="text-sm text-muted-foreground px-0.5 -mt-1">
+              <section className="space-y-3">
+                <p className="text-sm text-muted-foreground">
                   {t('profile.accountHint')}
                 </p>
 
@@ -617,12 +664,13 @@ const ProfileSheet = ({
                       setCreateKind('work');
                       setCreateName('Jobb');
                     }}
-                    className="w-full rounded-xl border border-border bg-background py-3 text-base font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    className="w-full rounded-lg border bg-transparent py-3 text-base font-medium text-foreground"
+                    style={fieldStyle}
                   >
                     {t('profile.createCalendar')}
                   </button>
                 ) : (
-                  <div className="rounded-xl bg-background p-4 space-y-3">
+                  <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       {CALENDAR_KINDS.map((opt) => (
                         <button
@@ -632,9 +680,12 @@ const ProfileSheet = ({
                             setCreateKind(opt.value);
                             setCreateName(opt.defaultName);
                           }}
-                          className={`rounded-xl p-2.5 text-base font-semibold ${
-                            createKind === opt.value ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
-                          }`}
+                          className="rounded-lg p-2.5 text-base font-semibold"
+                          style={
+                            createKind === opt.value
+                              ? { backgroundColor: withAlpha(theme.base, 0.16), boxShadow: `inset 0 0 0 2px ${theme.base}`, color: theme.base }
+                              : { boxShadow: `inset 0 0 0 1px ${rule}` }
+                          }
                         >
                           {opt.label}
                         </button>
@@ -644,13 +695,15 @@ const ProfileSheet = ({
                       value={createName}
                       onChange={(e) => setCreateName(e.target.value)}
                       placeholder={t('profile.calendarName')}
-                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full rounded-lg border bg-transparent px-4 py-3 text-base focus:outline-none"
+                      style={fieldStyle}
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => { setShowCreate(false); setCreateError(''); }}
-                        className="rounded-xl border border-border py-2.5 text-base font-medium hover:bg-muted transition-colors"
+                        className="rounded-lg border bg-transparent py-2.5 text-base font-medium"
+                        style={fieldStyle}
                       >
                         {t('common.cancel')}
                       </button>
@@ -658,7 +711,8 @@ const ProfileSheet = ({
                         type="button"
                         onClick={() => createCalendar.mutate()}
                         disabled={createCalendar.isPending}
-                        className="rounded-xl bg-primary py-2.5 text-base font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                        className="rounded-lg py-2.5 text-base font-semibold disabled:opacity-50"
+                        style={primaryStyle}
                       >
                         {createCalendar.isPending ? t('onboarding.creating') : t('profile.create')}
                       </button>
@@ -673,25 +727,28 @@ const ProfileSheet = ({
                   <button
                     type="button"
                     onClick={() => { setShowJoin(true); setShowCreate(false); setJoinError(''); }}
-                    className="w-full rounded-xl border border-border bg-background py-3 text-base font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    className="w-full rounded-lg border bg-transparent py-3 text-base font-medium text-foreground"
+                    style={fieldStyle}
                   >
                     {t('profile.joinCalendar')}
                   </button>
                 ) : (
-                  <div className="rounded-xl bg-background p-4 space-y-3">
+                  <div className="space-y-3">
                     <input
                       value={joinCode}
                       onChange={(e) => setJoinCode(normalizeInviteCode(e.target.value))}
                       placeholder="AB12-CD34"
                       autoComplete="off"
-                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full rounded-lg border bg-transparent px-4 py-3 font-mono text-base tracking-widest focus:outline-none"
+                      style={fieldStyle}
                     />
                     <p className="text-sm text-muted-foreground">{t('onboarding.inviteCodeHint')}</p>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => { setShowJoin(false); setJoinCode(''); setJoinError(''); }}
-                        className="rounded-xl border border-border py-2.5 text-base font-medium hover:bg-muted transition-colors"
+                        className="rounded-lg border bg-transparent py-2.5 text-base font-medium"
+                        style={fieldStyle}
                       >
                         {t('common.cancel')}
                       </button>
@@ -699,7 +756,8 @@ const ProfileSheet = ({
                         type="button"
                         onClick={() => { setJoinError(''); joinHousehold.mutate(); }}
                         disabled={joinHousehold.isPending}
-                        className="rounded-xl bg-primary py-2.5 text-base font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                        className="rounded-lg py-2.5 text-base font-semibold disabled:opacity-50"
+                        style={primaryStyle}
                       >
                         {joinHousehold.isPending ? t('onboarding.joining') : t('onboarding.joinCta')}
                       </button>
@@ -710,11 +768,12 @@ const ProfileSheet = ({
                   </div>
                 )}
 
-                <div className="pt-2 space-y-3 border-t border-border/50">
+                <div className="space-y-3 border-t pt-2" style={{ borderColor: rule }}>
                   <button
                     onClick={handleSignOutClick}
                     disabled={isSigningOut}
-                    className="w-full rounded-xl border border-border bg-background py-3 text-base font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border bg-transparent py-3 text-base font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    style={fieldStyle}
                   >
                     {isSigningOut ? t('profile.signingOut') : t('profile.signOut')}
                   </button>
@@ -723,7 +782,7 @@ const ProfileSheet = ({
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-border/50">
+                <div className="border-t pt-2" style={{ borderColor: rule }}>
                   {!showDeleteConfirm ? (
                     <button
                       type="button"
@@ -733,7 +792,7 @@ const ProfileSheet = ({
                       {t('profile.deleteAccount')}
                     </button>
                   ) : (
-                    <div className="rounded-xl bg-muted p-4 space-y-3">
+                    <div className="space-y-3">
                       <p className="text-base font-medium text-center">
                         {t('profile.deleteAccountConfirm')}
                       </p>
@@ -745,7 +804,8 @@ const ProfileSheet = ({
                           type="button"
                           onClick={() => { setShowDeleteConfirm(false); setDeleteError(''); }}
                           disabled={deleteAccountMutation.isPending}
-                          className="rounded-xl border border-border py-2.5 text-base font-medium hover:bg-background transition-colors disabled:opacity-50"
+                          className="rounded-lg border bg-transparent py-2.5 text-base font-medium disabled:opacity-50"
+                          style={fieldStyle}
                         >
                           {t('common.cancel')}
                         </button>

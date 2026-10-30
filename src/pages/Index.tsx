@@ -533,6 +533,7 @@ const Index = () => {
           members={members}
           currentMember={currentMember}
           memberships={orderedMemberships}
+          accentDate={focusedDate}
           onSelectCalendar={(id) => {
             // Always pin the active id first (join/create), then animate if possible.
             setActiveHouseholdId(id);

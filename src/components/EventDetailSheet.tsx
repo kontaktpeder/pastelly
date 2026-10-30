@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { useEventComments, useAddComment, useDeleteEvent, type Event } from '@/hooks/useEvents';
 import { useMemberEventLeak, useSetMemberEventLeak } from '@/hooks/useMemberEventLeak';
 import { getMemberColor } from '@/lib/colors';
@@ -13,8 +13,10 @@ import { isHotelCategory } from '@/lib/vacationSchedule';
 import EventAddressLink from '@/components/EventAddressLink';
 import type { HouseholdMember } from '@/hooks/useHousehold';
 import CenteredPopup from '@/components/CenteredPopup';
+import DaySheetDateHeader from '@/components/DaySheetDateHeader';
 import SheetActionDock from '@/components/SheetActionDock';
 import { canEditEvent } from '@/lib/canEditEvent';
+import { getMonthTheme, withAlpha } from '@/lib/monthTheme';
 import type { CalendarKind } from '@/lib/calendarKinds';
 import { useLocale } from '@/hooks/useLocale';
 import type { MessageKey } from '@/lib/i18n';
@@ -119,6 +121,29 @@ const EventDetailSheet = ({
     })(),
   });
 
+  const eventDate = new Date(event.event_date + 'T12:00:00');
+  const theme = getMonthTheme(eventDate);
+  const rule = withAlpha(theme.base, 0.4);
+  const meta = EVENT_CATEGORY_META[(event.category as keyof typeof EVENT_CATEGORY_META) || 'other'];
+  const visuals = resolveCategoryVisuals(event.category, getMemberColorMap(owner));
+  const label = resolveCategoryLabel(event.category, (event as any).category_label_override);
+  const Icon = meta?.Icon;
+  const hotel = isHotelCategory(event.category);
+  const clockStart = !hotel && event.start_time ? event.start_time.slice(0, 5) : '';
+  const clockEnd = !hotel && event.end_time ? event.end_time.slice(0, 5) : '';
+  const dayPart = !hotel
+    ? (() => {
+        const dps = (event as any).day_part_start as string | null;
+        const dpe = (event as any).day_part_end as string | null;
+        if (dps && dpe && dps !== dpe) return `${dayPartLabel(dps)} – ${dayPartLabel(dpe)}`;
+        if (dps === 'full_diem' || dps === 'all_day') return dayPartLabel(dps);
+        return dayPartLabel(event.day_part) || '';
+      })()
+    : '';
+  const timePrimary = clockStart || dayPart;
+  const timeSecondary = clockStart ? clockEnd : '';
+  const openEdit = onQuickEdit ?? onEdit;
+
   return (
     <CenteredPopup
       onClose={onClose}
@@ -128,86 +153,82 @@ const EventDetailSheet = ({
       initialDetent="half"
       zClassName="z-[60]"
       backdrop="none"
+      chrome={{ paper: theme.paper, accent: theme.base }}
     >
       <div
-        className="flex-1 overflow-y-auto overscroll-contain scroll-touch px-5 pt-2 min-h-0 pb-4"
+        className="flex-1 overflow-y-auto overscroll-contain scroll-touch px-5 min-h-0 pb-2"
         data-sheet-scroll
       >
-        {(() => {
-          const meta = EVENT_CATEGORY_META[(event.category as keyof typeof EVENT_CATEGORY_META) || 'other'];
-          const visuals = resolveCategoryVisuals(event.category, getMemberColorMap(owner));
-          const label = resolveCategoryLabel(event.category, (event as any).category_label_override);
-          const Icon = meta?.Icon;
-          const whenLine = [
-            format(new Date(event.event_date + 'T12:00:00'), 'd. MMMM yyyy', { locale: dateLocale }),
-            multiLabel || null,
-          ].filter(Boolean).join(' · ');
-          const partLine = !isHotelCategory(event.category)
-            ? (() => {
-                const dps = (event as any).day_part_start as string | null;
-                const dpe = (event as any).day_part_end as string | null;
-                let part = '';
-                if (dps && dpe && dps !== dpe) part = `${dayPartLabel(dps)} – ${dayPartLabel(dpe)}`;
-                else if (dps === 'full_diem') part = dayPartLabel('full_diem');
-                else if (dps === 'all_day') part = dayPartLabel('all_day');
-                else part = dayPartLabel(event.day_part) || event.day_part;
-                const clock = [
-                  event.start_time ? event.start_time.slice(0, 5) : null,
-                  event.end_time ? event.end_time.slice(0, 5) : null,
-                ].filter(Boolean).join('–');
-                return [part, clock].filter(Boolean).join(' · ');
-              })()
-            : null;
-          return (
-            <div className="mb-4 rounded-2xl p-4" style={{ backgroundColor: visuals.soft }}>
-              <div className="flex items-start gap-3">
-                {Icon && (
-                  <span
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
-                    style={{ backgroundColor: visuals.rail }}
-                  >
-                    <Icon size={20} strokeWidth={2.4} style={{ color: visuals.ink }} />
-                  </span>
-                )}
-                <div className="min-w-0">
-                  <h2 className="text-lg font-bold leading-tight">{event.title}</h2>
-                  <p className="mt-1 text-lg">{whenLine}</p>
-                  {partLine && <p className="text-lg text-muted-foreground">{partLine}</p>}
-                  <p className="mt-1 text-base font-medium" style={{ color: visuals.ink }}>
-                    {owner?.display_name ? `${owner.display_name} · ` : ''}{label}
-                  </p>
-                </div>
-              </div>
-              {event.location && (
-                <div className="mt-3">
-                  <EventAddressLink location={event.location} className="text-base" />
-                </div>
+        <DaySheetDateHeader date={eventDate} dateLocale={dateLocale} />
+
+        <div className="flex items-stretch gap-3 border-b py-3.5" style={{ borderColor: rule }}>
+          <span
+            className={`flex w-[4.6rem] shrink-0 flex-col justify-start break-words pt-0.5 leading-tight text-foreground ${
+              clockStart ? 'text-[15px] font-semibold tabular-nums' : 'text-[13px] font-semibold'
+            }`}
+          >
+            <span>{timePrimary || ' '}</span>
+            {timeSecondary && (
+              <span className="font-medium text-foreground/75">{timeSecondary}</span>
+            )}
+          </span>
+          <span className="my-0.5 w-px shrink-0 self-stretch" style={{ backgroundColor: rule }} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start gap-2">
+              {Icon && (
+                <Icon size={16} strokeWidth={2.25} className="mt-0.5 shrink-0" style={{ color: visuals.ink }} aria-hidden />
               )}
-              {event.notes && <p className="mt-2 text-base text-muted-foreground">{event.notes}</p>}
+              <h2 className="min-w-0 flex-1 break-words text-[1.05rem] font-semibold leading-snug text-foreground">
+                {event.title}
+              </h2>
             </div>
-          );
-        })()}
+            <p className={`mt-0.5 break-words text-base leading-snug text-muted-foreground ${Icon ? 'pl-6' : ''}`}>
+              {owner?.display_name ? `${owner.display_name} · ` : ''}{label}
+            </p>
+            {multiLabel && (
+              <p className={`mt-0.5 break-words text-base leading-snug text-muted-foreground ${Icon ? 'pl-6' : ''}`}>
+                {multiLabel}
+              </p>
+            )}
+            {event.location && (
+              <div className={`mt-1 ${Icon ? 'pl-6' : ''}`}>
+                <EventAddressLink location={event.location} className="text-base" />
+              </div>
+            )}
+            {event.notes && (
+              <p className={`mt-1 break-words text-base text-muted-foreground ${Icon ? 'pl-6' : ''}`}>
+                {event.notes}
+              </p>
+            )}
+          </div>
+        </div>
 
         {canOptInLeak && (
-          <label className="mb-4 flex items-start gap-3 rounded-xl bg-muted/50 p-3 cursor-pointer">
+          <label className="flex cursor-pointer items-start gap-3 border-b py-3.5" style={{ borderColor: rule }}>
             <input
               type="checkbox"
               className="mt-1 rounded border-border"
+              style={{ accentColor: theme.base }}
               checked={leaksToMyCalendars}
               disabled={setLeak.isPending}
               onChange={(e) => void handleToggleLeak(e.target.checked)}
             />
             <span>
-              <span className="block font-semibold text-base">{t('event.leakToMyCalendars')}</span>
-              <span className="block text-sm text-muted-foreground mt-0.5">
+              <span className="block text-base font-semibold">{t('event.leakToMyCalendars')}</span>
+              <span className="mt-0.5 block text-sm text-muted-foreground">
                 {t('event.leakToMyCalendarsHint')}
               </span>
             </span>
           </label>
         )}
 
-        <div>
-          <h3 className="text-base font-semibold text-muted-foreground mb-3">{t('event.comments')}</h3>
+        <div className="pt-4">
+          <h3
+            className="mb-3 font-calendar text-[0.68rem] font-bold uppercase tracking-[0.18em]"
+            style={{ color: theme.base }}
+          >
+            {t('event.comments')}
+          </h3>
           {comments.length === 0 && (
             <p className="text-base text-muted-foreground text-center py-3">
               {t('event.noComments')}
@@ -246,12 +267,14 @@ const EventDetailSheet = ({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder={t('event.writeComment')}
-              className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary"
+              className="min-w-0 flex-1 rounded-lg border bg-transparent px-4 py-3 text-base text-foreground focus:outline-none"
+              style={{ borderColor: rule }}
             />
             <button
               type="submit"
               disabled={!comment.trim()}
-              className="shrink-0 rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-primary-foreground disabled:opacity-40"
+              className="shrink-0 rounded-lg px-4 py-3 text-base font-semibold disabled:opacity-40"
+              style={{ backgroundColor: theme.base, color: theme.textOnStrong }}
             >
               {t('event.send')}
             </button>
@@ -260,9 +283,9 @@ const EventDetailSheet = ({
       </div>
 
       {editable && (
-      <SheetActionDock>
+      <SheetActionDock surface={theme.paper}>
         {confirmDelete ? (
-          <div className="w-full max-w-xs rounded-2xl bg-background p-4 shadow-soft-lg">
+          <div className="w-full">
             <p className="mb-3 text-center text-base font-medium">
               {t('event.deleteConfirm')}
             </p>
@@ -271,7 +294,8 @@ const EventDetailSheet = ({
                 type="button"
                 onClick={() => setConfirmDelete(false)}
                 disabled={deleteEvent.isPending}
-                className="min-h-11 rounded-xl border border-border bg-background px-3 font-medium"
+                className="min-h-12 rounded-lg border bg-transparent px-3 font-medium"
+                style={{ borderColor: rule }}
               >
                 {t('common.cancel')}
               </button>
@@ -279,37 +303,34 @@ const EventDetailSheet = ({
                 type="button"
                 onClick={() => void handleDelete()}
                 disabled={deleteEvent.isPending}
-                className="min-h-11 rounded-xl bg-destructive px-3 font-semibold text-destructive-foreground disabled:opacity-50"
+                className="min-h-12 rounded-lg bg-destructive px-3 font-semibold text-destructive-foreground disabled:opacity-50"
               >
                 {deleteEvent.isPending ? t('event.deleting') : t('event.deleteAction')}
               </button>
             </div>
           </div>
         ) : (
-          <>
-            {editable && (
-              <div className="flex items-center justify-center gap-3">
-                {onQuickEdit && (
-                  <button
-                    type="button"
-                    onClick={() => onQuickEdit(event)}
-                    aria-label={t('event.edit')}
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary active:bg-primary/25"
-                  >
-                    <Pencil size={18} strokeWidth={2.4} />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(true)}
-                  aria-label={t('event.delete')}
-                  className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive active:bg-destructive/15"
-                >
-                  <Trash2 size={18} strokeWidth={2.4} />
-                </button>
-              </div>
+          <div className="flex w-full items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              aria-label={t('event.delete')}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-destructive/30 text-destructive"
+            >
+              <Trash2 size={18} strokeWidth={2.4} />
+            </button>
+            {openEdit && (
+              <button
+                type="button"
+                onClick={() => openEdit(event)}
+                className="flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg text-base font-semibold"
+                style={{ backgroundColor: theme.base, color: theme.textOnStrong }}
+              >
+                <Pencil size={16} strokeWidth={2.4} />
+                {t('event.edit')}
+              </button>
             )}
-          </>
+          </div>
         )}
       </SheetActionDock>
       )}

@@ -53,13 +53,13 @@ const CategoryColorSettings = ({ member, calendarKind = 'home' }: CategoryColorS
 
   return (
     <div>
-      <h3 className="text-base font-semibold text-muted-foreground mb-1">Farger for kategorier</h3>
+      <h3 className="mb-1 font-calendar text-[0.68rem] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--sheet-accent, hsl(var(--muted-foreground)))' }}>Farger for kategorier</h3>
       <p className="text-sm text-muted-foreground mb-3">Velg hvordan dine kategorier vises i denne kalenderen.</p>
       <div className="space-y-3">
         {options.map((catKey) => {
           if (catKey === 'other') {
             return (
-              <div key={catKey} className="rounded-xl bg-muted p-3 flex items-center justify-between opacity-70">
+              <div key={catKey} className="flex items-center justify-between border-b py-3 opacity-70" style={{ borderColor: 'var(--sheet-rule, hsl(var(--border)))' }}>
                 <span className="text-base font-medium">{t('cat.other')}</span>
                 <span className="text-sm text-muted-foreground">Fast nøytral</span>
               </div>
@@ -70,7 +70,7 @@ const CategoryColorSettings = ({ member, calendarKind = 'home' }: CategoryColorS
           const selectedToken = map[catKey] ?? DEFAULT_CATEGORY_COLOR_MAP[catKey];
           const visuals = resolveCategoryVisuals(catKey, map);
           return (
-            <div key={catKey} className="rounded-xl bg-muted p-3">
+            <div key={catKey} className="border-b py-3" style={{ borderColor: 'var(--sheet-rule, hsl(var(--border)))' }}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Icon size={16} strokeWidth={2.5} style={{ color: visuals.ink }} />

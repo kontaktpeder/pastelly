@@ -77,19 +77,20 @@ const DailyDigestSettings = ({ member }: DailyDigestSettingsProps) => {
   return (
     <div className="space-y-3">
       <div>
-        <h3 className="text-base font-semibold text-muted-foreground mb-1">Daglig oversikt</h3>
+        <h3 className="mb-1 font-calendar text-[0.68rem] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--sheet-accent, hsl(var(--muted-foreground)))' }}>Daglig oversikt</h3>
         <p className="text-sm text-muted-foreground">
           Få dagens aktiviteter på låseskjermen. Trykk på varselet for å åpne dagen i appen.
         </p>
       </div>
 
-      <label className="flex items-center justify-between gap-3 rounded-xl bg-muted p-3">
+      <label className="flex items-center justify-between gap-3 border-b py-3" style={{ borderColor: 'var(--sheet-rule, hsl(var(--border)))' }}>
         <span className="text-base font-medium">Send hver morgen</span>
         <input
           type="checkbox"
           checked={enabled}
           onChange={(e) => handleToggle(e.target.checked)}
-          className="h-5 w-5 accent-primary"
+          className="h-5 w-5"
+          style={{ accentColor: 'var(--sheet-accent, hsl(var(--primary)))' }}
         />
       </label>
 
@@ -99,7 +100,8 @@ const DailyDigestSettings = ({ member }: DailyDigestSettingsProps) => {
           value={time}
           disabled={!enabled}
           onChange={(e) => handleTime(e.target.value)}
-          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base disabled:opacity-50"
+          className="w-full rounded-lg border bg-transparent px-4 py-3 text-base disabled:opacity-50"
+          style={{ borderColor: 'var(--sheet-rule, hsl(var(--border)))' }}
         >
           {TIME_OPTIONS.map((opt) => (
             <option key={opt} value={opt}>
@@ -116,7 +118,8 @@ const DailyDigestSettings = ({ member }: DailyDigestSettingsProps) => {
         type="button"
         onClick={() => void sendTest()}
         disabled={testStatus === 'sending'}
-        className="w-full rounded-xl border border-border py-3 text-base font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+        className="w-full rounded-lg border bg-transparent py-3 text-base font-medium text-foreground disabled:opacity-50"
+        style={{ borderColor: 'var(--sheet-rule, hsl(var(--border)))' }}
       >
         {testStatus === 'sending'
           ? 'Sender...'

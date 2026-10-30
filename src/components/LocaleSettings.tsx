@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { APP_LOCALES, type AppLocale } from '@/lib/i18n/types';
 import { useLocale } from '@/hooks/useLocale';
-import { cn } from '@/lib/utils';
 
 function LocalePicker({
   value,
@@ -20,12 +19,16 @@ function LocalePicker({
           type="button"
           disabled={disabled}
           onClick={() => onChange(opt.value)}
-          className={cn(
-            'rounded-xl px-3 py-2.5 text-base font-medium transition-all text-left',
+          className="rounded-lg px-3 py-2.5 text-left text-base font-medium"
+          style={
             value === opt.value
-              ? 'bg-primary/20 ring-2 ring-primary'
-              : 'bg-background hover:bg-muted',
-          )}
+              ? {
+                  backgroundColor: 'color-mix(in srgb, var(--sheet-accent, hsl(var(--primary))) 16%, transparent)',
+                  boxShadow: 'inset 0 0 0 2px var(--sheet-accent, hsl(var(--primary)))',
+                  color: 'var(--sheet-accent, hsl(var(--primary)))',
+                }
+              : { boxShadow: 'inset 0 0 0 1px var(--sheet-rule, hsl(var(--border)))' }
+          }
         >
           {opt.nativeLabel}
         </button>
@@ -82,7 +85,7 @@ export function CalendarLocaleSettings({
 
   if (!canEdit) {
     return (
-      <div className="rounded-xl bg-background p-3">
+      <div>
         <p className="text-base font-medium">{t('locale.calendar')}</p>
         <p className="text-sm text-muted-foreground mt-1">
           {value === 'en' ? t('locale.en') : t('locale.nb')}
