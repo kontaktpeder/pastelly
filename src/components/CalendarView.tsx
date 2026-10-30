@@ -842,13 +842,10 @@ type HeaderFitSizes = { monthPx: number; yearPx: number };
 
 /** Survive strip remounts (swipe recenter / year jump) so first paint is already sized. */
 const headerFitCache = new Map<string, HeaderFitSizes>();
-/** Bump when fit math changes so stale (e.g. too-small year) entries are ignored. */
-const HEADER_FIT_CACHE_VER = 'y3';
-/**
- * Bottom air under the vertical year, as a fraction of month letter height.
- * Kept in CSS (not fit jitter) so swipe neighbors match the settled center.
- */
-const HEADER_YEAR_BOTTOM_GAP_RATIO = 0.07;
+/** Bump when fit math changes so stale entries are ignored. */
+const HEADER_FIT_CACHE_VER = 'y4';
+/** Vertical year stack vs month letter height — leftover is equal air via items-center. */
+const HEADER_YEAR_STACK_RATIO = 0.96;
 
 function headerFitCacheKey(
   monthLabel: string,
@@ -873,14 +870,6 @@ function getHeaderMeasureHost() {
   document.body.appendChild(host);
   headerMeasureHost = host;
   return host;
-}
-
-/** Long axis of a vertical-rl year stack (digit column height). */
-function verticalYearLongAxis(el: HTMLElement) {
-  const rect = el.getBoundingClientRect();
-  // Prefer the laid-out box height; scrollWidth is unreliable offscreen for vertical-rl
-  // and was inflating the measure → tiny year font.
-  return Math.max(rect.height, 1);
 }
 
 /** Measure fit sizes on a detached clone — never mutates the visible header. */
@@ -924,36 +913,16 @@ function measureHeaderFit(opts: {
   nextMonth = Math.min(nextMonth, monthAvailH * 0.92);
   nextMonth = Math.max(20, nextMonth);
 
-  // Year stack fills the column above a fixed bottom gap (see HEADER_YEAR_BOTTOM_GAP_RATIO).
+  // Year size is analytic (month / digits) — offscreen vertical-rl measure was unstable
+  // and caused swipe jumps + off-center seating on the divider.
   const digitCount = Math.max(yearLabel.length, 1);
-  const stackTarget = nextMonth * (1 - HEADER_YEAR_BOTTOM_GAP_RATIO);
-  const yearFloor = stackTarget / digitCount;
-  const yearCeil = yearFloor * 1.04;
-  let nextYear = yearFloor;
+  const nextYear = (nextMonth * HEADER_YEAR_STACK_RATIO) / digitCount;
 
   host.replaceChildren();
-  const yearEl = document.createElement('span');
-  yearEl.className = 'font-calendar font-black tabular-nums leading-none tracking-tight';
-  yearEl.style.cssText =
-    `font-size:${HEADER_FIT_PROBE_PX}px;writing-mode:vertical-rl;text-orientation:mixed;display:inline-block;line-height:1;`;
-  yearEl.textContent = yearLabel;
-  host.appendChild(yearEl);
-
-  const yearNeedLong = verticalYearLongAxis(yearEl);
-  if (yearNeedLong > 1) {
-    nextYear = HEADER_FIT_PROBE_PX * (stackTarget / yearNeedLong) * 0.99;
-  }
-  nextYear = Math.min(Math.max(nextYear, yearFloor), yearCeil);
-
-  yearEl.style.fontSize = `${nextYear}px`;
-  const yearGot = verticalYearLongAxis(yearEl);
-  if (yearGot > 1) {
-    nextYear = nextYear * (stackTarget / yearGot);
-    nextYear = Math.min(Math.max(nextYear, yearFloor), yearCeil);
-  }
-
-  host.replaceChildren();
-  return { monthPx: nextMonth, yearPx: nextYear };
+  return {
+    monthPx: Math.round(nextMonth * 100) / 100,
+    yearPx: Math.round(nextYear * 100) / 100,
+  };
 }
 
 const MonthHeaderPanel = ({
@@ -1096,14 +1065,10 @@ const MonthHeaderPanel = ({
           ) : null}
         </h2>
       </div>
-      {/* Column matches month letter height; year sits above a fixed bottom gap. */}
+      {/* Column matches month letter height; year is centered on the divider. */}
       <div
-        className="flex shrink-0 items-end gap-2 box-border"
-        style={{
-          width: HEADER_YEAR_COL_PX,
-          height: monthPx,
-          paddingBottom: monthPx * HEADER_YEAR_BOTTOM_GAP_RATIO,
-        }}
+        className="flex shrink-0 items-center gap-2"
+        style={{ width: HEADER_YEAR_COL_PX, height: monthPx }}
       >
         <span
           className="w-px shrink-0 self-stretch"
