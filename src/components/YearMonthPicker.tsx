@@ -29,9 +29,8 @@ function decadeStartFor(y: number) {
 }
 
 /**
- * Month/year picker as a browse sheet (half/full + swipe dismiss).
+ * Month/year picker as a fixed half sheet (swipe dismiss, no full expand).
  * Month labels keep calendar colors; year chrome + Today use fixed gray.
- * Grid stretches to fill the sheet body (not only the top).
  */
 const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPickerProps) => {
   const { dateLocale, t } = useLocale();
@@ -91,16 +90,13 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
 
   return (
     <CenteredPopup
-      variant="browse"
+      variant="half"
       onClose={onClose}
       onExit={onClose}
       zClassName="z-[55]"
       chrome={{ paper: PASTEL.calendarPaper, accent: PICKER_GRAY }}
     >
-      <div
-        className="flex min-h-0 flex-1 flex-col px-2 pb-2"
-        style={{ color: PICKER_GRAY, minHeight: 'min(72dvh, 640px)' }}
-      >
+      <div className="flex min-h-0 flex-1 flex-col px-2 pb-2" style={{ color: PICKER_GRAY }}>
         <div className="flex shrink-0 items-center justify-between px-1 pb-2 pt-1">
           <button
             type="button"
