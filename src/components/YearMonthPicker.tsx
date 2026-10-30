@@ -21,8 +21,10 @@ const PICKER_GRAY = '#6B6560';
 
 const EASE = [0.32, 0.72, 0, 1] as const;
 const SLIDE_MS = 0.2;
-const TITLE_YEAR_CLASS = 'font-calendar text-[2.75rem] font-black tabular-nums leading-none tracking-tight';
-const TITLE_DECADE_CLASS = 'font-calendar text-[1.85rem] font-black tabular-nums leading-none tracking-tight';
+const TITLE_YEAR_CLASS =
+  'font-digits text-[2.85rem] font-black tabular-nums leading-none tracking-tighter';
+const TITLE_DECADE_CLASS =
+  'font-digits text-[1.7rem] font-black tabular-nums leading-none tracking-tighter';
 
 function decadeStartFor(y: number) {
   return Math.floor(y / 12) * 12;
@@ -194,7 +196,7 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
                     className="relative flex h-full min-h-0 flex-col items-center justify-center rounded-2xl active:opacity-70"
                   >
                     <span
-                      className="font-calendar text-[clamp(1.35rem,5.5vw,1.85rem)] font-black tabular-nums leading-none tracking-tight"
+                      className="font-digits text-[clamp(1.55rem,6.5vw,2.15rem)] font-black tabular-nums leading-none tracking-tighter"
                       style={{ color: PICKER_GRAY }}
                     >
                       {y}
@@ -213,12 +215,12 @@ const YearMonthPicker = ({ year, month, onJumpToMonth, onClose }: YearMonthPicke
           )}
         </div>
 
-        <div className="shrink-0 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3">
+        <div className="flex shrink-0 justify-center pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1">
           <button
             type="button"
             onClick={goToday}
-            className="mx-auto flex min-h-12 w-full max-w-sm items-center justify-center rounded-full text-base font-bold active:opacity-90"
-            style={{ backgroundColor: PICKER_GRAY, color: PASTEL.calendarPaper }}
+            className="min-h-9 px-3 text-[0.8rem] font-semibold tracking-wide active:opacity-60"
+            style={{ color: PICKER_GRAY, opacity: 0.72 }}
           >
             {t('common.today')}
           </button>
