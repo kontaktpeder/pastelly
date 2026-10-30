@@ -48,6 +48,15 @@ describe('applyCalendarStripChange', () => {
     expect(next.getDate()).toBe(28);
   });
 
+  it('does not overflow Oct 31 into December when jumping to November', () => {
+    const prev = new Date(2026, 9, 31);
+    const jumped = new Date(2026, 10, 1);
+    const next = applyCalendarStripChange(prev, jumped, false);
+    expect(next.getFullYear()).toBe(2026);
+    expect(next.getMonth()).toBe(10);
+    expect(next.getDate()).toBe(30);
+  });
+
   it('uses a direct week jump as the focused day', () => {
     const prev = new Date(2026, 8, 1);
     const jumped = new Date(2026, 8, 18);
