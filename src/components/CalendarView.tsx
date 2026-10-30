@@ -843,7 +843,12 @@ type HeaderFitSizes = { monthPx: number; yearPx: number };
 /** Survive strip remounts (swipe recenter / year jump) so first paint is already sized. */
 const headerFitCache = new Map<string, HeaderFitSizes>();
 /** Bump when fit math changes so stale (e.g. too-small year) entries are ignored. */
-const HEADER_FIT_CACHE_VER = 'y2';
+const HEADER_FIT_CACHE_VER = 'y3';
+/**
+ * Bottom air under the vertical year, as a fraction of month letter height.
+ * Kept in CSS (not fit jitter) so swipe neighbors match the settled center.
+ */
+const HEADER_YEAR_BOTTOM_GAP_RATIO = 0.07;
 
 function headerFitCacheKey(
   monthLabel: string,
@@ -919,11 +924,11 @@ function measureHeaderFit(opts: {
   nextMonth = Math.min(nextMonth, monthAvailH * 0.92);
   nextMonth = Math.max(20, nextMonth);
 
-  // Year stack should match month letter height. Target ≈ month / digitCount;
-  // refine with an isolated vertical-rl probe (no month sibling).
+  // Year stack fills the column above a fixed bottom gap (see HEADER_YEAR_BOTTOM_GAP_RATIO).
   const digitCount = Math.max(yearLabel.length, 1);
-  const yearFloor = nextMonth / digitCount;
-  const yearCeil = yearFloor * 1.05;
+  const stackTarget = nextMonth * (1 - HEADER_YEAR_BOTTOM_GAP_RATIO);
+  const yearFloor = stackTarget / digitCount;
+  const yearCeil = yearFloor * 1.04;
   let nextYear = yearFloor;
 
   host.replaceChildren();
@@ -936,14 +941,14 @@ function measureHeaderFit(opts: {
 
   const yearNeedLong = verticalYearLongAxis(yearEl);
   if (yearNeedLong > 1) {
-    nextYear = HEADER_FIT_PROBE_PX * (nextMonth / yearNeedLong) * 0.98;
+    nextYear = HEADER_FIT_PROBE_PX * (stackTarget / yearNeedLong) * 0.99;
   }
   nextYear = Math.min(Math.max(nextYear, yearFloor), yearCeil);
 
   yearEl.style.fontSize = `${nextYear}px`;
   const yearGot = verticalYearLongAxis(yearEl);
   if (yearGot > 1) {
-    nextYear = nextYear * (nextMonth / yearGot);
+    nextYear = nextYear * (stackTarget / yearGot);
     nextYear = Math.min(Math.max(nextYear, yearFloor), yearCeil);
   }
 
@@ -1091,10 +1096,14 @@ const MonthHeaderPanel = ({
           ) : null}
         </h2>
       </div>
-      {/* Column matches month letter height; year is centered on the divider. */}
+      {/* Column matches month letter height; year sits above a fixed bottom gap. */}
       <div
-        className="flex shrink-0 items-center gap-2"
-        style={{ width: HEADER_YEAR_COL_PX, height: monthPx }}
+        className="flex shrink-0 items-end gap-2 box-border"
+        style={{
+          width: HEADER_YEAR_COL_PX,
+          height: monthPx,
+          paddingBottom: monthPx * HEADER_YEAR_BOTTOM_GAP_RATIO,
+        }}
       >
         <span
           className="w-px shrink-0 self-stretch"
