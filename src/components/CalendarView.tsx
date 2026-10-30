@@ -33,8 +33,8 @@ import type { HouseholdMember } from '@/hooks/useHousehold';
 import type { Highlight } from '@/pages/Index';
 import { useLocale } from '@/hooks/useLocale';
 import type { CalendarKind } from '@/lib/calendarKinds';
-import ViewHeader from '@/components/ViewHeader';
 import CalendarDaySheet from '@/components/CalendarDaySheet';
+import YearMonthPicker from '@/components/YearMonthPicker';
 import EventDetailSheet from '@/components/EventDetailSheet';
 import OverlayEventSheet from '@/components/OverlayEventSheet';
 import WorkBlockSheet from '@/components/WorkBlockSheet';
@@ -674,21 +674,21 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
           {showYear && (
             <motion.div
               key="year-overlay"
-              initial={{ y: 6 }}
-              animate={{ y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={fadeQuick}
               className="absolute inset-0 z-30 flex flex-col"
               style={{ backgroundColor: PASTEL.calendarPaper }}
             >
-              <YearView
+              <YearMonthPicker
                 year={year}
-                onSelectMonth={(m) => {
-                  jumpToMonth(new Date(year, m, 1));
-                  closeYearView();
+                month={month}
+                onJumpToMonth={(d) => {
+                  // Jump under the overlay so the strip is ready before fade-out.
+                  jumpToMonth(d);
                 }}
-                onBack={closeYearView}
-                onChangeYear={(y) => jumpToMonth(new Date(y, month, 1))}
+                onClose={closeYearView}
               />
             </motion.div>
           )}
@@ -1287,54 +1287,6 @@ const DayCell = ({
         )}
       </div>
     </button>
-  );
-};
-
-const YearView = ({ year, onSelectMonth, onBack, onChangeYear }: { year: number; onSelectMonth: (m: number) => void; onBack: () => void; onChangeYear: (y: number) => void }) => {
-  const { dateLocale } = useLocale();
-  const months = Array.from({ length: 12 }, (_, i) => i);
-  const now = new Date();
-  const theme = getMonthTheme(new Date(year, 0, 1));
-
-  return (
-    <div className="flex flex-col h-full min-h-0">
-      <ViewHeader
-        variant="calendar"
-        onPrev={() => onChangeYear(year - 1)}
-        onNext={() => onChangeYear(year + 1)}
-        onTitleClick={onBack}
-        calendarStyle={{ backgroundColor: theme.light, color: theme.textOnLight }}
-      >
-        {year}
-      </ViewHeader>
-
-      <div className="grid grid-cols-3 gap-2.5 px-2.5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] flex-1 content-start overflow-y-auto scroll-touch overscroll-contain">
-        {months.map((m) => {
-          const theme = getMonthTheme(new Date(year, m, 1));
-          const isCurrentMonth = now.getFullYear() === year && now.getMonth() === m;
-          return (
-            <button
-              key={m}
-              type="button"
-              onClick={() => onSelectMonth(m)}
-              className="rounded-2xl py-5 text-center transition-all duration-200"
-              style={
-                isCurrentMonth
-                  ? { boxShadow: `0 0 0 2px ${theme.base}` }
-                  : undefined
-              }
-            >
-              <span
-                className="font-calendar text-3xl font-black capitalize tracking-wide"
-                style={{ color: theme.base }}
-              >
-                {format(new Date(year, m, 1), 'MMM', { locale: dateLocale })}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 };
 

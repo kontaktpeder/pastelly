@@ -3,6 +3,13 @@ export type MonthTheme = {
   base: string;
   light: string;
   dark: string;
+  /**
+   * Readable label ink on cream paper (≥ 4.5:1). Use for month picker text;
+   * keep `base` for chrome / soft fills.
+   */
+  ink: string;
+  /** Soft wash of `base` (~14 %) for picker tiles */
+  softTile: string;
   /** Label on `base` chips / strong fills */
   textOnStrong: string;
   /** Label on the soft calendar month wash */
@@ -182,14 +189,29 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
 }
 
-/** Calendar chrome uses `base` as-is; year chips keep a soft wash of the same hue. */
+/** Darken `fill` toward ink/black until contrast vs `paper` clears 4.5:1. */
+export function readableInkOnPaper(fill: string, paper: string = PASTEL.calendarPaper): string {
+  if (contrastRatio(fill, paper) >= 4.5) return fill;
+  let best = shadeInk(fill);
+  if (contrastRatio(best, paper) >= 4.5) return best;
+  for (let t = 0.15; t <= 1; t += 0.1) {
+    const next = mix(fill, '#000000', t);
+    if (contrastRatio(next, paper) >= 4.5) return next;
+    best = next;
+  }
+  return best;
+}
+
+/** Calendar chrome uses `base` as-is; picker labels use darker `ink` on cream. */
 export function getMonthTheme(date: Date): MonthTheme {
   const base = MONTH_COLORS[date.getMonth()]!;
   const paper = PASTEL.calendarPaper;
   const light = mix(base, paper, 0.35);
   const dark = base;
+  const ink = readableInkOnPaper(base, paper);
+  const softTile = withAlpha(base, 0.14);
   const textOnStrong = textOnStrongColor(base);
   const textOnLight = base;
   const gradient = light;
-  return { base, light, dark, textOnStrong, textOnLight, gradient, paper };
+  return { base, light, dark, ink, softTile, textOnStrong, textOnLight, gradient, paper };
 }

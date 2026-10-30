@@ -15,6 +15,14 @@ export const nb = {
   'common.undo': 'Angre',
   'common.hideEvents': 'Skjul aktiviteter',
   'common.showEvents': 'Vis aktiviteter',
+  'common.today': 'I dag',
+
+  // year / month picker
+  'picker.selectMonth': 'Velg måned',
+  'picker.selectYear': 'Velg år',
+  'picker.zoomOutYears': 'Velg år',
+  'picker.prev': 'Forrige',
+  'picker.next': 'Neste',
 
   // locales
   'locale.app': 'App-språk',

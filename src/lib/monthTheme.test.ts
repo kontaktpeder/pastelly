@@ -25,4 +25,11 @@ describe('month label on strong fills', () => {
       expect(contrast(theme.base, theme.textOnStrong)).toBeGreaterThanOrEqual(4.5);
     }
   });
+
+  it('keeps picker ink readable on cream paper', () => {
+    for (let month = 0; month < 12; month += 1) {
+      const theme = getMonthTheme(new Date(2026, month, 1));
+      expect(contrast(theme.ink, theme.paper)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
 });

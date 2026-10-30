@@ -16,6 +16,14 @@ export const en: Record<MessageKey, string> = {
   'common.undo': 'Undo',
   'common.hideEvents': 'Hide activities',
   'common.showEvents': 'Show activities',
+  'common.today': 'Today',
+
+  // year / month picker
+  'picker.selectMonth': 'Select month',
+  'picker.selectYear': 'Select year',
+  'picker.zoomOutYears': 'Select year',
+  'picker.prev': 'Previous',
+  'picker.next': 'Next',
 
   'locale.app': 'App language',
   'locale.appHint': 'Applies to sign-in and profile. Calendar language under “This calendar” controls text inside the calendar.',
