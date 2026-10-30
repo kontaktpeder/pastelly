@@ -289,12 +289,7 @@ const DayOverview = ({
                     style={{ backgroundColor: WORK_BLOCK_MARK.soft }}
                   >
                     <div className="flex items-center gap-2">
-                      <span
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px]"
-                        style={{ backgroundColor: WORK_BLOCK_MARK.rail }}
-                      >
-                        <BriefcaseBusiness size={12} strokeWidth={2} style={{ color: WORK_BLOCK_MARK.onFill }} />
-                      </span>
+                      <BriefcaseBusiness size={16} strokeWidth={2.25} className="shrink-0" style={{ color: WORK_BLOCK_MARK.ink }} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-lg font-semibold">{ev.title}</span>
                         {timeLabel && (
@@ -322,12 +317,7 @@ const DayOverview = ({
                   >
                     <div className="flex items-center gap-2">
                       {fromWork && (
-                        <span
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px]"
-                          style={{ backgroundColor: OVERLAY_MARK.rail }}
-                        >
-                          <BriefcaseBusiness size={12} strokeWidth={2} style={{ color: OVERLAY_MARK.onFill }} />
-                        </span>
+                        <BriefcaseBusiness size={16} strokeWidth={2.25} className="shrink-0" style={{ color: OVERLAY_MARK.ink }} />
                       )}
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-lg font-semibold">{ev.title}</span>
@@ -361,12 +351,7 @@ const DayOverview = ({
                 >
                   <div className="flex items-center gap-2">
                     {Icon && (
-                      <span
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                        style={{ backgroundColor: visuals.rail }}
-                      >
-                        <Icon size={12} strokeWidth={2} style={{ color: visuals.onFill }} />
-                      </span>
+                      <Icon size={16} strokeWidth={2.25} className="shrink-0" style={{ color: visuals.ink }} />
                     )}
                     <span className="truncate text-lg font-semibold">{ev.title}</span>
                   </div>

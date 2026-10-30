@@ -9,7 +9,7 @@ import {
   type DisplayEvent,
 } from '@/hooks/useOverlayEvents';
 import { mergeWorkBlocks, useWorkScheduleBlocks, WORK_BLOCK_MARK } from '@/hooks/useWorkSchedule';
-import { resolveCategoryVisuals, getMemberColorMap, categoryMarkFill } from '@/lib/categoryPresentation';
+import { resolveCategoryVisuals, getMemberColorMap } from '@/lib/categoryPresentation';
 import { EVENT_CATEGORY_META } from '@/lib/eventCategories';
 import { getMonthTheme, PASTEL, sundayAccentForMonth, withAlpha } from '@/lib/monthTheme';
 import {
@@ -1270,12 +1270,11 @@ interface DayCellProps {
 
 /** Max single-day marks shown before +N overflow */
 const MAX_VISIBLE_MARKS = 3;
-/** Icon sits optically centered in the chip */
-const CAL_ICON_SIZE = 11;
+/** Stroke icon only — no filled chip behind it */
+const CAL_ICON_SIZE = 12;
 const CAL_ICON_STROKE = 2.2;
-/** Single-day mark: round chip; flex box centers the SVG */
-const DAY_PILL =
-  'h-[1.15rem] w-[1.15rem] rounded-full inline-flex items-center justify-center shrink-0 leading-none overflow-hidden';
+const DAY_MARK =
+  'h-[1.15rem] w-[1.15rem] inline-flex items-center justify-center shrink-0 leading-none';
 const SPAN_ROW_H = 'h-[0.55rem]';
 /** Multi-day rail ends — soft round like the reference calendar */
 const SPAN_ROUND_START = 'rounded-l-full';
@@ -1289,7 +1288,7 @@ function MarkGlyph({
   color: string;
 }) {
   return (
-    <span className="pointer-events-none flex h-full w-full items-center justify-center leading-none">
+    <span className="pointer-events-none flex items-center justify-center leading-none">
       <Icon
         size={CAL_ICON_SIZE}
         strokeWidth={CAL_ICON_STROKE}
@@ -1374,12 +1373,9 @@ const DayCell = ({
         <div
           key={ev.id}
           title={ev.title}
-          className={`${DAY_PILL} ${evHighlighted ? 'ring-1 ring-primary/40' : ''}`}
-          style={{
-            background: categoryMarkFill(WORK_BLOCK_MARK.soft, WORK_BLOCK_MARK.rail),
-          }}
+          className={`${DAY_MARK} ${evHighlighted ? 'ring-1 ring-primary/40 rounded-sm' : ''}`}
         >
-          <MarkGlyph Icon={BriefcaseBusiness} color={WORK_BLOCK_MARK.onFill} />
+          <MarkGlyph Icon={BriefcaseBusiness} color={WORK_BLOCK_MARK.ink} />
         </div>
       );
     }
@@ -1390,14 +1386,16 @@ const DayCell = ({
         <div
           key={ev.id}
           title={ev.title}
-          className={`${DAY_PILL} ${evHighlighted ? 'ring-1 ring-primary/40' : ''}`}
-          style={{
-            background: categoryMarkFill(OVERLAY_MARK.soft, OVERLAY_MARK.rail),
-          }}
+          className={`${DAY_MARK} ${evHighlighted ? 'ring-1 ring-primary/40 rounded-sm' : ''}`}
         >
           {fromWork ? (
-            <MarkGlyph Icon={BriefcaseBusiness} color={OVERLAY_MARK.onFill} />
-          ) : null}
+            <MarkGlyph Icon={BriefcaseBusiness} color={OVERLAY_MARK.ink} />
+          ) : (
+            <span
+              className="block h-1.5 w-1.5 rounded-full shrink-0"
+              style={{ backgroundColor: OVERLAY_MARK.ink }}
+            />
+          )}
         </div>
       );
     }
@@ -1411,17 +1409,14 @@ const DayCell = ({
       <div
         key={ev.id}
         title={ev.title}
-        className={`${DAY_PILL} ${evHighlighted ? 'ring-1 ring-primary/40' : ''}`}
-        style={{
-          background: categoryMarkFill(visuals.soft, visuals.rail),
-        }}
+        className={`${DAY_MARK} ${evHighlighted ? 'ring-1 ring-primary/40 rounded-sm' : ''}`}
       >
         {Icon ? (
-          <MarkGlyph Icon={Icon} color={visuals.onFill} />
+          <MarkGlyph Icon={Icon} color={visuals.ink} />
         ) : (
           <span
-            className="block w-1 h-1 rounded-full shrink-0"
-            style={{ backgroundColor: visuals.onFill }}
+            className="block h-1.5 w-1.5 rounded-full shrink-0"
+            style={{ backgroundColor: visuals.ink }}
           />
         )}
       </div>

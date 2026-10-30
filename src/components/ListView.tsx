@@ -381,12 +381,9 @@ const EventRow = ({ event, currentMemberId, calendarKind, highlight, onTap, onLo
       }`}
       style={{ backgroundColor: visuals.soft }}
     >
-      <span
-        className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center"
-        style={{ backgroundColor: visuals.rail }}
-      >
-        {Icon && <Icon size={12} strokeWidth={2} style={{ color: visuals.onFill }} />}
-      </span>
+      {Icon && (
+        <Icon size={16} strokeWidth={2.25} className="shrink-0" style={{ color: visuals.ink }} />
+      )}
       <span className="min-w-0 flex-1">
         <span className="font-semibold text-base block truncate">{event.title}</span>
         {multiLabel && (

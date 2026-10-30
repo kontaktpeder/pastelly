@@ -560,14 +560,12 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                           applyCategoryTiming(key);
                           if (key !== 'other') setOtherLabel('');
                         }}
-                        className="flex h-12 w-12 items-center justify-center rounded-2xl border-[1.5px] transition-all"
-                        style={
-                          selected
-                            ? { backgroundColor: visuals.rail, borderColor: visuals.rail, color: visuals.onFill }
-                            : { backgroundColor: 'transparent', borderColor: visuals.ink, color: visuals.ink }
-                        }
+                        className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-all ${
+                          selected ? 'ring-2 ring-offset-2 ring-current' : ''
+                        }`}
+                        style={{ color: visuals.ink }}
                       >
-                        <Icon size={20} strokeWidth={2.4} style={{ color: selected ? visuals.onFill : visuals.ink }} />
+                        <Icon size={22} strokeWidth={2.4} style={{ color: visuals.ink }} />
                       </button>
                     );
                   })}
@@ -685,12 +683,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                     </p>
                     <div className="mt-3 flex items-start gap-3">
                       {SummaryIcon && visuals && (
-                        <span
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
-                          style={{ backgroundColor: visuals.rail }}
-                        >
-                          <SummaryIcon size={20} strokeWidth={2.4} style={{ color: visuals.onFill }} />
-                        </span>
+                        <SummaryIcon size={22} strokeWidth={2.4} className="mt-0.5 shrink-0" style={{ color: visuals.ink }} />
                       )}
                       <div className="min-w-0">
                         <p className="text-lg font-bold leading-tight">{title}</p>
