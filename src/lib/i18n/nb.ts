@@ -115,7 +115,7 @@ export const nb = {
   'auth.accountUnavailable':
     'Kontoen finnes ikke lenger. Logg inn med en annen konto, eller opprett ny. Kontakt support hvis dette er feil.',
   'auth.emailConfirmedLogin':
-    'E-posten er bekreftet. Logg inn med e-post og passord for å fortsette.',
+    'Kontoen er bekreftet. Gå tilbake til Pastelly og logg inn.',
   'auth.inviteReady': 'Invitasjonskode klar: {code}. Opprett konto eller logg inn for å bli med.',
   'auth.signupWithInvite': 'Opprett konto — så legger vi deg inn i kalenderen',
   'auth.loginWithInvite': 'Logg inn — så kobler vi deg til kalenderen',
@@ -125,7 +125,7 @@ export const nb = {
   'auth.createAccount': 'Opprett konto',
   'auth.forgotPassword': 'Glemt passord?',
   'auth.emailNotConfirmed':
-    'E-posten er ikke bekreftet ennå. Sjekk innboksen (og søppelpost), eller gå til innlogging etter at du har bekreftet.',
+    'E-posten er ikke bekreftet ennå. Skriv inn koden fra e-posten, eller send ny kode.',
   'auth.userAlreadyRegistered': 'Det finnes allerede en konto med denne e-posten. Logg inn i stedet.',
   'auth.rateLimited': 'For mange forsøk. Vent litt før du prøver igjen.',
   'auth.genericError': 'Noe gikk galt. Prøv igjen.',
@@ -150,6 +150,20 @@ export const nb = {
   'auth.backToLogin': 'Tilbake til innlogging',
   'auth.resetSentTitle': 'Sjekk e-posten din',
   'auth.resetSentBody': 'Vi har sendt en lenke til e-posten din. Sjekk også søppelpost.',
+  'auth.otpTitle': 'Skriv inn koden',
+  'auth.otpBody': 'Vi har sendt en 6-sifret kode til {email}.',
+  'auth.otpAria': 'Bekreftelseskode, 6 siffer',
+  'auth.otpVerifying': 'Bekrefter...',
+  'auth.otpInvalid': 'Feil kode. Prøv igjen.',
+  'auth.otpExpired': 'Koden er utløpt. Send ny.',
+  'auth.otpResend': 'Send ny kode',
+  'auth.otpResending': 'Sender...',
+  'auth.otpResendWait': 'Send ny kode om {seconds}s',
+  'auth.callbackConfirmedTitle': 'Kontoen er bekreftet',
+  'auth.callbackConfirmedBody':
+    'Gå tilbake til Pastelly og logg inn — eller skriv inn koden i appen hvis den fortsatt er åpen.',
+  'auth.callbackFailedTitle': 'Innlogging feilet',
+  'auth.callbackWorking': 'Logger deg inn...',
 
   // profile
   'profile.thisCalendar': 'Denne kalenderen',

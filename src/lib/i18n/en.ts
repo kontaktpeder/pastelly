@@ -110,7 +110,7 @@ export const en: Record<MessageKey, string> = {
   'auth.accountUnavailable':
     'This account no longer exists. Sign in with another account, or create a new one. Contact support if this is a mistake.',
   'auth.emailConfirmedLogin':
-    'Email confirmed. Sign in with email and password to continue.',
+    'Account confirmed. Go back to Pastelly and sign in.',
   'auth.inviteReady': 'Invite code ready: {code}. Create an account or sign in to join.',
   'auth.signupWithInvite': 'Create an account — then we’ll add you to the calendar',
   'auth.loginWithInvite': 'Sign in — then we’ll connect you to the calendar',
@@ -120,7 +120,7 @@ export const en: Record<MessageKey, string> = {
   'auth.createAccount': 'Create account',
   'auth.forgotPassword': 'Forgot password?',
   'auth.emailNotConfirmed':
-    'Email not confirmed yet. Check your inbox (and spam), or sign in after confirming.',
+    'Email not confirmed yet. Enter the code from your email, or send a new one.',
   'auth.userAlreadyRegistered': 'An account with this email already exists. Sign in instead.',
   'auth.rateLimited': 'Too many attempts. Wait a moment and try again.',
   'auth.genericError': 'Something went wrong. Try again.',
@@ -145,6 +145,20 @@ export const en: Record<MessageKey, string> = {
   'auth.backToLogin': 'Back to sign in',
   'auth.resetSentTitle': 'Check your email',
   'auth.resetSentBody': 'We’ve sent a link to your email. Check spam too.',
+  'auth.otpTitle': 'Enter the code',
+  'auth.otpBody': 'We sent a 6-digit code to {email}.',
+  'auth.otpAria': 'Confirmation code, 6 digits',
+  'auth.otpVerifying': 'Confirming...',
+  'auth.otpInvalid': 'Wrong code. Try again.',
+  'auth.otpExpired': 'Code expired. Send a new one.',
+  'auth.otpResend': 'Send new code',
+  'auth.otpResending': 'Sending...',
+  'auth.otpResendWait': 'Send new code in {seconds}s',
+  'auth.callbackConfirmedTitle': 'Account confirmed',
+  'auth.callbackConfirmedBody':
+    'Go back to Pastelly and sign in — or enter the code in the app if it’s still open.',
+  'auth.callbackFailedTitle': 'Sign-in failed',
+  'auth.callbackWorking': 'Signing you in...',
 
   'profile.thisCalendar': 'This calendar',
   'profile.thisCalendarHint': 'Only applies to “{name}”',

@@ -3,6 +3,8 @@ export type AuthFormErrorKind =
   | 'email_not_confirmed'
   | 'user_already_registered'
   | 'rate_limit'
+  | 'otp_invalid'
+  | 'otp_expired'
   | 'generic';
 
 type MaybeAuthError = {
@@ -26,6 +28,25 @@ export function classifyAuthFormError(error: unknown): AuthFormErrorKind {
 
   if (status === 429 || code === 'over_email_send_rate_limit' || /rate.?limit|too many/i.test(message)) {
     return 'rate_limit';
+  }
+
+  if (
+    code === 'otp_expired' ||
+    (message.includes('otp') && message.includes('expired')) ||
+    (message.includes('token') && message.includes('expired'))
+  ) {
+    return 'otp_expired';
+  }
+
+  if (
+    code === 'otp_disabled' ||
+    code === 'invalid_token' ||
+    message.includes('token has expired or is invalid') ||
+    message.includes('invalid otp') ||
+    message.includes('otp is invalid') ||
+    (message.includes('invalid') && message.includes('token'))
+  ) {
+    return 'otp_invalid';
   }
 
   if (

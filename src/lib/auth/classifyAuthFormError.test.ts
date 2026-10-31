@@ -27,6 +27,12 @@ describe('classifyAuthFormError', () => {
     expect(classifyAuthFormError({ code: 'over_email_send_rate_limit' })).toBe('rate_limit');
   });
 
+  it('maps otp invalid and expired', () => {
+    expect(classifyAuthFormError({ code: 'otp_expired' })).toBe('otp_expired');
+    expect(classifyAuthFormError({ message: 'Token has expired or is invalid' })).toBe('otp_expired');
+    expect(classifyAuthFormError({ message: 'Invalid OTP' })).toBe('otp_invalid');
+  });
+
   it('falls back to generic', () => {
     expect(classifyAuthFormError(null)).toBe('generic');
     expect(classifyAuthFormError({ message: 'Something else' })).toBe('generic');
