@@ -638,9 +638,25 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
   };
 
   const handleDayTap = (day: Date) => {
-    requestAnimationFrame(() => onSelectDate(day));
-    // iPhone uses a sheet; iPad updates the persistent day inspector.
-    if (isMobile) tryOpenSheet(() => setDaySheetDate(day));
+    void (async () => {
+      // Trailing/leading days belong to another month — jump the strip with
+      // verified scrollLeft (plain scrollTo is often ignored by scroll-snap).
+      if (!isSameMonth(day, fromMonthIndex(liveIndexRef.current))) {
+        await jumpToMonth(startOfMonth(day));
+      }
+      onSelectDate(day);
+      // iPhone uses a sheet; iPad updates the persistent day inspector.
+      if (isMobile) tryOpenSheet(() => setDaySheetDate(day));
+    })();
+  };
+
+  const handleDayLongPress = (day: Date) => {
+    void (async () => {
+      if (!isSameMonth(day, fromMonthIndex(liveIndexRef.current))) {
+        await jumpToMonth(startOfMonth(day));
+      }
+      onCreateEvent(day);
+    })();
   };
 
   const getMemberForEvent = (event: Event) => {
@@ -737,7 +753,7 @@ const CalendarView = ({ householdId, members, currentMemberId, calendarKind = 'h
                       highlight={highlight}
                       interactive={isLive}
                       onTap={handleDayTap}
-                      onLongPress={onCreateEvent}
+                      onLongPress={handleDayLongPress}
                       onPressLock={lockStripForPress}
                       onPressUnlock={unlockStripForPress}
                       getMemberForEvent={getMemberForEvent}
