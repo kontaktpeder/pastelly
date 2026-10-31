@@ -10,7 +10,6 @@ import { useMembers } from '@/hooks/useHousehold';
 import { useHouseholdHasEvents } from '@/hooks/useHouseholdHasEvents';
 import { adjacentCalendarId, sortCalendarMemberships } from '@/lib/calendarStack';
 import { resolveCalendarKind } from '@/lib/calendarKinds';
-import { isSeedWeekDismissed } from '@/lib/seedWeekStorage';
 import { LocaleProvider } from '@/hooks/useLocale';
 import { getMonthTheme, PASTEL } from '@/lib/monthTheme';
 import AuthPage from '@/pages/Auth';
@@ -80,7 +79,6 @@ const Index = () => {
   const [bootPhase, setBootPhase] = useState<'covering' | 'revealing' | 'done'>('covering');
   const coldStartRef = useRef(true);
   const switchingRef = useRef(false);
-  const seedAutoOpenedRef = useRef<string | null>(null);
   const [authView, setAuthView] = useState<null | 'login' | 'signup'>(() => {
     if (peekPendingInviteCode()) return 'signup';
     if (peekSessionNotice() === 'email_confirmed_login') return 'login';
@@ -135,37 +133,22 @@ const Index = () => {
   );
 
   const calendarKind = household ? resolveCalendarKind(household) : 'home';
+  // SeedWeekFlow stays available (e.g. from calendar entry points) but is not auto-opened.
   const canSeedWeek =
     !!household &&
     calendarKind === 'home' &&
     hasEventsReady &&
     hasEvents === false;
 
-  useEffect(() => {
-    if (!household || !canSeedWeek) return;
-    if (isSeedWeekDismissed(household.id)) return;
-    if (seedAutoOpenedRef.current === household.id) return;
-    seedAutoOpenedRef.current = household.id;
-    setShowSeedWeek(true);
-  }, [household, canSeedWeek]);
-
-  // Join welcome: after onboarding or joining via profile (no seed step).
-  // Create welcome: wait until seed finishes / is skipped (see revealWelcomeAfterSeed).
+  // After onboarding: show invite/welcome promptly. Seed week is optional and not auto-run.
   useEffect(() => {
     if (!household || !hasEventsReady) return;
     const pending = peekWelcomeIntent(household.id);
-    if (pending === 'join') {
-      consumeWelcomeIntent(household.id);
-      const t = window.setTimeout(() => setWelcomeDialog('join'), 400);
-      return () => window.clearTimeout(t);
-    }
-    if (pending === 'create' && !canSeedWeek) {
-      // Seed won't open (already has events / not home) — welcome now.
-      consumeWelcomeIntent(household.id);
-      const t = window.setTimeout(() => setWelcomeDialog('create'), 400);
-      return () => window.clearTimeout(t);
-    }
-  }, [household, hasEventsReady, canSeedWeek]);
+    if (pending !== 'join' && pending !== 'create') return;
+    consumeWelcomeIntent(household.id);
+    const t = window.setTimeout(() => setWelcomeDialog(pending), 400);
+    return () => window.clearTimeout(t);
+  }, [household, hasEventsReady]);
 
   const revealWelcomeAfterSeed = useCallback(() => {
     if (!household) return;
