@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getAuthRedirectUrl } from '@/lib/native/authRedirect';
 import { clearLocalUserState } from '@/lib/auth/localReset';
+import { setPendingSignup } from '@/lib/auth/pendingSignup';
 import { classifySessionUserError, type SessionUserCheck } from '@/lib/auth/sessionValidity';
 import { setSessionNotice } from '@/lib/auth/sessionNotice';
 import { clearPushUser, identifyPushUser } from '@/lib/native/push';
@@ -106,12 +107,31 @@ export function useAuth() {
   };
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: getAuthRedirectUrl() },
     });
-    return { error };
+    if (error) return { data, error, alreadyRegistered: false, needsConfirm: false };
+
+    // Supabase returns a user with empty identities when the email is taken
+    // (anti-enumeration) — treat as already registered, not a fresh signup.
+    const identities = data.user?.identities ?? [];
+    if (data.user && identities.length === 0) {
+      return { data, error: null, alreadyRegistered: true, needsConfirm: false };
+    }
+
+    const needsConfirm = !!data.user && !data.user.email_confirmed_at;
+    if (needsConfirm) {
+      // Persist BEFORE clearing any surprise session so Auth remounts into OTP
+      // even if SIGNED_IN already unmounted the form mid-await.
+      setPendingSignup(email, password);
+      if (data.session) {
+        await supabase.auth.signOut({ scope: 'local' });
+      }
+    }
+
+    return { data, error: null, alreadyRegistered: false, needsConfirm };
   };
 
   const signOut = async () => {

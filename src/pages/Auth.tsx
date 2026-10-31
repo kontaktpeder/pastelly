@@ -30,6 +30,16 @@ type OtpGate = {
   sentAt: number;
 };
 
+function pendingToGate(): OtpGate | null {
+  const pending = peekPendingSignup();
+  if (!pending) return null;
+  return {
+    email: pending.email,
+    password: pending.password,
+    sentAt: pending.sentAt,
+  };
+}
+
 const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
   const { t } = useLocale();
   const pendingInvite = peekPendingInviteCode();
@@ -40,11 +50,29 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [otpGate, setOtpGate] = useState<OtpGate | null>(() => peekPendingSignup());
+  const [otpGate, setOtpGate] = useState<OtpGate | null>(() => pendingToGate());
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [busy, setBusy] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user } = useAuth();
+
+  // Survive remount after signUp's temporary session: always re-hydrate OTP.
+  useEffect(() => {
+    if (otpGate) return;
+    const gate = pendingToGate();
+    if (gate) {
+      setOtpGate(gate);
+      return;
+    }
+    // Unconfirmed session without pending password — still collect the code.
+    if (user && !user.email_confirmed_at && user.email) {
+      setOtpGate({
+        email: user.email,
+        password: '',
+        sentAt: Date.now() - 30_000,
+      });
+    }
+  }, [otpGate, user]);
 
   useEffect(() => {
     const pending = consumeSessionNotice();
@@ -73,7 +101,6 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
         setError(t('auth.invalidCredentials'));
         return;
       case 'email_not_confirmed':
-        // Same credentials — send them into the OTP screen instead of a dead end.
         openOtp(email, password);
         void supabase.auth.resend({
           type: 'signup',
@@ -107,9 +134,22 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
         if (error) applyAuthError(error);
         else clearPendingSignup();
       } else if (mode === 'signup') {
-        const { error } = await signUp(email, password);
-        if (error) applyAuthError(error);
-        else openOtp(email, password);
+        const result = await signUp(email, password);
+        if (result.error) {
+          applyAuthError(result.error);
+          return;
+        }
+        if (result.alreadyRegistered) {
+          setAlreadyRegistered(true);
+          return;
+        }
+        if (result.needsConfirm) {
+          // pendingSignup already written inside signUp; open UI (or remount recovers it).
+          openOtp(email, password);
+          return;
+        }
+        // Email confirm disabled in project — session is live, Index will enter app.
+        clearPendingSignup();
       } else {
         const result = await requestPasswordReset(email);
         if (result.ok === true) {
@@ -142,6 +182,9 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
           setOtpGate(null);
           setMode('login');
           setEmail(otpGate.email);
+          if (user && !user.email_confirmed_at) {
+            void supabase.auth.signOut({ scope: 'local' });
+          }
         }}
       />
     );
