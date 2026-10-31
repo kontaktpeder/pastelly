@@ -24,10 +24,10 @@ export function isPkceVerifierError(message: string | null | undefined): boolean
 }
 
 const PKCE_CROSS_BROWSER_ERROR =
-  'Lenken åpnet i en annen nettleser enn der du startet. Kontoen er som regel allerede aktivert — logg inn med e-post og passord.';
+  'Kontoen er bekreftet. Gå tilbake til Pastelly og logg inn.';
 
 const NO_PARAMS_LOGIN_HINT =
-  'Bekreftelsen er ofte allerede fullført. Logg inn med e-post og passord for å fortsette.';
+  'Kontoen er bekreftet. Gå tilbake til Pastelly og logg inn.';
 
 const NATIVE_SCHEME = 'pastelly:';
 const NATIVE_HOST = 'auth';

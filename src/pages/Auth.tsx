@@ -4,16 +4,30 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/hooks/useLocale';
 import { classifyAuthFormError } from '@/lib/auth/classifyAuthFormError';
 import { normalizeAuthError } from '@/lib/auth/normalizeAuthError';
+import {
+  clearPendingSignup,
+  peekPendingSignup,
+  setPendingSignup,
+} from '@/lib/auth/pendingSignup';
 import { requestPasswordReset } from '@/lib/auth/requestPasswordReset';
 import { consumeSessionNotice } from '@/lib/auth/sessionNotice';
 import { peekPendingInviteCode } from '@/lib/inviteLink';
 import { scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
 import KeyboardAwareScreen from '@/components/KeyboardAwareScreen';
+import SignupOtpScreen from '@/components/SignupOtpScreen';
+import { supabase } from '@/integrations/supabase/client';
+import { getAuthRedirectUrl } from '@/lib/native/authRedirect';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
 type AuthPageProps = {
   initialMode?: Mode;
+};
+
+type OtpGate = {
+  email: string;
+  password: string;
+  sentAt: number;
 };
 
 const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
@@ -26,7 +40,7 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [confirmationSent, setConfirmationSent] = useState(false);
+  const [otpGate, setOtpGate] = useState<OtpGate | null>(() => peekPendingSignup());
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -47,6 +61,11 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
     if (code) setNotice(t('auth.inviteReady', { code }));
   }, [t]);
 
+  const openOtp = (nextEmail: string, nextPassword: string, sentAt = Date.now()) => {
+    setPendingSignup(nextEmail, nextPassword, sentAt);
+    setOtpGate({ email: nextEmail.trim().toLowerCase(), password: nextPassword, sentAt });
+  };
+
   const applyAuthError = (err: unknown) => {
     const kind = classifyAuthFormError(err);
     switch (kind) {
@@ -54,7 +73,13 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
         setError(t('auth.invalidCredentials'));
         return;
       case 'email_not_confirmed':
-        setError(t('auth.emailNotConfirmed'));
+        // Same credentials — send them into the OTP screen instead of a dead end.
+        openOtp(email, password);
+        void supabase.auth.resend({
+          type: 'signup',
+          email,
+          options: { emailRedirectTo: getAuthRedirectUrl() },
+        });
         return;
       case 'user_already_registered':
         if (mode === 'signup') {
@@ -80,10 +105,11 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
       if (mode === 'login') {
         const { error } = await signIn(email, password);
         if (error) applyAuthError(error);
+        else clearPendingSignup();
       } else if (mode === 'signup') {
         const { error } = await signUp(email, password);
         if (error) applyAuthError(error);
-        else setConfirmationSent(true);
+        else openOtp(email, password);
       } else {
         const result = await requestPasswordReset(email);
         if (result.ok === true) {
@@ -101,39 +127,45 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
     setMode(next);
     setError('');
     setNotice('');
-    setConfirmationSent(false);
     setAlreadyRegistered(false);
     setResetSent(false);
   };
 
-  if (confirmationSent || alreadyRegistered) {
-    const existing = alreadyRegistered;
+  if (otpGate) {
+    return (
+      <SignupOtpScreen
+        email={otpGate.email}
+        password={otpGate.password}
+        sentAt={otpGate.sentAt}
+        onCancel={() => {
+          clearPendingSignup();
+          setOtpGate(null);
+          setMode('login');
+          setEmail(otpGate.email);
+        }}
+      />
+    );
+  }
+
+  if (alreadyRegistered) {
     return (
       <div className="min-h-[100dvh] overflow-y-auto py-safe px-6 bg-background flex items-center justify-center">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
-          <h1 className="text-2xl font-bold mb-2">
-            {existing ? t('auth.alreadyHaveAccountTitle') : t('auth.checkEmailTitle')}
-          </h1>
-          <p className="text-muted-foreground mb-6">
-            {existing
-              ? t('auth.alreadyHaveAccountBody')
-              : t('auth.checkEmailBody', { email })}
-          </p>
+          <h1 className="text-2xl font-bold mb-2">{t('auth.alreadyHaveAccountTitle')}</h1>
+          <p className="text-muted-foreground mb-6">{t('auth.alreadyHaveAccountBody')}</p>
           <button
             onClick={() => switchMode('login')}
             className="w-full rounded-xl bg-green-200 px-4 py-2.5 font-semibold text-green-900"
           >
             {t('auth.goToLogin')}
           </button>
-          {existing && (
-            <button
-              type="button"
-              onClick={() => switchMode('forgot')}
-              className="mt-4 text-sm text-muted-foreground underline underline-offset-2"
-            >
-              {t('auth.forgotPassword')}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => switchMode('forgot')}
+            className="mt-4 text-sm text-muted-foreground underline underline-offset-2"
+          >
+            {t('auth.forgotPassword')}
+          </button>
         </motion.div>
       </div>
     );
