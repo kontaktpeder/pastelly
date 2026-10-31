@@ -31,6 +31,7 @@ import { t as translate } from '@/lib/i18n';
 import { resolveAppLocale } from '@/lib/i18n/types';
 import { peekWelcomeIntent, consumeWelcomeIntent, type WelcomeIntent } from '@/lib/welcomeIntent';
 import { peekPendingInviteCode } from '@/lib/inviteLink';
+import { peekPendingSignup } from '@/lib/auth/pendingSignup';
 import { peekSessionNotice } from '@/lib/auth/sessionNotice';
 import type { Event } from '@/hooks/useEvents';
 import { tryOpenSheet } from '@/lib/sheetGate';
@@ -230,8 +231,11 @@ const Index = () => {
     );
   }
 
-  if (!user) {
-    if (!authView) {
+  // Unconfirmed signup must stay on Auth (OTP). A session can arrive from
+  // signUp before email is confirmed — never enter the app until verified.
+  const awaitingEmailConfirm = !!peekPendingSignup() || (!!user && !user.email_confirmed_at);
+  if (!user || awaitingEmailConfirm) {
+    if (!authView && !user && !peekPendingSignup()) {
       return (
         <LocaleProvider>
           <Landing
@@ -243,7 +247,7 @@ const Index = () => {
     }
     return (
       <LocaleProvider>
-        <AuthPage initialMode={authView} />
+        <AuthPage initialMode={authView ?? 'signup'} />
       </LocaleProvider>
     );
   }

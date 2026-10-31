@@ -99,7 +99,7 @@ const SignupOtpScreen = ({ email, password, sentAt: initialSentAt, onCancel }: S
 
   const trySilentSignIn = useCallback(async () => {
     const pending = peekPendingSignup();
-    if (!pending) return;
+    if (!pending?.password) return;
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: pending.email,
       password: pending.password,
@@ -171,12 +171,16 @@ const SignupOtpScreen = ({ email, password, sentAt: initialSentAt, onCancel }: S
           {t('auth.otpBody', { email })}
         </p>
 
-        <div className="relative mx-auto mb-4 w-full max-w-[320px]">
+        <button
+          type="button"
+          className="relative mx-auto mb-4 block w-full max-w-[320px] cursor-text"
+          onClick={() => inputRef.current?.focus()}
+        >
           <div className="pointer-events-none flex justify-between gap-2" aria-hidden>
             {boxes.map((digit, i) => (
               <div
                 key={i}
-                className={`flex h-14 w-11 items-center justify-center rounded-xl border text-2xl font-semibold tabular-nums ${
+                className={`flex h-14 flex-1 items-center justify-center rounded-xl border text-2xl font-semibold tabular-nums ${
                   digit
                     ? 'border-foreground bg-background text-foreground'
                     : i === code.length
@@ -184,7 +188,7 @@ const SignupOtpScreen = ({ email, password, sentAt: initialSentAt, onCancel }: S
                       : 'border-border bg-muted/40 text-muted-foreground'
                 }`}
               >
-                {digit}
+                {digit || (i === code.length ? '·' : '')}
               </div>
             ))}
           </div>
@@ -193,6 +197,9 @@ const SignupOtpScreen = ({ email, password, sentAt: initialSentAt, onCancel }: S
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             pattern="[0-9]*"
             maxLength={OTP_LEN}
             value={code}
@@ -206,9 +213,9 @@ const SignupOtpScreen = ({ email, password, sentAt: initialSentAt, onCancel }: S
               onCodeChange(text);
             }}
             aria-label={t('auth.otpAria')}
-            className="absolute inset-0 h-full w-full cursor-text opacity-0"
+            className="absolute inset-0 z-10 h-full w-full cursor-text opacity-[0.02]"
           />
-        </div>
+        </button>
 
         {busy && (
           <p className="text-sm text-muted-foreground mb-3">{t('auth.otpVerifying')}</p>
