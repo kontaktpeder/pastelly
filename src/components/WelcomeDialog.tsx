@@ -22,11 +22,12 @@ type InviteRow = {
   expires_at: string;
 };
 
-/** Centered welcome after onboarding / seed — invite is one tap for creators. */
+/** Centered welcome after onboarding — invite is one share for creators. */
 const WelcomeDialog = ({ intent, householdId, onClose }: WelcomeDialogProps) => {
-  const { t, intlLocale } = useLocale();
+  const { t } = useLocale();
   const [invite, setInvite] = useState<InviteRow | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showCode, setShowCode] = useState(false);
   const [shareError, setShareError] = useState('');
 
   useEffect(() => {
@@ -41,9 +42,7 @@ const WelcomeDialog = ({ intent, householdId, onClose }: WelcomeDialogProps) => 
       linkHint: t('welcome.inviteShareLinkHint'),
     });
 
-  /** Clipboard gets only AB12-CD34 — not the full share message. */
-  const copyCodeOnly = async (code: string) => {
-    await navigator.clipboard.writeText(normalizeInviteCode(code));
+  const markCopied = () => {
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2500);
   };
@@ -62,10 +61,6 @@ const WelcomeDialog = ({ intent, householdId, onClose }: WelcomeDialogProps) => 
     onSuccess: (data) => {
       setInvite(data);
       setShareError('');
-      // Copy short code first — before any share sheet covers the app.
-      void copyCodeOnly(data.code).catch(() => {
-        /* clipboard may be blocked; user can tap Kopier kode */
-      });
     },
     onError: (err: any) => {
       setShareError(err?.message || t('common.error'));
@@ -74,24 +69,33 @@ const WelcomeDialog = ({ intent, householdId, onClose }: WelcomeDialogProps) => 
 
   const handleShare = async (code: string) => {
     const text = shareTextFor(code);
+    const url = buildInviteUrl(code);
     try {
-      if (navigator.share) {
-        // Full invite message; URL is already inside text (cleaner on iOS Messages).
-        await navigator.share({ text, title: 'Pastelly' });
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ text, title: 'Pastelly', url });
         return;
       }
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2500);
+      await navigator.clipboard.writeText(url);
+      markCopied();
     } catch (err: any) {
+      // User cancelled the share sheet — not an error.
       if (err?.name === 'AbortError') return;
       try {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2500);
+        await navigator.clipboard.writeText(url);
+        markCopied();
       } catch {
         setShareError(t('common.error'));
       }
+    }
+  };
+
+  const handleCopyLink = async (code: string) => {
+    const url = buildInviteUrl(code);
+    try {
+      await navigator.clipboard.writeText(url);
+      markCopied();
+    } catch {
+      setShareError(t('common.error'));
     }
   };
 
@@ -101,8 +105,18 @@ const WelcomeDialog = ({ intent, householdId, onClose }: WelcomeDialogProps) => 
   };
 
   const isCreate = intent === 'create';
-  const title = isCreate ? t('welcome.createTitle') : t('welcome.joinTitle');
-  const body = isCreate ? t('welcome.createBody') : t('welcome.joinBody');
+  const showingInvite = isCreate && !!invite;
+
+  const title = showingInvite
+    ? t('welcome.inviteSheetTitle')
+    : isCreate
+      ? t('welcome.createTitle')
+      : t('welcome.joinTitle');
+  const body = showingInvite
+    ? t('welcome.inviteSheetBody')
+    : isCreate
+      ? t('welcome.createBody')
+      : t('welcome.joinBody');
 
   return (
     <motion.div
@@ -128,31 +142,10 @@ const WelcomeDialog = ({ intent, householdId, onClose }: WelcomeDialogProps) => 
         transition={{ type: 'tween', duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
         className="relative w-full max-w-sm rounded-[1.75rem] bg-background p-6 pt-7 text-center shadow-soft-lg"
       >
-        <p className="text-4xl mb-3" aria-hidden>
-          {isCreate ? '✨' : '👋'}
-        </p>
         <h2 id="welcome-title" className="text-2xl font-bold tracking-tight mb-2">
           {title}
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed mb-5">{body}</p>
-
-        {invite && (
-          <div className="mb-4 rounded-2xl bg-muted/60 px-4 py-3">
-            <p className="text-xs text-muted-foreground mb-1">{t('profile.inviteCode')}</p>
-            <p className="text-2xl font-bold tracking-widest select-all">{invite.code}</p>
-            {invite.expires_at && (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {new Date(invite.expires_at).toLocaleDateString(intlLocale)}
-              </p>
-            )}
-            <p className="text-[11px] text-muted-foreground mt-2 break-all">
-              {buildInviteUrl(invite.code)}
-            </p>
-            {copied && (
-              <p className="text-xs font-medium text-green-800 mt-2">{t('welcome.inviteCopiedHint')}</p>
-            )}
-          </div>
-        )}
 
         {shareError && (
           <p className="text-destructive text-sm mb-3">{shareError}</p>
@@ -161,39 +154,62 @@ const WelcomeDialog = ({ intent, householdId, onClose }: WelcomeDialogProps) => 
         {isCreate ? (
           <div className="space-y-2">
             {!invite ? (
-              <button
-                type="button"
-                disabled={createInvite.isPending}
-                onClick={handleCreateClick}
-                className="w-full rounded-2xl bg-green-200 text-green-900 py-3.5 font-semibold hover:bg-green-300 transition-colors disabled:opacity-50"
-              >
-                {createInvite.isPending ? t('welcome.inviteCreating') : t('welcome.inviteCta')}
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={createInvite.isPending}
+                  onClick={handleCreateClick}
+                  className="w-full rounded-2xl bg-green-200 text-green-900 py-3.5 font-semibold hover:bg-green-300 transition-colors disabled:opacity-50"
+                >
+                  {createInvite.isPending ? t('welcome.inviteCreating') : t('welcome.inviteCta')}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-2 text-sm font-medium text-muted-foreground underline underline-offset-2"
+                >
+                  {t('welcome.later')}
+                </button>
+              </>
             ) : (
               <>
                 <button
                   type="button"
-                  onClick={() => void copyCodeOnly(invite.code).catch(() => setShareError(t('common.error')))}
+                  onClick={() => void handleShare(invite.code)}
                   className="w-full rounded-2xl bg-green-200 text-green-900 py-3.5 font-semibold hover:bg-green-300 transition-colors"
                 >
-                  {copied ? t('profile.copied') : t('welcome.copyCode')}
+                  {t('welcome.sendInvite')}
                 </button>
                 <button
                   type="button"
-                  onClick={() => void handleShare(invite.code)}
+                  onClick={() => void handleCopyLink(invite.code)}
                   className="w-full rounded-2xl bg-muted py-3 font-semibold text-foreground hover:bg-muted/80 transition-colors"
                 >
-                  {t('welcome.shareCode')}
+                  {copied ? t('welcome.linkCopied') : t('welcome.copyLink')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCode((v) => !v)}
+                  className="w-full py-2 text-sm font-medium text-muted-foreground underline underline-offset-2"
+                >
+                  {showCode ? t('welcome.hideCode') : t('welcome.useCodeInstead')}
+                </button>
+                {showCode && (
+                  <div className="rounded-2xl bg-muted/60 px-4 py-3">
+                    <p className="text-2xl font-bold tracking-widest select-all">
+                      {normalizeInviteCode(invite.code)}
+                    </p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-2 text-sm font-medium text-muted-foreground underline underline-offset-2"
+                >
+                  {t('welcome.continueToCalendar')}
                 </button>
               </>
             )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full py-2 text-sm font-medium text-muted-foreground underline underline-offset-2"
-            >
-              {t('welcome.later')}
-            </button>
           </div>
         ) : (
           <button

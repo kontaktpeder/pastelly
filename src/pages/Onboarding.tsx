@@ -201,26 +201,33 @@ const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
         onSubmit={handleSubmit}
         contentClassName="pb-6"
         footer={
-          <div className="space-y-3">
-            <button type="submit" disabled={isPending || signingOut}
-              className="w-full rounded-xl bg-primary py-3 font-semibold text-primary-foreground transition-colors active:opacity-90 disabled:opacity-50">
-              {isPending
-                ? (mode === 'create' ? t('onboarding.creating') : t('onboarding.joining'))
-                : (mode === 'create' ? t('onboarding.start') : t('onboarding.joinCta'))}
-            </button>
-            <p className="text-center text-xs text-muted-foreground">{t('onboarding.signOutHint')}</p>
+          <button
+            type="submit"
+            disabled={
+              isPending ||
+              signingOut ||
+              !displayName.trim() ||
+              (mode === 'join' && !inviteCode.trim())
+            }
+            className="w-full rounded-xl bg-primary py-3 font-semibold text-primary-foreground transition-colors active:opacity-90 disabled:opacity-50"
+          >
+            {isPending
+              ? (mode === 'create' ? t('onboarding.creating') : t('onboarding.joining'))
+              : (mode === 'create' ? t('onboarding.start') : t('onboarding.joinCta'))}
+          </button>
+        }
+      >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm mx-auto">
+          <div className="mb-4 flex justify-end">
             <button
               type="button"
               onClick={() => void handleSignOut()}
               disabled={isPending || signingOut}
-              className="w-full rounded-xl py-2.5 text-sm font-medium text-muted-foreground underline underline-offset-2 disabled:opacity-50"
+              className="text-sm font-medium text-muted-foreground underline underline-offset-2 disabled:opacity-50"
             >
-              {signingOut ? t('profile.signingOut') : t('onboarding.signOut')}
+              {signingOut ? t('profile.signingOut') : t('onboarding.switchAccount')}
             </button>
           </div>
-        }
-      >
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm mx-auto">
           <h1 className="text-3xl font-bold text-center mb-2">{t('onboarding.welcome')}</h1>
           <p className="text-muted-foreground text-center mb-6">{t('onboarding.subtitle')}</p>
 
