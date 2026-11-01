@@ -83,6 +83,30 @@ Appen sender alltid `https://pastelly.no/auth/callback` for web i
 produksjon (se `getAuthRedirectUrl`). Preview-hosts (Lovable) skal ikke
 være Site URL — e-postlenker skal lande på pastelly.no.
 
+### Signup OTP (6 siffer — dashboard, ikke kode)
+
+Appen forventer **6 siffer**. I Supabase:
+
+1. **Authentication → Providers → Email** (eller Auth settings): sett
+   **OTP length / Mailer OTP Length** til `6` (default er ofte 8).
+2. **Authentication → Email Templates → Confirm signup**
+
+**Subject** (koden først → synlig i varsling/inbox-preview):
+
+```
+{{ .Token }} — Pastelly
+```
+
+**Body** (token øverst, uten mellomrom mellom sifrene — enkel å kopiere):
+
+```html
+<p style="font-size:32px;font-weight:800;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:0.25em;margin:0 0 12px">{{ .Token }}</p>
+<p style="margin:0 0 20px">Skriv inn koden i Pastelly. Gyldig i 1 time.</p>
+<p style="font-size:13px;color:#666;margin:0">
+  Eller <a href="{{ .ConfirmationURL }}">bekreft via lenke</a>.
+</p>
+```
+
 ### Native URL scheme
 
 - **iOS**: `ios/App/App/Info.plist` → `CFBundleURLTypes` med

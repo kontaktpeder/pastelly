@@ -188,7 +188,7 @@ const SignupOtpScreen = ({ email, password, sentAt: initialSentAt, onCancel }: S
                       : 'border-border bg-muted/40 text-muted-foreground'
                 }`}
               >
-                {digit || (i === code.length ? '·' : '')}
+                {digit}
               </div>
             ))}
           </div>
