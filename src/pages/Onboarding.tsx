@@ -78,7 +78,7 @@ const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
         p_color_token: colorToken,
         p_kind: kind,
         p_show_in_other_calendars: defaultShowInOtherCalendars(kind),
-        p_locale: defaultLocaleForKind(kind),
+        p_locale: defaultLocaleForKind(kind, appLocale),
       } as any);
       if (error) throw error;
       return data as { id: string };
@@ -283,7 +283,23 @@ const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
                 <button
                   key={loc}
                   type="button"
-                  onClick={() => void setAppLocale(loc)}
+                  onClick={() => {
+                    const prevDefaults = [
+                      t('kind.homeDefaultName'),
+                      t('kind.workDefaultName'),
+                      'Hjem',
+                      'Home',
+                      'Vårt hjem',
+                      'Our home',
+                      'Jobb',
+                      'Work',
+                      ...CALENDAR_KINDS.map((k) => k.defaultName),
+                    ];
+                    const wasDefault =
+                      !householdName.trim() || prevDefaults.includes(householdName);
+                    void setAppLocale(loc);
+                    if (wasDefault) setHouseholdName('');
+                  }}
                   className={`rounded-xl py-2.5 text-sm font-semibold transition-all ${
                     appLocale === loc ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
                   }`}

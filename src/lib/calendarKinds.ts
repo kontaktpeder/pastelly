@@ -9,7 +9,7 @@ export const CALENDAR_KINDS: {
   {
     value: 'home',
     label: 'Hjem',
-    defaultName: 'Vårt hjem',
+    defaultName: 'Hjem',
     description: 'For deg og de nærmeste',
   },
   {

@@ -13,8 +13,15 @@ export function resolveAppLocale(value: string | null | undefined): AppLocale {
   return 'en';
 }
 
-/** Default calendar locale from kind. App default is English for both. */
-export function defaultLocaleForKind(_kind: string | null | undefined): AppLocale {
+/**
+ * Locale for a newly created calendar.
+ * Prefer the language the user just chose (app locale); fall back to English.
+ */
+export function defaultLocaleForKind(
+  _kind: string | null | undefined,
+  preferred?: AppLocale | string | null,
+): AppLocale {
+  if (preferred) return resolveAppLocale(preferred);
   return 'en';
 }
 

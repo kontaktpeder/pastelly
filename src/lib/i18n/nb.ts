@@ -37,7 +37,7 @@ export const nb = {
   'kind.work': 'Jobb',
   'kind.homeDesc': 'For deg og de nærmeste',
   'kind.workDesc': 'For jobb og samarbeid',
-  'kind.homeDefaultName': 'Vårt hjem',
+  'kind.homeDefaultName': 'Hjem',
   'kind.workDefaultName': 'Jobb',
 
   // categories — home
