@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
-import { motion } from 'framer-motion';
 import { useMutation } from '@tanstack/react-query';
 import { Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -217,7 +216,7 @@ const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
           </button>
         }
       >
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm mx-auto">
+        <div className="w-full max-w-sm mx-auto">
           <div className="mb-4 flex justify-end">
             <button
               type="button"
@@ -428,7 +427,7 @@ const OnboardingPage = ({ onComplete }: OnboardingPageProps) => {
 
             {error && <p className="text-destructive text-sm text-center">{error}</p>}
           </div>
-        </motion.div>
+        </div>
       </KeyboardAwareScreen>
 
       {cropImageSrc && (

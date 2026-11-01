@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/hooks/useLocale';
 import { classifyAuthFormError } from '@/lib/auth/classifyAuthFormError';
@@ -193,7 +192,7 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
   if (alreadyRegistered) {
     return (
       <div className="min-h-[100dvh] overflow-y-auto py-safe px-6 bg-background flex items-center justify-center">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
+        <div className="w-full max-w-sm text-center">
           <h1 className="text-2xl font-bold mb-2">{t('auth.alreadyHaveAccountTitle')}</h1>
           <p className="text-muted-foreground mb-6">{t('auth.alreadyHaveAccountBody')}</p>
           <button
@@ -209,7 +208,7 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
           >
             {t('auth.forgotPassword')}
           </button>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -217,7 +216,7 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
   if (resetSent) {
     return (
       <div className="min-h-[100dvh] overflow-y-auto py-safe px-6 bg-background flex items-center justify-center">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
+        <div className="w-full max-w-sm text-center">
           <h1 className="text-2xl font-bold mb-2">{t('auth.resetSentTitle')}</h1>
           <p className="text-muted-foreground mb-6">{t('auth.resetSentBody')}</p>
           <button
@@ -226,7 +225,7 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
           >
             {t('auth.backToLogin')}
           </button>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -270,7 +269,7 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
         </button>
       }
     >
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm mx-auto">
+      <div className="w-full max-w-sm mx-auto">
         <h1 className="text-3xl font-bold text-center mb-2">{title}</h1>
         <p className="text-muted-foreground text-center mb-8">{subtitle}</p>
 
@@ -356,7 +355,7 @@ const AuthPage = ({ initialMode = 'login' }: AuthPageProps = {}) => {
             </>
           )}
         </p>
-      </motion.div>
+      </div>
     </KeyboardAwareScreen>
   );
 };

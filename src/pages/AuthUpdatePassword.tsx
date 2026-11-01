@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { scrollFocusIntoView } from '@/lib/scrollFocusIntoView';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { logAuthDiagnostic } from '@/lib/auth/diagnostics';
 import {
@@ -213,7 +212,7 @@ const AuthUpdatePassword = () => {
         </button>
       }
     >
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm mx-auto">
+      <div className="w-full max-w-sm mx-auto">
         <h1 className="text-3xl font-bold text-center mb-2">Nytt passord 🔑</h1>
         <p className="text-muted-foreground text-center mb-8">Velg et nytt passord for kontoen din</p>
 
@@ -242,7 +241,7 @@ const AuthUpdatePassword = () => {
           />
           {error && <p className="text-destructive text-sm text-center">{error}</p>}
         </div>
-      </motion.div>
+      </div>
     </KeyboardAwareScreen>
   );
 };
