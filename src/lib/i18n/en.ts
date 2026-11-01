@@ -36,7 +36,7 @@ export const en: Record<MessageKey, string> = {
   'kind.work': 'Work',
   'kind.homeDesc': 'For you and those closest to you',
   'kind.workDesc': 'For work and collaboration',
-  'kind.homeDefaultName': 'Our home',
+  'kind.homeDefaultName': 'Home',
   'kind.workDefaultName': 'Work',
 
   'cat.couple': 'Us two',

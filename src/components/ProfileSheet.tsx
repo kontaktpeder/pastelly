@@ -83,7 +83,7 @@ const ProfileSheet = ({
   onClose,
   onSignOut,
 }: ProfileSheetProps) => {
-  const { t, intlLocale } = useLocale();
+  const { t, intlLocale, appLocale } = useLocale();
   const theme = getMonthTheme(accentDate ?? new Date());
   const rule = withAlpha(theme.base, 0.4);
   const primaryStyle = { backgroundColor: theme.base, color: theme.textOnStrong };
@@ -254,14 +254,15 @@ const ProfileSheet = ({
 
   const createCalendar = useMutation({
     mutationFn: async () => {
-      const meta = CALENDAR_KINDS.find((k) => k.value === createKind)!;
       const { data, error } = await supabase.rpc('create_household_with_owner', {
-        p_name: createName.trim() || meta.defaultName,
-        p_display_name: currentMember.display_name || 'Meg',
+        p_name:
+          createName.trim() ||
+          (createKind === 'work' ? t('kind.workDefaultName') : t('kind.homeDefaultName')),
+        p_display_name: currentMember.display_name || t('common.me'),
         p_color_token: currentMember.color_token || 'pastel-blue',
         p_kind: createKind,
         p_show_in_other_calendars: defaultShowInOtherCalendars(createKind),
-        p_locale: defaultLocaleForKind(createKind),
+        p_locale: defaultLocaleForKind(createKind, appLocale),
       } as any);
       if (error) throw error;
       return data;
