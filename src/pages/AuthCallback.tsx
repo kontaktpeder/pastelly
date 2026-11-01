@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { handleAuthCallbackUrl } from '@/lib/auth/handleAuthCallbackUrl';
 import { setSessionNotice } from '@/lib/auth/sessionNotice';
 import { useLocale } from '@/hooks/useLocale';
@@ -49,11 +48,7 @@ const AuthCallback = () => {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-sm text-center"
-        >
+        <div className="w-full max-w-sm text-center">
           <h1 className="text-2xl font-bold mb-2">
             {confirmedFallback ? t('auth.callbackConfirmedTitle') : t('auth.callbackFailedTitle')}
           </h1>
@@ -75,17 +70,17 @@ const AuthCallback = () => {
               {t('auth.backToLogin')}
             </button>
           )}
-        </motion.div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
+      <div className="text-center">
         <div className="w-12 h-12 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto mb-4" />
         <p className="text-muted-foreground">{t('auth.callbackWorking')}</p>
-      </motion.div>
+      </div>
     </div>
   );
 };

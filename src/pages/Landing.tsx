@@ -1,15 +1,14 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 
 type LandingProps = {
   onGetStarted: () => void;
   onSignIn: () => void;
 };
 
+/** Static paint — no opacity enter (avoids flash under BootVeil / auth handoff). */
 const Landing = ({ onGetStarted, onSignIn }: LandingProps) => {
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-background">
-      {/* Ambient pastel atmosphere */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -23,15 +22,8 @@ const Landing = ({ onGetStarted, onSignIn }: LandingProps) => {
       />
 
       <main className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col px-6 py-safe">
-        <motion.header
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="flex items-center justify-between pt-6"
-        >
-          <span
-            className="font-display text-lg font-extrabold tracking-tight text-foreground"
-          >
+        <header className="flex items-center justify-between pt-6">
+          <span className="font-display text-lg font-extrabold tracking-tight text-foreground">
             Pastelly
           </span>
           <button
@@ -41,42 +33,22 @@ const Landing = ({ onGetStarted, onSignIn }: LandingProps) => {
           >
             Logg inn
           </button>
-        </motion.header>
+        </header>
 
         <section className="flex flex-1 flex-col items-center justify-center text-center">
-          <motion.h1
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: 'easeOut', delay: 0.05 }}
-            className="font-display text-[15vw] font-extrabold leading-[0.95] tracking-tight text-foreground sm:text-8xl"
-          >
+          <h1 className="font-display text-[15vw] font-extrabold leading-[0.95] tracking-tight text-foreground sm:text-8xl">
             Pastelly
-          </motion.h1>
+          </h1>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut', delay: 0.18 }}
-            className="mt-6 max-w-md font-display text-2xl font-semibold text-foreground/85 sm:text-3xl"
-          >
+          <h2 className="mt-6 max-w-md font-display text-2xl font-semibold text-foreground/85 sm:text-3xl">
             Delt kalender gjort enkelt
-          </motion.h2>
+          </h2>
 
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut', delay: 0.28 }}
-            className="mt-4 max-w-sm text-base text-muted-foreground sm:text-lg"
-          >
+          <p className="mt-4 max-w-sm text-base text-muted-foreground sm:text-lg">
             En rolig kalender for hjemmet. Ikke mer enn du trenger.
-          </motion.p>
+          </p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut', delay: 0.38 }}
-            className="mt-10 flex flex-col items-center gap-3"
-          >
+          <div className="mt-10 flex flex-col items-center gap-3">
             <button
               type="button"
               onClick={onGetStarted}
@@ -91,7 +63,7 @@ const Landing = ({ onGetStarted, onSignIn }: LandingProps) => {
             >
               Har du konto? Logg inn
             </button>
-          </motion.div>
+          </div>
         </section>
 
         <footer className="pb-6 pt-8 text-center text-xs text-muted-foreground/80">

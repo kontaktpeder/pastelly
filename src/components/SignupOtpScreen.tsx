@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useLocale } from '@/hooks/useLocale';
 import { classifyAuthFormError } from '@/lib/auth/classifyAuthFormError';
@@ -161,11 +160,7 @@ const SignupOtpScreen = ({ email, password, sentAt: initialSentAt, onCancel }: S
 
   return (
     <div className="min-h-[100dvh] overflow-y-auto py-safe px-6 bg-background flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm text-center"
-      >
+      <div className="w-full max-w-sm text-center">
         <h1 className="text-2xl font-bold mb-2">{t('auth.otpTitle')}</h1>
         <p className="text-muted-foreground mb-8">
           {t('auth.otpBody', { email })}
@@ -247,7 +242,7 @@ const SignupOtpScreen = ({ email, password, sentAt: initialSentAt, onCancel }: S
         >
           {t('auth.backToLogin')}
         </button>
-      </motion.div>
+      </div>
     </div>
   );
 };

@@ -216,71 +216,68 @@ const Index = () => {
     return <Navigate to="/auth/update-password" replace />;
   }
 
-  if (authLoading || ctxLoading) {
-    return (
-      <LocaleProvider>
-        <div
-          className="relative min-h-[100dvh] overflow-hidden bg-background"
-          style={{ backgroundColor: PASTEL.paper }}
-          aria-busy="true"
-          aria-label="Laster"
-        >
-          <BootVeil revealing={false} />
-        </div>
-      </LocaleProvider>
-    );
-  }
-
+  const showBootVeil = bootPhase === 'covering' || bootPhase === 'revealing';
   // Unconfirmed signup must stay on Auth (OTP). A session can arrive from
   // signUp before email is confirmed — never enter the app until verified.
   const awaitingEmailConfirm = !!peekPendingSignup() || (!!user && !user.email_confirmed_at);
+
+  /** Keep BootVeil over pre-calendar screens so veil → content doesn't flash blank. */
+  const wrapPreApp = (node: ReactNode) => (
+    <LocaleProvider>
+      <div className="relative min-h-[100dvh] bg-background">
+        {node}
+        {showBootVeil && <BootVeil revealing={bootPhase === 'revealing'} />}
+      </div>
+    </LocaleProvider>
+  );
+
+  if (authLoading || ctxLoading) {
+    return wrapPreApp(
+      <div
+        className="min-h-[100dvh] overflow-hidden"
+        style={{ backgroundColor: PASTEL.paper }}
+        aria-busy="true"
+        aria-label="Laster"
+      />,
+    );
+  }
+
   if (!user || awaitingEmailConfirm) {
-    if (!authView && !user && !peekPendingSignup()) {
-      return (
-        <LocaleProvider>
-          <Landing
-            onGetStarted={() => setAuthView('signup')}
-            onSignIn={() => setAuthView('login')}
-          />
-        </LocaleProvider>
-      );
-    }
-    return (
-      <LocaleProvider>
+    return wrapPreApp(
+      !authView && !user && !peekPendingSignup() ? (
+        <Landing
+          onGetStarted={() => setAuthView('signup')}
+          onSignIn={() => setAuthView('login')}
+        />
+      ) : (
         <AuthPage initialMode={authView ?? 'signup'} />
-      </LocaleProvider>
+      ),
     );
   }
 
   if (ctxError) {
-    return (
-      <LocaleProvider>
-        <div className="h-[100dvh] bg-background flex items-center justify-center px-6 py-safe">
-          <div className="w-full max-w-sm text-center">
-            <p className="text-4xl mb-4" aria-hidden>📡</p>
-            <h1 className="text-2xl font-bold mb-2">Kunne ikke hente kalenderen</h1>
-            <p className="text-muted-foreground mb-6">
-              Kalenderen din er fortsatt trygg. Kontroller forbindelsen og prøv igjen.
-            </p>
-            <button
-              type="button"
-              onClick={() => void refetchContext()}
-              className="min-h-12 w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
-            >
-              Prøv igjen
-            </button>
-          </div>
+    return wrapPreApp(
+      <div className="h-[100dvh] bg-background flex items-center justify-center px-6 py-safe">
+        <div className="w-full max-w-sm text-center">
+          <p className="text-4xl mb-4" aria-hidden>📡</p>
+          <h1 className="text-2xl font-bold mb-2">Kunne ikke hente kalenderen</h1>
+          <p className="text-muted-foreground mb-6">
+            Kalenderen din er fortsatt trygg. Kontroller forbindelsen og prøv igjen.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetchContext()}
+            className="min-h-12 w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
+          >
+            Prøv igjen
+          </button>
         </div>
-      </LocaleProvider>
+      </div>,
     );
   }
 
   if (!household || !currentMember) {
-    return (
-      <LocaleProvider>
-        <OnboardingPage onComplete={invalidate} />
-      </LocaleProvider>
-    );
+    return wrapPreApp(<OnboardingPage onComplete={invalidate} />);
   }
 
   const handleSelectDate = (date: Date) => {
@@ -320,7 +317,6 @@ const Index = () => {
 
   const canSwipeStack = orderedMemberships.length > 1;
 
-  const showBootVeil = bootPhase === 'covering' || bootPhase === 'revealing';
   // Not a hook — must stay after early returns above (React #310).
   const shellPaper = getMonthTheme(focusedDate).paper;
 
