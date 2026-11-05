@@ -1,0 +1,4 @@
+# Personal token API for reading and creating calendar events.
+# verify_jwt is off because the bearer is a Pastelly agent token (pst_...),
+# not a Supabase user JWT. The function checks that token itself.
+verify_jwt = false

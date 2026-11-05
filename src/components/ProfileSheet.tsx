@@ -28,6 +28,7 @@ import AvatarCropModal from '@/components/AvatarCropModal';
 import CategoryColorSettings from '@/components/CategoryColorSettings';
 import DailyDigestSettings from '@/components/DailyDigestSettings';
 import { AppLocaleSettings, CalendarLocaleSettings } from '@/components/LocaleSettings';
+import AgentApiSettings from '@/components/AgentApiSettings';
 import CenteredPopup from '@/components/CenteredPopup';
 import { useLocale } from '@/hooks/useLocale';
 import { defaultLocaleForKind } from '@/lib/i18n/types';
@@ -655,6 +656,8 @@ const ProfileSheet = ({
                 </p>
 
                 <AppLocaleSettings />
+
+                <AgentApiSettings fieldStyle={fieldStyle} primaryStyle={primaryStyle} rule={rule} />
 
                 {!showCreate ? (
                   <button
