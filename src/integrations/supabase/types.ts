@@ -1088,6 +1088,18 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_agent_api_token: {
+        Args: { p_name: string }
+        Returns: Json
+      }
+      list_agent_api_tokens: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      revoke_agent_api_token: {
+        Args: { p_id: string }
+        Returns: Json
+      }
       create_countdown: {
         Args: {
           p_emoji?: string

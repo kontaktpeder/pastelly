@@ -200,6 +200,19 @@ export const nb = {
   'profile.signOut': 'Logg ut',
   'profile.createCalendar': 'Ny kalender',
   'profile.joinCalendar': 'Bli med i kalender',
+  'profile.agentApi': 'Tilgang for Grok',
+  'profile.agentApiHint':
+    'Lag en nøkkel så Grok kan lese og legge inn hendelser gjennom APIet. Den gjelder alle kalenderne dine.',
+  'profile.agentApiName': 'Navn, for eksempel Grok',
+  'profile.agentApiCreate': 'Lag nøkkel',
+  'profile.agentApiCreating': 'Lager nøkkel...',
+  'profile.agentApiOnce': 'Kopier nøkkelen nå. Den vises bare denne ene gangen.',
+  'profile.agentApiCopy': 'Kopier nøkkel',
+  'profile.agentApiEmpty': 'Ingen nøkler ennå.',
+  'profile.agentApiRevoke': 'Trekk tilbake',
+  'profile.agentApiLastUsed': 'Sist brukt {when}',
+  'profile.agentApiNeverUsed': 'Ikke brukt ennå',
+  'profile.agentApiError': 'Kunne ikke oppdatere nøkkelen.',
 
   // events
   'event.when': 'Når?',
