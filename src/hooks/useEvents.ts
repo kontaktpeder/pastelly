@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { notifyPartners } from '@/lib/notifyPartners';
+import { pushEventToGoogle, queuePushEventToGoogle } from '@/lib/googleCalendarSync';
 import type { Tables, TablesUpdate } from '@/integrations/supabase/types';
 
 export type Event = Tables<'events'>;
@@ -105,6 +106,7 @@ export function useCreateEvent() {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['overlay-events'] });
       queryClient.invalidateQueries({ queryKey: ['household-has-events'] });
+      if (created?.id) queuePushEventToGoogle(created.id);
       if (created?.household_id && created?.title) {
         notifyPartners({
           householdId: created.household_id,
@@ -130,6 +132,7 @@ export function useUpdateEvent() {
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['overlay-events'] });
+      if (updated?.id) queuePushEventToGoogle(updated.id);
       if (updated?.household_id && updated?.title) {
         notifyPartners({
           householdId: updated.household_id,
@@ -148,6 +151,8 @@ export function useDeleteEvent() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (eventId: string) => {
+      // Await Google delete while the link row still exists (cascade removes it after).
+      await pushEventToGoogle(eventId, { deleted: true });
       const { error } = await supabase.from('events').delete().eq('id', eventId);
       if (error) throw error;
     },

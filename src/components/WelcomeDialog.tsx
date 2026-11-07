@@ -10,6 +10,7 @@ import {
   normalizeInviteCode,
 } from '@/lib/inviteLink';
 import type { WelcomeIntent } from '@/lib/welcomeIntent';
+import GoogleCalendarConnect from '@/components/GoogleCalendarConnect';
 
 interface WelcomeDialogProps {
   intent: WelcomeIntent;
@@ -163,6 +164,11 @@ const WelcomeDialog = ({ intent, householdId, onClose }: WelcomeDialogProps) => 
                 >
                   {createInvite.isPending ? t('welcome.inviteCreating') : t('welcome.inviteCta')}
                 </button>
+                {householdId && (
+                  <div className="pt-1">
+                    <GoogleCalendarConnect householdId={householdId} compact />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={onClose}
