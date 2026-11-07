@@ -53,7 +53,7 @@ const ListView = ({
   highlight,
   embedded = false,
 }: ListViewProps) => {
-  const { dateLocale } = useLocale();
+  const { t, dateLocale } = useLocale();
   const [selectedDate, setSelectedDate] = useState(initialDate || new Date());
   const [newItem, setNewItem] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -140,7 +140,7 @@ const ListView = ({
         onChange={(e) => setNewItem(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
         onFocus={scrollFocusIntoView}
-        placeholder="Legg til punkt..."
+        placeholder={t('event.addListItem')}
         className="flex-1 rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary"
       />
       <button
@@ -176,7 +176,7 @@ const ListView = ({
             }}
           >
             {isToday(selectedDate)
-              ? `I dag · ${format(selectedDate, 'd. MMM', { locale: dateLocale })}`
+              ? `${t('common.today')} · ${format(selectedDate, 'd. MMM', { locale: dateLocale })}`
               : format(selectedDate, 'EEEE d. MMM', { locale: dateLocale })}
           </ViewHeader>
         )}
@@ -192,7 +192,7 @@ const ListView = ({
           <div className="space-y-2">
             {sortedEvents.length === 0 ? (
               <div className="py-2 flex items-center justify-center">
-                <span className="text-sm text-muted-foreground/50">Ingen aktiviteter</span>
+                <span className="text-sm text-muted-foreground/50">{t('event.emptyDayHint')}</span>
               </div>
             ) : (
               sortedEvents.map((ev) => (
@@ -233,7 +233,7 @@ const ListView = ({
                     className={`w-6 h-6 shrink-0 rounded-lg border-2 flex items-center justify-center transition-all ${
                       item.is_checked ? 'bg-primary border-primary' : 'border-border hover:border-primary'
                     }`}
-                    aria-label={item.is_checked ? 'Avmerk' : 'Merk som ferdig'}
+                    aria-label={item.is_checked ? t('event.uncheck') : t('event.markDone')}
                   >
                     {item.is_checked && (
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -287,7 +287,7 @@ const ListView = ({
                       deleteItem.mutate(item.id);
                     }}
                     className="p-1 rounded-lg hover:bg-muted text-muted-foreground transition-colors shrink-0"
-                    aria-label="Slett"
+                    aria-label={t('event.deleteAction')}
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -299,7 +299,7 @@ const ListView = ({
 
             {events.length === 0 && listItems.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                <p className="font-medium">Ingen planer ennå</p>
+                <p className="font-medium">{t('event.emptyDay')}</p>
               </div>
             )}
           </div>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useLocale } from '@/hooks/useLocale';
 
 type LandingProps = {
   onGetStarted: () => void;
@@ -7,6 +8,10 @@ type LandingProps = {
 
 /** Static paint — no opacity enter (avoids flash under BootVeil / auth handoff). */
 const Landing = ({ onGetStarted, onSignIn }: LandingProps) => {
+  const { t, locale } = useLocale();
+  const helpHref = locale === 'en' ? '/support' : '/hjelp';
+  const privacyHref = locale === 'en' ? '/privacy' : '/personvern';
+
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-background">
       <div
@@ -31,7 +36,7 @@ const Landing = ({ onGetStarted, onSignIn }: LandingProps) => {
             onClick={onSignIn}
             className="min-h-11 rounded-full px-4 py-2 text-sm font-semibold text-foreground/80 transition-colors hover:text-foreground"
           >
-            Logg inn
+            {t('landing.signIn')}
           </button>
         </header>
 
@@ -41,11 +46,11 @@ const Landing = ({ onGetStarted, onSignIn }: LandingProps) => {
           </h1>
 
           <h2 className="mt-6 max-w-md font-display text-2xl font-semibold text-foreground/85 sm:text-3xl">
-            Delt kalender gjort enkelt
+            {t('landing.headline')}
           </h2>
 
           <p className="mt-4 max-w-sm text-base text-muted-foreground sm:text-lg">
-            En rolig kalender for hjemmet. Ikke mer enn du trenger.
+            {t('landing.subtitle')}
           </p>
 
           <div className="mt-10 flex flex-col items-center gap-3">
@@ -54,14 +59,14 @@ const Landing = ({ onGetStarted, onSignIn }: LandingProps) => {
               onClick={onGetStarted}
               className="rounded-2xl bg-green-200 px-8 py-3.5 text-base font-semibold text-green-900 shadow-sm transition-transform active:scale-[0.98]"
             >
-              Kom i gang
+              {t('landing.start')}
             </button>
             <button
               type="button"
               onClick={onSignIn}
               className="min-h-11 px-3 text-sm text-muted-foreground underline-offset-4 hover:underline"
             >
-              Har du konto? Logg inn
+              {t('landing.hasAccount')}
             </button>
           </div>
         </section>
@@ -69,20 +74,12 @@ const Landing = ({ onGetStarted, onSignIn }: LandingProps) => {
         <footer className="pb-6 pt-8 text-center text-xs text-muted-foreground/80">
           © {new Date().getFullYear()} Pastelly
           {' · '}
-          <Link to="/hjelp" className="underline underline-offset-2 hover:text-foreground">
-            Hjelp
+          <Link to={helpHref} className="underline underline-offset-2 hover:text-foreground">
+            {t('landing.help')}
           </Link>
           {' · '}
-          <Link to="/support" className="underline underline-offset-2 hover:text-foreground">
-            Support
-          </Link>
-          {' · '}
-          <Link to="/personvern" className="underline underline-offset-2 hover:text-foreground">
-            Personvern
-          </Link>
-          {' · '}
-          <Link to="/privacy" className="underline underline-offset-2 hover:text-foreground">
-            Privacy
+          <Link to={privacyHref} className="underline underline-offset-2 hover:text-foreground">
+            {t('landing.privacy')}
           </Link>
         </footer>
       </main>

@@ -10,7 +10,7 @@ import { useMembers } from '@/hooks/useHousehold';
 import { useHouseholdHasEvents } from '@/hooks/useHouseholdHasEvents';
 import { adjacentCalendarId, sortCalendarMemberships } from '@/lib/calendarStack';
 import { resolveCalendarKind } from '@/lib/calendarKinds';
-import { LocaleProvider } from '@/hooks/useLocale';
+import { LocaleProvider, useLocale } from '@/hooks/useLocale';
 import { getMonthTheme, PASTEL } from '@/lib/monthTheme';
 import AuthPage from '@/pages/Auth';
 import Landing from '@/pages/Landing';
@@ -48,6 +48,7 @@ const stackTransition = {
 };
 
 const Index = () => {
+  const { t } = useLocale();
   const { loading: authLoading, signOut } = useAuth();
   const {
     user,
@@ -237,7 +238,7 @@ const Index = () => {
         className="min-h-[100dvh] overflow-hidden"
         style={{ backgroundColor: PASTEL.paper }}
         aria-busy="true"
-        aria-label="Laster"
+        aria-label={t('common.loading')}
       />,
     );
   }
@@ -260,16 +261,16 @@ const Index = () => {
       <div className="h-[100dvh] bg-background flex items-center justify-center px-6 py-safe">
         <div className="w-full max-w-sm text-center">
           <p className="text-4xl mb-4" aria-hidden>📡</p>
-          <h1 className="text-2xl font-bold mb-2">Kunne ikke hente kalenderen</h1>
+          <h1 className="text-2xl font-bold mb-2">{t('calendar.loadFailed')}</h1>
           <p className="text-muted-foreground mb-6">
-            Kalenderen din er fortsatt trygg. Kontroller forbindelsen og prøv igjen.
+            {t('calendar.loadFailedHint')}
           </p>
           <button
             type="button"
             onClick={() => void refetchContext()}
             className="min-h-12 w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
           >
-            Prøv igjen
+            {t('common.tryAgain')}
           </button>
         </div>
       </div>,
@@ -309,8 +310,8 @@ const Index = () => {
       queryClient.clear();
     } catch (err: any) {
       console.error('Sign out error:', err);
-      toast.error('Feil ved utlogging', {
-        description: err?.message ?? 'Kunne ikke logge ut. Prøv igjen.',
+      toast.error(t('auth.signOutFailed'), {
+        description: err?.message ?? t('auth.signOutFailedHint'),
       });
     }
   };
