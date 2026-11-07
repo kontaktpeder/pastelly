@@ -38,6 +38,8 @@ import { tryOpenSheet } from '@/lib/sheetGate';
 import { markAppReady } from '@/lib/native/appBoot';
 import BootVeil from '@/components/BootVeil';
 import { peekPendingOpenDay, subscribePendingOpenDay } from '@/lib/native/pendingOpenDay';
+import { pullGoogleCalendar } from '@/lib/googleCalendarSync';
+import { APP_LOCALE_STORAGE_KEY } from '@/lib/i18n/types';
 
 export type Highlight = { eventId: string; dateStr: string; ts: number } | null;
 
@@ -212,6 +214,35 @@ const Index = () => {
   const handleCalendarReady = useCallback(() => {
     beginWelcomeReveal();
   }, [beginWelcomeReveal]);
+
+  // OAuth return from Google Calendar connect.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const google = params.get('google');
+    if (!google) return;
+    const loc = resolveAppLocale(
+      (() => {
+        try {
+          return localStorage.getItem(APP_LOCALE_STORAGE_KEY);
+        } catch {
+          return null;
+        }
+      })(),
+    );
+    if (google === 'connected') toast.success(translate(loc, 'google.connectedToast'));
+    else if (google === 'error') toast.error(translate(loc, 'google.errorToast'));
+    params.delete('google');
+    params.delete('reason');
+    const qs = params.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
+  }, []);
+
+  // Quiet pull when a home calendar is open (no-op if not connected).
+  useEffect(() => {
+    if (!household?.id) return;
+    if (resolveCalendarKind(household) === 'work') return;
+    pullGoogleCalendar(household.id);
+  }, [household?.id, household]);
 
   if (getRecoveryState().isRecoveryFlow) {
     return <Navigate to="/auth/update-password" replace />;

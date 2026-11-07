@@ -1,0 +1,2 @@
+# OAuth callback is unauthenticated (Google redirect). Other routes verify the user JWT.
+verify_jwt = false

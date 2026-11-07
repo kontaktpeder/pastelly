@@ -27,6 +27,7 @@ import { Camera } from 'lucide-react';
 import AvatarCropModal from '@/components/AvatarCropModal';
 import CategoryColorSettings from '@/components/CategoryColorSettings';
 import DailyDigestSettings from '@/components/DailyDigestSettings';
+import GoogleCalendarConnect from '@/components/GoogleCalendarConnect';
 import { AppLocaleSettings, CalendarLocaleSettings } from '@/components/LocaleSettings';
 import AgentApiSettings from '@/components/AgentApiSettings';
 import CenteredPopup from '@/components/CenteredPopup';
@@ -553,6 +554,9 @@ const ProfileSheet = ({
                 <p className="font-calendar text-[0.68rem] font-bold uppercase tracking-[0.18em]" style={{ color: theme.base }}>
                   {t('profile.settingsThis')}
                 </p>
+                {household.kind !== 'work' && (
+                  <GoogleCalendarConnect householdId={household.id} />
+                )}
                 <DailyDigestSettings member={currentMember} />
                 <CategoryColorSettings member={currentMember} calendarKind={household.kind} />
               </section>
