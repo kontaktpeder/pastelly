@@ -16,6 +16,11 @@ export const nb = {
   'common.hideEvents': 'Skjul aktiviteter',
   'common.showEvents': 'Vis aktiviteter',
   'common.today': 'I dag',
+  'common.tryAgain': 'Prøv igjen',
+  'calendar.loadFailed': 'Kunne ikke hente kalenderen',
+  'calendar.loadFailedHint': 'Kalenderen din er fortsatt trygg. Kontroller forbindelsen og prøv igjen.',
+  'auth.signOutFailed': 'Feil ved utlogging',
+  'auth.signOutFailedHint': 'Kunne ikke logge ut. Prøv igjen.',
 
   // year / month picker
   'picker.selectMonth': 'Velg måned',
@@ -31,6 +36,14 @@ export const nb = {
   'locale.calendarHint': 'Styrer språk inne i denne kalenderen (overstyrer app-språk her)',
   'locale.nb': 'Norsk',
   'locale.en': 'English',
+
+  'landing.signIn': 'Logg inn',
+  'landing.headline': 'Delt kalender gjort enkelt',
+  'landing.subtitle': 'En rolig kalender for hjemmet. Ikke mer enn du trenger.',
+  'landing.start': 'Kom i gang',
+  'landing.hasAccount': 'Har du konto? Logg inn',
+  'landing.help': 'Hjelp',
+  'landing.privacy': 'Personvern',
 
   // kinds
   'kind.home': 'Hjem',
@@ -282,6 +295,8 @@ export const nb = {
   'event.addDiscreet': '+ Legg til',
   'event.seeList': 'Se liste',
   'event.addListItem': 'Legg til punkt…',
+  'event.markDone': 'Merk som ferdig',
+  'event.uncheck': 'Avmerk',
   'event.list': 'Liste',
   'event.selectedDay': 'Valgt dag',
   'event.backToDay': 'Oversikt',
@@ -312,6 +327,8 @@ export const nb = {
   'event.pickWho': 'Velg hvem som skal se',
   'event.noMembers': 'Ingen andre medlemmer å dele med enda.',
   'event.pickOne': 'Velg minst én person for å fortsette.',
+  'event.missingContext': 'Kunne ikke opprette: mangler kalender eller medlem',
+  'event.createdShareFailed': 'Hendelsen ble opprettet, men delingen feilet.',
   'event.titlePlaceholder': 'F.eks. Middag med venner',
   'event.daysCount': '{count} dager',
   'event.otherTypeLabel': 'Hva slags type er dette? (valgfritt)',

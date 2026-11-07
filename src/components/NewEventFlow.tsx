@@ -262,7 +262,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
 
   const handleSubmit = async () => {
     if (!householdId || !currentMemberId) {
-      toast.error('Kunne ikke opprette: mangler husholdning eller medlem');
+      toast.error(t('event.missingContext'));
       return;
     }
     const eventEndDate = endDate
@@ -304,7 +304,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
           await syncEventVisibleMembers(result.id, selectedMemberIds);
         } catch (syncErr: any) {
           console.error('[NewEventFlow] sync visible members failed', syncErr);
-          toast.error('Hendelsen ble opprettet, men delingen feilet.');
+          toast.error(t('event.createdShareFailed'));
         }
       }
       void hapticDoubleLight();
@@ -312,7 +312,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
       onClose();
     } catch (err: any) {
       console.error('[NewEventFlow] create failed', err);
-      toast.error(err?.message || 'Kunne ikke lagre hendelsen');
+      toast.error(err?.message || t('event.saveFailed'));
     }
   };
 
@@ -351,7 +351,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="F.eks. Middag med venner"
+                  placeholder={t('event.titlePlaceholder')}
                   enterKeyHint="next"
                   autoComplete="off"
                   autoCorrect="off"
@@ -622,7 +622,7 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
 
               {visibility === 'selected_members' && (
                 <div className="rounded-2xl bg-muted/50 p-4">
-                  <p className="text-base font-semibold mb-3">Velg hvem som skal se</p>
+                  <p className="text-base font-semibold mb-3">{t('event.pickWho')}</p>
                   <div className="flex flex-col gap-2">
                     {members.filter((m) => m.id !== currentMemberId).map((m) => {
                       const checked = selectedMemberIds.includes(m.id);
@@ -650,11 +650,11 @@ const NewEventFlow = ({ householdId, members, currentMemberId, calendarKind = 'h
                       );
                     })}
                     {members.filter((m) => m.id !== currentMemberId).length === 0 && (
-                      <p className="text-base text-muted-foreground">Ingen andre medlemmer å dele med enda.</p>
+                      <p className="text-base text-muted-foreground">{t('event.noMembers')}</p>
                     )}
                   </div>
                   {selectedMemberIds.length === 0 && (
-                    <p className="text-base text-destructive mt-2">Velg minst én person for å fortsette.</p>
+                    <p className="text-base text-destructive mt-2">{t('event.pickOne')}</p>
                   )}
                 </div>
               )}
