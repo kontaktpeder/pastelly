@@ -26,6 +26,35 @@ export type PastellyEventRow = {
   updated_at: string;
 };
 
+export type EventAccessContext = {
+  memberId: string | null;
+  ownerMemberId: string | null;
+  visibilityType: string | null;
+  householdKind: string | null;
+  selectedMemberIds?: string[];
+};
+
+export function canMemberViewEvent(ctx: EventAccessContext): boolean {
+  if (!ctx.memberId) return false;
+  if (ctx.visibilityType === 'all_members') return true;
+  if (ctx.ownerMemberId === ctx.memberId) return true;
+  if (ctx.visibilityType === 'selected_members') {
+    return (ctx.selectedMemberIds ?? []).includes(ctx.memberId);
+  }
+  return false;
+}
+
+export function canMemberEditEvent(ctx: EventAccessContext): boolean {
+  if (!ctx.memberId) return false;
+  if (ctx.ownerMemberId === ctx.memberId) return true;
+  if (ctx.householdKind !== 'home' || ctx.visibilityType === 'private') return false;
+  if (ctx.visibilityType === 'all_members') return true;
+  if (ctx.visibilityType === 'selected_members') {
+    return (ctx.selectedMemberIds ?? []).includes(ctx.memberId);
+  }
+  return false;
+}
+
 export function jsonResponse(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {
     status,

@@ -4,6 +4,8 @@ import {
   HIEM_CALENDAR_SUMMARY_EN,
   HIEM_CALENDAR_SUMMARY_NB,
   DEFAULT_TZ,
+  canMemberEditEvent,
+  canMemberViewEvent,
   corsPreflight,
   decodeState,
   encodeState,
@@ -15,6 +17,31 @@ import {
 } from './googleCalendar.ts';
 
 type Admin = ReturnType<typeof createClient>;
+type GoogleConnection = {
+  id: string;
+  user_id: string;
+  household_id: string;
+  access_token: string;
+  refresh_token: string;
+  token_expires_at: string | null;
+  external_calendar_id: string;
+};
+type ExternalEventLink = {
+  id: string;
+  external_event_id: string;
+  connection_id: string;
+  external_calendar_connections: GoogleConnection;
+};
+type SyncEventRow = PastellyEventRow & {
+  owner_member_id: string | null;
+  visibility_type: string | null;
+  households?: { kind?: string | null } | { kind?: string | null }[] | null;
+};
+type GoogleEventResponse = {
+  id?: string;
+  etag?: string | null;
+  error?: { message?: string };
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsPreflight();
@@ -344,7 +371,7 @@ async function pushEvent(
 ) {
   const { data: event } = await admin
     .from('events')
-    .select('*')
+    .select('*, households(kind)')
     .eq('id', args.eventId)
     .maybeSingle();
 
@@ -357,7 +384,7 @@ async function pushEvent(
     // When event already deleted, links cascade-deleted. So callers should push before delete,
     // or we accept no-op. Prefer: look up by connection for soft path.
     if (!links?.length) return { ok: true, skipped: true, reason: 'no_link' };
-    for (const link of links as any[]) {
+    for (const link of (links ?? []) as ExternalEventLink[]) {
       const conn = link.external_calendar_connections;
       if (conn.user_id !== args.userId) continue;
       const access = await getValidAccessToken(admin, conn, args.clientId, args.clientSecret);
@@ -373,11 +400,17 @@ async function pushEvent(
     return { ok: true, deleted: true };
   }
 
+  const syncEvent = event as SyncEventRow;
+  const accessCtx = await loadEventAccess(admin, args.userId, syncEvent);
+  if (!canMemberViewEvent(accessCtx)) {
+    return { ok: true, skipped: true, reason: 'not_allowed' };
+  }
+
   const { data: conn } = await admin
     .from('external_calendar_connections')
     .select('*')
     .eq('user_id', args.userId)
-    .eq('household_id', event.household_id)
+    .eq('household_id', syncEvent.household_id)
     .eq('provider', 'google')
     .eq('sync_enabled', true)
     .maybeSingle();
@@ -386,9 +419,10 @@ async function pushEvent(
     return { ok: true, skipped: true, reason: 'not_connected' };
   }
 
-  const access = await getValidAccessToken(admin, conn as any, args.clientId, args.clientSecret);
-  const tz = await memberTimezone(admin, args.userId, event.household_id);
-  const body = eventToGoogleBody(event as PastellyEventRow, tz);
+  const connection = conn as GoogleConnection;
+  const access = await getValidAccessToken(admin, connection, args.clientId, args.clientSecret);
+  const tz = await memberTimezone(admin, args.userId, syncEvent.household_id);
+  const body = eventToGoogleBody(syncEvent, tz);
 
   const { data: existingLink } = await admin
     .from('external_event_links')
@@ -397,7 +431,7 @@ async function pushEvent(
     .eq('event_id', event.id)
     .maybeSingle();
 
-  let gEvent: any;
+  let gEvent: GoogleEventResponse;
   if (existingLink?.external_event_id) {
     const res = await fetch(
       `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(conn.external_calendar_id)}/events/${encodeURIComponent(existingLink.external_event_id)}`,
@@ -410,7 +444,7 @@ async function pushEvent(
         body: JSON.stringify(body),
       },
     );
-    gEvent = await res.json();
+    gEvent = (await res.json()) as GoogleEventResponse;
     if (!res.ok) throw new Error(gEvent.error?.message || 'Google update failed');
   } else {
     const res = await fetch(
@@ -424,14 +458,15 @@ async function pushEvent(
         body: JSON.stringify(body),
       },
     );
-    gEvent = await res.json();
+    gEvent = (await res.json()) as GoogleEventResponse;
     if (!res.ok) throw new Error(gEvent.error?.message || 'Google create failed');
   }
+  if (!gEvent.id) throw new Error('Google event response missing id');
 
   await admin.from('external_event_links').upsert(
     {
       connection_id: conn.id,
-      event_id: event.id,
+      event_id: syncEvent.id,
       external_event_id: gEvent.id,
       external_etag: gEvent.etag ?? null,
       last_pushed_at: new Date().toISOString(),
@@ -470,7 +505,7 @@ async function pullChanges(
     return { ok: true, skipped: true, reason: 'not_connected' };
   }
 
-  const access = await getValidAccessToken(admin, conn as any, args.clientId, args.clientSecret);
+  const access = await getValidAccessToken(admin, conn as GoogleConnection, args.clientId, args.clientSecret);
   const params = new URLSearchParams({
     singleEvents: 'true',
     showDeleted: 'true',
@@ -527,6 +562,11 @@ async function pullChanges(
           .eq('external_event_id', item.id)
           .maybeSingle();
         if (link?.event_id) {
+          const accessCtx = await loadEventAccessById(admin, args.userId, link.event_id);
+          if (!canMemberEditEvent(accessCtx)) {
+            await deleteExternalLink(admin, conn.id, item.id);
+            continue;
+          }
           await admin.from('events').delete().eq('id', link.event_id);
           removed += 1;
         }
@@ -542,6 +582,11 @@ async function pullChanges(
         .maybeSingle();
 
       if (link?.event_id) {
+        const accessCtx = await loadEventAccessById(admin, args.userId, link.event_id);
+        if (!canMemberEditEvent(accessCtx)) {
+          await deleteExternalLink(admin, conn.id, item.id);
+          continue;
+        }
         await admin
           .from('events')
           .update({
@@ -665,7 +710,7 @@ async function householdLocale(admin: Admin, householdId: string) {
     .select('locale')
     .eq('id', householdId)
     .maybeSingle();
-  return (data as any)?.locale === 'en' ? 'en' : 'nb';
+  return (data as { locale?: string | null } | null)?.locale === 'en' ? 'en' : 'nb';
 }
 
 async function memberTimezone(admin: Admin, userId: string, householdId: string) {
@@ -675,7 +720,7 @@ async function memberTimezone(admin: Admin, userId: string, householdId: string)
     .eq('user_id', userId)
     .eq('household_id', householdId)
     .maybeSingle();
-  return (data as any)?.timezone || DEFAULT_TZ;
+  return (data as { timezone?: string | null } | null)?.timezone || DEFAULT_TZ;
 }
 
 function appendQuery(base: string, params: Record<string, string>) {
@@ -686,4 +731,65 @@ function appendQuery(base: string, params: Record<string, string>) {
   } catch {
     return `https://pastelly.no/?google=${params.google || 'error'}`;
   }
+}
+
+async function loadEventAccessById(
+  admin: Admin,
+  userId: string,
+  eventId: string,
+) {
+  const { data: event } = await admin
+    .from('events')
+    .select('id, household_id, owner_member_id, visibility_type, households(kind)')
+    .eq('id', eventId)
+    .maybeSingle();
+
+  return loadEventAccess(admin, userId, event as SyncEventRow | null);
+}
+
+async function loadEventAccess(admin: Admin, userId: string, event: SyncEventRow | null) {
+  if (!event?.household_id) {
+    return {
+      memberId: null,
+      ownerMemberId: null,
+      visibilityType: null,
+      householdKind: null,
+      selectedMemberIds: [],
+    };
+  }
+
+  const { data: member } = await admin
+    .from('household_members')
+    .select('id')
+    .eq('household_id', event.household_id)
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  let selectedMemberIds: string[] = [];
+  if (member?.id && event.visibility_type === 'selected_members') {
+    const { data: rows } = await admin
+      .from('event_visible_members')
+      .select('member_id')
+      .eq('event_id', event.id)
+      .eq('member_id', member.id);
+    selectedMemberIds = (rows ?? []).map((row: { member_id: string }) => row.member_id);
+  }
+
+  const household = Array.isArray(event.households) ? event.households[0] : event.households;
+  return {
+    memberId: member?.id ?? null,
+    ownerMemberId: event.owner_member_id ?? null,
+    visibilityType: event.visibility_type ?? null,
+    householdKind: household?.kind ?? null,
+    selectedMemberIds,
+  };
+}
+
+async function deleteExternalLink(admin: Admin, connectionId: string, externalEventId: string) {
+  await admin
+    .from('external_event_links')
+    .delete()
+    .eq('connection_id', connectionId)
+    .eq('external_event_id', externalEventId);
 }
