@@ -94,8 +94,7 @@ export function localDateTimeToRfc3339(
     Number(parts.second),
   );
   const offsetMs = asUtc - guess;
-  const corrected = new Date(guess - offsetMs);
-  const offMin = -Math.round(offsetMs / 60000);
+  const offMin = Math.round(offsetMs / 60000);
   const sign = offMin >= 0 ? '+' : '-';
   const abs = Math.abs(offMin);
   const off = `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
