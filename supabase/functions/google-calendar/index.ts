@@ -10,6 +10,8 @@ import {
   eventToGoogleBody,
   googleEventToPastellyPatch,
   jsonResponse,
+  memberCanDeleteEvent,
+  memberCanViewEvent,
   routeAfterFunction,
   type PastellyEventRow,
 } from './googleCalendar.ts';
@@ -137,7 +139,7 @@ Deno.serve(async (req) => {
         clientId,
         clientSecret,
       });
-      return jsonResponse(result, result.ok ? 200 : 400);
+      return jsonResponse(result, result.ok ? 200 : (result.status ?? 400));
     }
 
     if (action === 'pull') {
@@ -386,6 +388,11 @@ async function pushEvent(
     return { ok: true, skipped: true, reason: 'not_connected' };
   }
 
+  const viewOk = await userCanViewEvent(admin, args.userId, event as PastellyEventRow);
+  if (!viewOk) {
+    return { ok: false, error: 'Forbidden', status: 403 };
+  }
+
   const access = await getValidAccessToken(admin, conn as any, args.clientId, args.clientSecret);
   const tz = await memberTimezone(admin, args.userId, event.household_id);
   const body = eventToGoogleBody(event as PastellyEventRow, tz);
@@ -527,7 +534,23 @@ async function pullChanges(
           .eq('external_event_id', item.id)
           .maybeSingle();
         if (link?.event_id) {
-          await admin.from('events').delete().eq('id', link.event_id);
+          const { data: event } = await admin
+            .from('events')
+            .select('id, owner_member_id')
+            .eq('id', link.event_id)
+            .maybeSingle();
+          if (
+            event &&
+            memberCanDeleteEvent(member.id, event as Pick<PastellyEventRow, 'owner_member_id'>)
+          ) {
+            await admin.from('events').delete().eq('id', link.event_id);
+          } else {
+            await admin
+              .from('external_event_links')
+              .delete()
+              .eq('connection_id', conn.id)
+              .eq('external_event_id', item.id);
+          }
           removed += 1;
         }
         continue;
@@ -657,6 +680,27 @@ async function userIsMember(admin: Admin, userId: string, householdId: string) {
     .eq('household_id', householdId)
     .maybeSingle();
   return !!data;
+}
+
+async function userCanViewEvent(admin: Admin, userId: string, event: PastellyEventRow) {
+  const { data: member } = await admin
+    .from('household_members')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('household_id', event.household_id)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (!member) return false;
+  if (memberCanViewEvent(member.id, event)) return true;
+  if (event.visibility_type !== 'selected_members') return false;
+
+  const { data: selected } = await admin
+    .from('event_visible_members')
+    .select('member_id')
+    .eq('event_id', event.id)
+    .eq('member_id', member.id)
+    .maybeSingle();
+  return memberCanViewEvent(member.id, event, selected?.member_id ? [selected.member_id] : []);
 }
 
 async function householdLocale(admin: Admin, householdId: string) {

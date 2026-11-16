@@ -15,6 +15,7 @@ export const HIEM_CALENDAR_SUMMARY_EN = 'Home';
 export type PastellyEventRow = {
   id: string;
   household_id: string;
+  owner_member_id: string;
   title: string;
   event_date: string;
   end_date: string | null;
@@ -23,8 +24,29 @@ export type PastellyEventRow = {
   day_part: string;
   location: string | null;
   notes: string | null;
+  visibility_type: string | null;
   updated_at: string;
 };
+
+export function memberCanViewEvent(
+  memberId: string,
+  event: Pick<PastellyEventRow, 'owner_member_id' | 'visibility_type'>,
+  selectedMemberIds: string[] = [],
+): boolean {
+  if (event.visibility_type === 'all_members') return true;
+  if (event.owner_member_id === memberId) return true;
+  if (event.visibility_type === 'selected_members') {
+    return selectedMemberIds.includes(memberId);
+  }
+  return false;
+}
+
+export function memberCanDeleteEvent(
+  memberId: string,
+  event: Pick<PastellyEventRow, 'owner_member_id'>,
+): boolean {
+  return event.owner_member_id === memberId;
+}
 
 export function jsonResponse(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {
