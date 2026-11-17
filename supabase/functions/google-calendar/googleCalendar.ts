@@ -15,6 +15,7 @@ export const HIEM_CALENDAR_SUMMARY_EN = 'Home';
 export type PastellyEventRow = {
   id: string;
   household_id: string;
+  owner_member_id?: string | null;
   title: string;
   event_date: string;
   end_date: string | null;
@@ -24,7 +25,39 @@ export type PastellyEventRow = {
   location: string | null;
   notes: string | null;
   updated_at: string;
+  visibility_type?: string | null;
 };
+
+export type EventAccessShape = {
+  owner_member_id?: string | null;
+  visibility_type?: string | null;
+};
+
+export function memberCanViewEvent(
+  event: EventAccessShape,
+  memberId: string,
+  visibleMemberIds: readonly string[] = [],
+): boolean {
+  if (event.visibility_type === 'all_members') return true;
+  if (event.visibility_type === 'private') return event.owner_member_id === memberId;
+  if (event.visibility_type === 'selected_members') {
+    return event.owner_member_id === memberId || visibleMemberIds.includes(memberId);
+  }
+  return false;
+}
+
+export function memberCanEditEvent(
+  event: EventAccessShape,
+  householdKind: string | null | undefined,
+  memberId: string,
+  visibleMemberIds: readonly string[] = [],
+): boolean {
+  if (event.owner_member_id === memberId) return true;
+  if (householdKind !== 'home' || event.visibility_type === 'private') return false;
+  if (event.visibility_type === 'all_members') return true;
+  if (event.visibility_type === 'selected_members') return visibleMemberIds.includes(memberId);
+  return false;
+}
 
 export function jsonResponse(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {
