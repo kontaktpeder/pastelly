@@ -31,6 +31,7 @@ import GoogleCalendarConnect from '@/components/GoogleCalendarConnect';
 import { AppLocaleSettings, CalendarLocaleSettings } from '@/components/LocaleSettings';
 import AgentApiSettings from '@/components/AgentApiSettings';
 import CenteredPopup from '@/components/CenteredPopup';
+import SendMemberNote from '@/components/SendMemberNote';
 import { useLocale } from '@/hooks/useLocale';
 import { defaultLocaleForKind } from '@/lib/i18n/types';
 import { getMonthTheme, withAlpha } from '@/lib/monthTheme';
@@ -114,6 +115,7 @@ const ProfileSheet = ({
   const [workOrgId, setWorkOrgId] = useState(household.work_organization_id ?? '');
   const [workOrgError, setWorkOrgError] = useState('');
   const [workOrgSaved, setWorkOrgSaved] = useState(false);
+  const [noteTo, setNoteTo] = useState<HouseholdMember | null>(null);
 
   const saveWorkOrg = useMutation({
     mutationFn: async () => {
@@ -425,17 +427,43 @@ const ProfileSheet = ({
                 <p className="font-calendar text-[0.68rem] font-bold uppercase tracking-[0.18em]" style={{ color: theme.base }}>
                   {t('profile.members')}
                 </p>
-                {members.map((m) => (
-                  <div key={m.id} className="flex items-center gap-3 border-b py-3" style={{ borderColor: rule }}>
-                    <MemberAvatar member={m} size="sm" />
-                    <div>
-                      <p className="font-medium text-base">{m.display_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {m.role === 'owner' ? t('common.owner') : t('common.member')}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                {members.map((m) => {
+                  const isSelf = m.id === currentMember.id;
+                  const row = (
+                    <>
+                      <MemberAvatar member={m} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-base">{m.display_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {m.role === 'owner' ? t('common.owner') : t('common.member')}
+                        </p>
+                      </div>
+                      {!isSelf && (
+                        <span className="shrink-0 text-sm font-medium" style={{ color: theme.base }}>
+                          {t('note.send')}
+                        </span>
+                      )}
+                    </>
+                  );
+                  if (isSelf) {
+                    return (
+                      <div key={m.id} className="flex items-center gap-3 border-b py-3" style={{ borderColor: rule }}>
+                        {row}
+                      </div>
+                    );
+                  }
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setNoteTo(m)}
+                      className="flex w-full items-center gap-3 border-b py-3 text-left"
+                      style={{ borderColor: rule }}
+                    >
+                      {row}
+                    </button>
+                  );
+                })}
               </section>
 
               {isWorkCalendar && (
@@ -863,6 +891,14 @@ const ProfileSheet = ({
         )}
       </AnimatePresence>
     </CenteredPopup>
+    {noteTo && (
+      <SendMemberNote
+        householdId={household.id}
+        fromMemberId={currentMember.id}
+        toMember={noteTo}
+        onClose={() => setNoteTo(null)}
+      />
+    )}
     </>
   );
 };
