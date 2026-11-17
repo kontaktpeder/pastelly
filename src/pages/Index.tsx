@@ -37,6 +37,8 @@ import type { Event } from '@/hooks/useEvents';
 import { tryOpenSheet } from '@/lib/sheetGate';
 import { markAppReady } from '@/lib/native/appBoot';
 import BootVeil from '@/components/BootVeil';
+import { MemberNoteHost } from '@/components/MemberNoteCard';
+import { useUnreadMemberNotes } from '@/hooks/useMemberNotes';
 import { peekPendingOpenDay, subscribePendingOpenDay } from '@/lib/native/pendingOpenDay';
 import { pullGoogleCalendar } from '@/lib/googleCalendarSync';
 import { APP_LOCALE_STORAGE_KEY } from '@/lib/i18n/types';
@@ -94,6 +96,11 @@ const Index = () => {
     () => sortCalendarMemberships(memberships),
     [memberships],
   );
+  const noteMemberIds = useMemo(
+    () => orderedMemberships.map((membership) => membership.id),
+    [orderedMemberships],
+  );
+  const { data: unreadNotes = [] } = useUnreadMemberNotes(noteMemberIds);
 
   const selectCalendar = useCallback(
     (id: string, direction?: number) => {
@@ -538,6 +545,18 @@ const Index = () => {
             tryOpenSheet(() => setEditEvent(ev));
           }}
         />
+      )}
+
+      {bootPhase === 'done'
+        && !welcomeDialog
+        && !profileMode
+        && !showNewEvent
+        && !editEvent
+        && !quickEditEvent
+        && !showImageImport
+        && !showSeedWeek
+        && unreadNotes.length > 0 && (
+        <MemberNoteHost notes={unreadNotes} />
       )}
 
       {profileMode && (

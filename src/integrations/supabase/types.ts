@@ -1021,6 +1021,61 @@ export type Database = {
           },
         ]
       }
+      member_notes: {
+        Row: {
+          body: string
+          created_at: string
+          emoji: string
+          from_member_id: string
+          household_id: string
+          id: string
+          read_at: string | null
+          to_member_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          emoji?: string
+          from_member_id: string
+          household_id: string
+          id?: string
+          read_at?: string | null
+          to_member_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          emoji?: string
+          from_member_id?: string
+          household_id?: string
+          id?: string
+          read_at?: string | null
+          to_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_notes_from_member_id_fkey"
+            columns: ["from_member_id"]
+            isOneToOne: false
+            referencedRelation: "household_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_notes_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_notes_to_member_id_fkey"
+            columns: ["to_member_id"]
+            isOneToOne: false
+            referencedRelation: "household_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_preferences: {
         Row: {
           app_locale: string
