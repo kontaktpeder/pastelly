@@ -12,9 +12,35 @@ import {
   jsonResponse,
   routeAfterFunction,
   type PastellyEventRow,
+  userCanEditSyncedEvent,
+  userCanViewSyncedEvent,
 } from './googleCalendar.ts';
 
 type Admin = ReturnType<typeof createClient>;
+
+type ExternalCalendarConnection = {
+  id: string;
+  user_id: string;
+  household_id: string;
+  access_token: string;
+  refresh_token: string;
+  token_expires_at: string | null;
+  external_calendar_id: string;
+  sync_token: string | null;
+};
+
+type ExternalEventLink = {
+  id: string;
+  event_id: string;
+  external_event_id: string;
+  external_calendar_connections: ExternalCalendarConnection;
+};
+
+type GoogleEventWriteResponse = {
+  id?: string;
+  etag?: string | null;
+  error?: { message?: string };
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsPreflight();
@@ -357,7 +383,7 @@ async function pushEvent(
     // When event already deleted, links cascade-deleted. So callers should push before delete,
     // or we accept no-op. Prefer: look up by connection for soft path.
     if (!links?.length) return { ok: true, skipped: true, reason: 'no_link' };
-    for (const link of links as any[]) {
+    for (const link of links as ExternalEventLink[]) {
       const conn = link.external_calendar_connections;
       if (conn.user_id !== args.userId) continue;
       const access = await getValidAccessToken(admin, conn, args.clientId, args.clientSecret);
@@ -373,6 +399,12 @@ async function pushEvent(
     return { ok: true, deleted: true };
   }
 
+  const memberIds = await activeMemberIds(admin, args.userId, event.household_id);
+  const visibleMemberIds = await eventVisibleMemberIds(admin, event.id);
+  if (!userCanViewSyncedEvent(event as PastellyEventRow, memberIds, visibleMemberIds)) {
+    return { ok: true, skipped: true, reason: 'not_visible' };
+  }
+
   const { data: conn } = await admin
     .from('external_calendar_connections')
     .select('*')
@@ -386,7 +418,12 @@ async function pushEvent(
     return { ok: true, skipped: true, reason: 'not_connected' };
   }
 
-  const access = await getValidAccessToken(admin, conn as any, args.clientId, args.clientSecret);
+  const access = await getValidAccessToken(
+    admin,
+    conn as ExternalCalendarConnection,
+    args.clientId,
+    args.clientSecret,
+  );
   const tz = await memberTimezone(admin, args.userId, event.household_id);
   const body = eventToGoogleBody(event as PastellyEventRow, tz);
 
@@ -397,7 +434,7 @@ async function pushEvent(
     .eq('event_id', event.id)
     .maybeSingle();
 
-  let gEvent: any;
+  let gEvent: GoogleEventWriteResponse;
   if (existingLink?.external_event_id) {
     const res = await fetch(
       `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(conn.external_calendar_id)}/events/${encodeURIComponent(existingLink.external_event_id)}`,
@@ -470,7 +507,12 @@ async function pullChanges(
     return { ok: true, skipped: true, reason: 'not_connected' };
   }
 
-  const access = await getValidAccessToken(admin, conn as any, args.clientId, args.clientSecret);
+  const access = await getValidAccessToken(
+    admin,
+    conn as ExternalCalendarConnection,
+    args.clientId,
+    args.clientSecret,
+  );
   const params = new URLSearchParams({
     singleEvents: 'true',
     showDeleted: 'true',
@@ -499,6 +541,7 @@ async function pullChanges(
     .select('id, timezone')
     .eq('household_id', args.householdId)
     .eq('user_id', args.userId)
+    .eq('is_active', true)
     .maybeSingle();
 
   if (!member) return { ok: false, error: 'not_a_member' };
@@ -527,8 +570,11 @@ async function pullChanges(
           .eq('external_event_id', item.id)
           .maybeSingle();
         if (link?.event_id) {
-          await admin.from('events').delete().eq('id', link.event_id);
-          removed += 1;
+          const event = await eventForSync(admin, link.event_id);
+          if (event && userCanEditSyncedEvent(event, [member.id])) {
+            await admin.from('events').delete().eq('id', link.event_id);
+            removed += 1;
+          }
         }
         continue;
       }
@@ -542,30 +588,33 @@ async function pullChanges(
         .maybeSingle();
 
       if (link?.event_id) {
-        await admin
-          .from('events')
-          .update({
-            title: patch.title,
-            event_date: patch.event_date,
-            end_date: patch.end_date,
-            start_time: patch.start_time,
-            end_time: patch.end_time,
-            day_part: patch.day_part,
-            location: patch.location,
-            notes: patch.notes,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', link.event_id);
-        await admin
-          .from('external_event_links')
-          .update({
-            external_etag: item.etag ?? null,
-            last_pulled_at: new Date().toISOString(),
-            last_source: 'google',
-          })
-          .eq('connection_id', conn.id)
-          .eq('external_event_id', item.id);
-        updated += 1;
+        const event = await eventForSync(admin, link.event_id);
+        if (event && userCanEditSyncedEvent(event, [member.id])) {
+          await admin
+            .from('events')
+            .update({
+              title: patch.title,
+              event_date: patch.event_date,
+              end_date: patch.end_date,
+              start_time: patch.start_time,
+              end_time: patch.end_time,
+              day_part: patch.day_part,
+              location: patch.location,
+              notes: patch.notes,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', link.event_id);
+          await admin
+            .from('external_event_links')
+            .update({
+              external_etag: item.etag ?? null,
+              last_pulled_at: new Date().toISOString(),
+              last_source: 'google',
+            })
+            .eq('connection_id', conn.id)
+            .eq('external_event_id', item.id);
+          updated += 1;
+        }
       } else {
         const { data: created, error } = await admin
           .from('events')
@@ -649,12 +698,40 @@ async function backfillPush(
   }
 }
 
+async function activeMemberIds(admin: Admin, userId: string, householdId: string) {
+  const { data } = await admin
+    .from('household_members')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('household_id', householdId)
+    .eq('is_active', true);
+  return (data || []).map((row: { id: string }) => row.id);
+}
+
+async function eventVisibleMemberIds(admin: Admin, eventId: string) {
+  const { data } = await admin
+    .from('event_visible_members')
+    .select('member_id')
+    .eq('event_id', eventId);
+  return (data || []).map((row: { member_id: string }) => row.member_id);
+}
+
+async function eventForSync(admin: Admin, eventId: string) {
+  const { data } = await admin
+    .from('events')
+    .select('id, household_id, owner_member_id, visibility_type')
+    .eq('id', eventId)
+    .maybeSingle();
+  return data as PastellyEventRow | null;
+}
+
 async function userIsMember(admin: Admin, userId: string, householdId: string) {
   const { data } = await admin
     .from('household_members')
     .select('id')
     .eq('user_id', userId)
     .eq('household_id', householdId)
+    .eq('is_active', true)
     .maybeSingle();
   return !!data;
 }
@@ -665,7 +742,7 @@ async function householdLocale(admin: Admin, householdId: string) {
     .select('locale')
     .eq('id', householdId)
     .maybeSingle();
-  return (data as any)?.locale === 'en' ? 'en' : 'nb';
+  return (data as { locale?: string } | null)?.locale === 'en' ? 'en' : 'nb';
 }
 
 async function memberTimezone(admin: Admin, userId: string, householdId: string) {
@@ -674,8 +751,9 @@ async function memberTimezone(admin: Admin, userId: string, householdId: string)
     .select('timezone')
     .eq('user_id', userId)
     .eq('household_id', householdId)
+    .eq('is_active', true)
     .maybeSingle();
-  return (data as any)?.timezone || DEFAULT_TZ;
+  return (data as { timezone?: string | null } | null)?.timezone || DEFAULT_TZ;
 }
 
 function appendQuery(base: string, params: Record<string, string>) {

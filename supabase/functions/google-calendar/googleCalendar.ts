@@ -15,16 +15,40 @@ export const HIEM_CALENDAR_SUMMARY_EN = 'Home';
 export type PastellyEventRow = {
   id: string;
   household_id: string;
+  owner_member_id: string | null;
   title: string;
   event_date: string;
   end_date: string | null;
   start_time: string | null;
   end_time: string | null;
   day_part: string;
+  visibility_type?: string | null;
   location: string | null;
   notes: string | null;
   updated_at: string;
 };
+
+export function userCanViewSyncedEvent(
+  event: Pick<PastellyEventRow, 'owner_member_id' | 'visibility_type'>,
+  viewerMemberIds: string[],
+  visibleMemberIds: string[] = [],
+): boolean {
+  const viewers = new Set(viewerMemberIds);
+  const ownerId = event.owner_member_id ?? '';
+  if (!ownerId || viewers.size === 0) return false;
+  if (event.visibility_type === 'private') return viewers.has(ownerId);
+  if (event.visibility_type === 'selected_members') {
+    return viewers.has(ownerId) || visibleMemberIds.some((id) => viewers.has(id));
+  }
+  return true;
+}
+
+export function userCanEditSyncedEvent(
+  event: Pick<PastellyEventRow, 'owner_member_id'>,
+  viewerMemberIds: string[],
+): boolean {
+  return !!event.owner_member_id && viewerMemberIds.includes(event.owner_member_id);
+}
 
 export function jsonResponse(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {
